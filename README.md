@@ -1,2 +1,2 @@
-# cs_electric_agentic_system
+# CS Electric Client Support Agent
 A fully agentic framework for a client support system for the company CS electric
