@@ -16,7 +16,7 @@ _NUMBER = re.compile(
     r"(?<![\w.])(-?\d+(?:\.\d+)?)\s*(kA|A|kW|W|V|kV|Hz|kHz)?\b",
     re.IGNORECASE,
 )
-_SENTENCE = re.compile(r"[^.!?\n]+(?:[.!?]+|$)")
+_SENTENCE_BOUNDARY = re.compile(r"(?<=[!?])\s+|(?<!\d)\.(?!\d)\s*|\n+")
 _UNITS = {
     "a": ("A", 1.0),
     "ka": ("A", 1000.0),
@@ -34,6 +34,10 @@ class FidelityResult:
     passed: bool
     errors: list[str]
     unsupported_sentences: list[str]
+
+
+def _sentences(text: str) -> list[str]:
+    return [part.strip() for part in _SENTENCE_BOUNDARY.split(text) if part.strip()]
 
 
 def _normalise(value: float, unit: str | None) -> tuple[float, str | None]:
@@ -95,10 +99,7 @@ def validate_numeric_fidelity(
     family_ids = [item["family_id"] for item in evidence if item["family_id"]]
     errors: list[str] = []
     unsupported: list[str] = []
-    for match in _SENTENCE.finditer(draft):
-        original = match.group(0).strip()
-        if not original:
-            continue
+    for original in _sentences(draft):
         cleaned = _STANDARD.sub("", original)
         cleaned = _CODE.sub("", cleaned)
         for family_id in family_ids:
@@ -123,12 +124,10 @@ def strip_unsupported_sentences(
     draft: str, unsupported_sentences: list[str]
 ) -> str:
     unsupported = {sentence.strip() for sentence in unsupported_sentences}
-    kept = [
-        match.group(0).strip()
-        for match in _SENTENCE.finditer(draft)
-        if match.group(0).strip() not in unsupported
-    ]
-    answer = " ".join(kept).strip()
+    kept = [sentence for sentence in _sentences(draft) if sentence not in unsupported]
+    answer = ". ".join(kept).strip()
+    if answer and draft.strip().endswith("."):
+        answer += "."
     caveat = (
         "Some numeric statements were removed because the available catalogue "
         "evidence could not verify them."

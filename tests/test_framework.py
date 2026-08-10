@@ -6,6 +6,7 @@ from cs_agent.backends import FixturesBackend, PostgresBackend
 from cs_agent.graph import build_graph
 from cs_agent.graph.state import Evidence
 from cs_agent.tools.impl import backend, reset_backend
+from cs_agent.tools.registry import TOOLS_BY_NAME
 from cs_agent.validation.numeric_fidelity import validate_numeric_fidelity
 
 
@@ -49,6 +50,22 @@ class FixturesBackendTests(unittest.TestCase):
         self.assertEqual(len(result["rows"]), 2)
         self.assertIn("error", self.catalog.execute_sql("DELETE FROM families"))
 
+    def test_structured_product_search_tool(self):
+        result = TOOLS_BY_NAME["product_search"].invoke(
+            {
+                "category": "switching/contactor",
+                "filters": [
+                    {
+                        "canonical_fact_id": "motor_power_kw",
+                        "operator": "gte",
+                        "value_num": 7.5,
+                        "conditions": {"voltage_v": 415},
+                    }
+                ],
+            }
+        )
+        self.assertEqual(result["count"], 2)
+
 
 class BoundaryTests(unittest.TestCase):
     def test_postgres_is_explicitly_pending(self):
@@ -88,6 +105,26 @@ class GraphAndValidationTests(unittest.TestCase):
         invalid = validate_numeric_fidelity("It provides 36 kA.", evidence)
         self.assertTrue(valid.passed)
         self.assertFalse(invalid.passed)
+
+    def test_decimal_claim_is_not_split_as_two_sentences(self):
+        evidence: list[Evidence] = [
+            {
+                "tool": "get_product",
+                "family_id": "EXAMPLE-2",
+                "canonical_fact_id": "power",
+                "value_num": 7.5,
+                "value_text": None,
+                "unit": "kW",
+                "conditions": {},
+                "doc": None,
+                "page": None,
+            }
+        ]
+        self.assertTrue(
+            validate_numeric_fidelity(
+                "EXAMPLE-2 is rated at 7.5 kW.", evidence
+            ).passed
+        )
 
 
 if __name__ == "__main__":
