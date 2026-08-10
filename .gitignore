@@ -203,6 +203,12 @@ cython_debug/
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
 
+# cursor files
+.cursor/
+
+# claude files
+CLAUDE.md
+
 # Ruff stuff:
 .ruff_cache/
 
