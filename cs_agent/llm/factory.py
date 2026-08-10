@@ -1,4 +1,4 @@
-"""Configuration-driven construction of OpenAI-compatible chat models."""
+"""Model factory: one ChatOpenAI path for all endpoints."""
 
 from __future__ import annotations
 
@@ -9,61 +9,86 @@ from typing import Any
 
 import yaml
 from langchain_openai import ChatOpenAI
-
-CONFIG_PATH = Path(__file__).parents[1] / "config" / "endpoints.yaml"
-
-
-@lru_cache(maxsize=1)
-def _config() -> dict[str, Any]:
-    with CONFIG_PATH.open(encoding="utf-8") as stream:
-        return yaml.safe_load(stream)
+from pydantic import BaseModel
 
 
-def _model_overrides() -> dict[str, str]:
-    value = os.getenv("CS_MODELS", "")
+class EndpointConfig(BaseModel):
+    base_url: str
+    model: str
+    api_key_env: str
+    temperature: float | None = None
+    max_tokens: int = 4096
+    timeout: float | None = 120.0
+    extra_body: dict[str, Any] | None = None
+
+
+class EndpointsFile(BaseModel):
+    endpoints: dict[str, EndpointConfig]
+    nodes: dict[str, str]
+
+
+_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "endpoints.yaml"
+
+
+def _load_config() -> EndpointsFile:
+    with open(_CONFIG_PATH, encoding="utf-8") as f:
+        raw = yaml.safe_load(f)
+    return EndpointsFile.model_validate(raw)
+
+
+def _parse_cs_models_override() -> dict[str, str]:
+    """Parse CS_MODELS=all:qwen_27b or CS_MODELS=agent:qwen_a3b,composer:qwen_27b."""
+    raw = os.environ.get("CS_MODELS", "").strip()
+    if not raw:
+        return {}
     overrides: dict[str, str] = {}
-    for item in filter(None, (part.strip() for part in value.split(","))):
-        if ":" not in item:
-            raise ValueError(f"Invalid CS_MODELS entry {item!r}; expected node:model")
-        node, model = item.split(":", 1)
-        overrides[node.strip()] = model.strip()
+    for part in raw.split(","):
+        part = part.strip()
+        if not part or ":" not in part:
+            continue
+        node, endpoint = part.split(":", 1)
+        overrides[node.strip()] = endpoint.strip()
     return overrides
 
 
+def resolve_endpoint(node: str) -> EndpointConfig:
+    cfg = _load_config()
+    overrides = _parse_cs_models_override()
+    if "all" in overrides:
+        endpoint_name = overrides["all"]
+    elif node in overrides:
+        endpoint_name = overrides[node]
+    else:
+        if node not in cfg.nodes:
+            raise KeyError(f"No endpoint mapping for node '{node}' in endpoints.yaml")
+        endpoint_name = cfg.nodes[node]
+    if endpoint_name not in cfg.endpoints:
+        raise KeyError(f"Unknown endpoint '{endpoint_name}' for node '{node}'")
+    return cfg.endpoints[endpoint_name]
+
+
+def _accepts_temperature(ep: EndpointConfig) -> bool:
+    # Claude Sonnet 4.8+ rejects requests that carry `temperature`.
+    return "api.anthropic.com" not in ep.base_url
+
+
+@lru_cache(maxsize=None)
 def get_model(node: str) -> ChatOpenAI:
-    """Return the configured model for a graph node.
-
-    ``CS_MODELS`` accepts either ``all:qwen_27b`` or comma-separated
-    node-specific mappings such as ``agent:qwen_a3b,composer:qwen_27b``.
-    """
-
-    config = _config()
-    overrides = _model_overrides()
-    model_key = overrides.get(node, overrides.get("all", config["nodes"].get(node)))
-    if not model_key:
-        model_key = config["defaults"]["model"]
-    if model_key not in config["models"]:
-        raise ValueError(f"Unknown model alias {model_key!r}")
-
-    model_config = config["models"][model_key]
-    endpoint_key = model_config.get("endpoint", config["defaults"]["endpoint"])
-    endpoint = config["endpoints"][endpoint_key]
-    api_key = os.getenv(endpoint.get("api_key_env", "CS_API_KEY")) or os.getenv(
-        "OPENAI_API_KEY"
-    )
-    base_url = os.getenv(endpoint.get("base_url_env", "CS_BASE_URL"))
-    if not api_key:
-        # ChatOpenAI validates eagerly. A harmless placeholder permits graph
-        # construction and offline backend tests without making a request.
-        api_key = "not-configured"
-
+    ep = resolve_endpoint(node)
+    api_key = os.environ.get(ep.api_key_env) or "missing-api-key"
     kwargs: dict[str, Any] = {
-        "model": model_config["model_name"],
+        "model": ep.model,
+        "base_url": ep.base_url,
         "api_key": api_key,
-        "temperature": model_config.get(
-            "temperature", config["defaults"].get("temperature", 0)
-        ),
+        "max_tokens": ep.max_tokens,
+        "extra_body": ep.extra_body or {},
+        "timeout": ep.timeout,
+        "max_retries": 3,
     }
-    if base_url:
-        kwargs["base_url"] = base_url
+    if ep.temperature is not None and _accepts_temperature(ep):
+        kwargs["temperature"] = ep.temperature
     return ChatOpenAI(**kwargs)
+
+
+def clear_model_cache() -> None:
+    get_model.cache_clear()

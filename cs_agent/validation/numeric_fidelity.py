@@ -129,7 +129,6 @@ def strip_unsupported_sentences(
     if answer and draft.strip().endswith("."):
         answer += "."
     caveat = (
-        "Some numeric statements were removed because the available catalogue "
-        "evidence could not verify them."
+        "Some figures could not be verified against the catalogue and were removed."
     )
     return f"{answer}\n\n{caveat}".strip()

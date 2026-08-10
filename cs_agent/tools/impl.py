@@ -18,26 +18,49 @@ def reset_backend() -> None:
     backend.cache_clear()
 
 
-def list_categories() -> list[dict[str, Any]]:
-    return backend().list_categories()
+def list_canonical_facts(category_path: str | None = None) -> list[dict[str, Any]]:
+    return backend().list_canonical_facts(category_path)
 
 
-def list_facts(category: str) -> list[dict[str, Any]]:
-    return backend().list_facts(category)
+def taxonomy_browse(node_id: str | None = None, depth: int = 1) -> dict[str, Any]:
+    return backend().taxonomy_browse(node_id, depth)
 
 
-def product_search(category: str, filters: list[dict[str, Any]]) -> dict[str, Any]:
-    normalized = [
-        item.model_dump() if hasattr(item, "model_dump") else item for item in filters
-    ]
-    return backend().product_search(category, normalized)
+def product_search(
+    category_path: str,
+    filters: list[Any] | None = None,
+    text: str | None = None,
+    limit: int = 20,
+) -> list[dict[str, Any]] | dict[str, Any]:
+    normalized = []
+    for item in filters or []:
+        data = item.model_dump() if hasattr(item, "model_dump") else dict(item)
+        normalized.append(data)
+    return backend().product_search(
+        category_path=category_path,
+        filters=normalized,
+        text=text,
+        limit=limit,
+    )
 
 
-def get_product(family_id: str) -> dict[str, Any]:
-    return backend().get_product(family_id)
+def get_product(
+    family_id: str,
+    fact_groups: list[str],
+    include_variants: bool = False,
+) -> dict[str, Any]:
+    return backend().get_product(family_id, fact_groups, include_variants)
 
 
 def search_documents(
-    query: str, family_id: str | None = None, limit: int = 5
+    query: str,
+    category_path: str | None = None,
+    family_id: str | None = None,
+    k: int = 6,
 ) -> list[dict[str, Any]]:
-    return backend().search_documents(query, family_id, limit)
+    return backend().search_documents(
+        query=query,
+        category_path=category_path,
+        family_id=family_id,
+        k=k,
+    )

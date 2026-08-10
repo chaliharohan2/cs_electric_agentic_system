@@ -1,4 +1,4 @@
-"""Future PostgreSQL catalogue adapter."""
+"""Future PostgreSQL catalogue adapter — schema not yet available."""
 
 from __future__ import annotations
 
@@ -6,36 +6,28 @@ from typing import Any
 
 
 class PostgresBackend:
-    """Schema-bound backend placeholder.
-
-    The production database schema is intentionally not guessed. Every method
-    documents its future return contract and fails explicitly.
-    """
-
-    def list_categories(self) -> list[dict[str, Any]]:
-        """Return category records containing id, name, and description."""
+    def list_canonical_facts(self, category_path: str | None) -> list[dict]:
+        """Return fact definitions with id, unit, value_type, condition_keys."""
         raise NotImplementedError("SCHEMA_PENDING")
 
-    def list_facts(self, category: str) -> list[dict[str, Any]]:
-        """Return canonical fact definitions including condition_keys."""
+    def taxonomy_browse(self, node_id: str | None, depth: int) -> dict:
+        """Return ``{"node_id", "children": [{"id", "name", "product_count", ...}]}``."""
         raise NotImplementedError("SCHEMA_PENDING")
 
-    def product_search(
-        self, category: str, filters: list[dict[str, Any]]
-    ) -> dict[str, Any]:
-        """Return a mapping with a products list or an error string."""
+    def product_search(self, **kw: Any) -> list[dict] | dict:
+        """Return a list of family summaries matching filters, or an error mapping."""
         raise NotImplementedError("SCHEMA_PENDING")
 
-    def get_product(self, family_id: str) -> dict[str, Any]:
-        """Return a family record with variants and canonical facts."""
+    def get_product(
+        self, family_id: str, fact_groups: list[str], include_variants: bool
+    ) -> dict:
+        """Return family detail with facts grouped by area and optional variants."""
         raise NotImplementedError("SCHEMA_PENDING")
 
-    def search_documents(
-        self, query: str, family_id: str | None = None, limit: int = 5
-    ) -> list[dict[str, Any]]:
-        """Return document chunks with family_id, doc, page, and text."""
+    def search_documents(self, **kw: Any) -> list[dict]:
+        """Return ranked chunks: family_id, doc, page, text, score."""
         raise NotImplementedError("SCHEMA_PENDING")
 
-    def execute_sql(self, sql: str) -> dict[str, Any]:
+    def execute_sql(self, sql: str) -> dict:
         """Return read-only query results as columns and rows."""
         raise NotImplementedError("SCHEMA_PENDING")

@@ -1,25 +1,33 @@
-defaults:
-  endpoint: openai_compatible
-  model: qwen_27b
-  temperature: 0
-
 endpoints:
-  openai_compatible:
-    base_url_env: CS_BASE_URL
-    api_key_env: CS_API_KEY
+  sonnet:
+    base_url: https://api.anthropic.com/v1/
+    model: claude-sonnet-5
+    api_key_env: ANTHROPIC_API_KEY
+    max_tokens: 4096
 
-models:
-  qwen_27b:
-    endpoint: openai_compatible
-    model_name: Qwen/Qwen3-27B
   qwen_a3b:
-    endpoint: openai_compatible
-    model_name: Qwen/Qwen3-30B-A3B
+    base_url: http://10.0.0.11:8000/v1
+    model: Qwen/Qwen3.6-35B-A3B
+    api_key_env: LOCAL_LLM_API_KEY
+    temperature: 0.0
+    max_tokens: 4096
+    extra_body:
+      chat_template_kwargs: {enable_thinking: false}
 
+  qwen_27b:
+    base_url: http://10.0.0.12:8000/v1
+    model: Qwen/Qwen3.6-27B
+    api_key_env: LOCAL_LLM_API_KEY
+    temperature: 0.6
+    max_tokens: 8192
+    extra_body:
+      chat_template_kwargs: {enable_thinking: true}
+
+# ---- switching models = editing this block only ----
 nodes:
-  planner: qwen_27b
-  clarify: qwen_27b
-  agent: qwen_a3b
-  composer: qwen_27b
-  validator: qwen_27b
-  analytics: qwen_27b
+  planner:   sonnet
+  clarify:   sonnet
+  agent:     sonnet
+  composer:  sonnet
+  analytics.write_sql: sonnet
+  analytics.shape:     sonnet

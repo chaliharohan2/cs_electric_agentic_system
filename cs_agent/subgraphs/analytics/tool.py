@@ -13,6 +13,16 @@ def _graph():
     return build_analytics_graph()
 
 
-def analytics_query(question: str) -> dict[str, Any]:
-    state = _graph().invoke({"question": question})
+def analytics_query(
+    question: str,
+    scope: dict | None = None,
+    output_shape: str = "tabular result",
+) -> dict[str, Any]:
+    state = _graph().invoke(
+        {
+            "question": question,
+            "scope": scope,
+            "output_shape": output_shape,
+        }
+    )
     return state["answer"]

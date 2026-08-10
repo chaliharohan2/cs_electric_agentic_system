@@ -18,14 +18,16 @@ PROMPT = (Path(__file__).parents[2] / "prompts" / "agent.md").read_text(
 
 
 def agent(state: AgentState) -> dict[str, Any]:
-    context = (
-        f"\nPlan:\n{json.dumps(state.get('plan'), default=str)}"
-        f"\nAssumptions:\n{json.dumps(state.get('assumptions', []))}"
-        f"\nRecorded evidence count: {len(state.get('evidence', []))}"
-        f"\nTool calls remaining: {max(0, 12 - state.get('tool_calls_made', 0))}"
-    )
-    response = get_model("agent").bind_tools(TOOLS).invoke(
-        [SystemMessage(content=PROMPT + context), *state.get("messages", [])]
+    plan_json = json.dumps(state.get("plan"), default=str)
+    system = PROMPT.replace("{plan_json}", plan_json)
+    if state.get("assumptions"):
+        system += "\nAssumptions:\n" + json.dumps(state["assumptions"])
+    remaining = max(0, 12 - state.get("tool_calls_made", 0))
+    system += f"\nTool calls remaining: {remaining}"
+    response = (
+        get_model("agent")
+        .bind_tools(TOOLS)
+        .invoke([SystemMessage(content=system), *state.get("messages", [])])
     )
     calls = len(getattr(response, "tool_calls", []) or [])
     return {

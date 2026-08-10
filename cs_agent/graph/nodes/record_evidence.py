@@ -51,6 +51,10 @@ def _extract(payload: Any, tool: str, family_id: str | None = None) -> list[Evid
             evidence.append(record)
     if "products" in payload:
         evidence.extend(_extract(payload["products"], tool))
+    if "children" in payload:
+        record = _empty(tool)
+        record["value_text"] = json.dumps(payload, sort_keys=True, default=str)
+        evidence.append(record)
     if {"doc", "page", "text"} <= payload.keys():
         record = _empty(tool)
         record.update(
@@ -62,12 +66,18 @@ def _extract(payload: Any, tool: str, family_id: str | None = None) -> list[Evid
             }
         )
         evidence.append(record)
-    if "rows" in payload:
-        for row in payload["rows"]:
+    if "table" in payload or "rows" in payload:
+        rows = payload.get("table") or payload.get("rows") or []
+        for row in rows:
             record = _empty(tool)
             record["value_text"] = json.dumps(row, sort_keys=True, default=str)
             record["doc"] = "analytics"
             evidence.append(record)
+        if payload.get("note"):
+            note = _empty(tool)
+            note["value_text"] = str(payload["note"])
+            note["doc"] = "analytics_note"
+            evidence.append(note)
     return evidence
 
 
@@ -83,4 +93,4 @@ def record_evidence(state: AgentState) -> dict[str, list[Evidence]]:
             except json.JSONDecodeError:
                 continue
         records.extend(_extract(content, message.name or "unknown"))
-    return {"evidence": records}
+    return {"evidence": list(reversed(records))}
