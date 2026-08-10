@@ -32,6 +32,7 @@
         {"canonical_fact_id": "rated_current_a", "value_num": 125, "value_text": null, "unit": "A", "conditions": {}},
         {"canonical_fact_id": "poles", "value_num": 3, "value_text": null, "unit": null, "conditions": {}},
         {"canonical_fact_id": "icu_ka", "value_num": 36, "value_text": null, "unit": "kA", "conditions": {"voltage_v": 415}},
+        {"canonical_fact_id": "icu_ka", "value_num": 20, "value_text": null, "unit": "kA", "conditions": {"voltage_v": 690}},
         {"canonical_fact_id": "trip_unit", "value_num": null, "value_text": "thermal-magnetic", "unit": null, "conditions": {}}
       ]
     },
@@ -45,6 +46,7 @@
         {"canonical_fact_id": "rated_current_a", "value_num": 250, "value_text": null, "unit": "A", "conditions": {}},
         {"canonical_fact_id": "poles", "value_num": 4, "value_text": null, "unit": null, "conditions": {}},
         {"canonical_fact_id": "icu_ka", "value_num": 50, "value_text": null, "unit": "kA", "conditions": {"voltage_v": 415}},
+        {"canonical_fact_id": "icu_ka", "value_num": 25, "value_text": null, "unit": "kA", "conditions": {"voltage_v": 690}},
         {"canonical_fact_id": "trip_unit", "value_num": null, "value_text": "thermal-magnetic", "unit": null, "conditions": {}}
       ]
     },
@@ -58,6 +60,7 @@
         {"canonical_fact_id": "rated_current_a", "value_num": 400, "value_text": null, "unit": "A", "conditions": {}},
         {"canonical_fact_id": "poles", "value_num": 4, "value_text": null, "unit": null, "conditions": {}},
         {"canonical_fact_id": "icu_ka", "value_num": 70, "value_text": null, "unit": "kA", "conditions": {"voltage_v": 415}},
+        {"canonical_fact_id": "icu_ka", "value_num": 35, "value_text": null, "unit": "kA", "conditions": {"voltage_v": 690}},
         {"canonical_fact_id": "trip_unit", "value_num": null, "value_text": "electronic", "unit": null, "conditions": {}}
       ]
     },

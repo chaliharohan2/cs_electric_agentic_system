@@ -14,6 +14,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
 from cs_agent.graph import build_graph
+from cs_agent.observability import AgentCallbackHandler, TraceLogger
 
 
 def _initial_state(question: str) -> dict[str, Any]:
@@ -37,18 +38,60 @@ def _answer_interrupt(payload: Any) -> str:
     return input("Answer: ").strip()
 
 
-def run_question(question: str) -> dict[str, Any]:
-    graph = build_graph(checkpointer=MemorySaver())
-    config = {"configurable": {"thread_id": str(uuid.uuid4())}}
-    result = graph.invoke(_initial_state(question), config=config)
-    while result.get("__interrupt__"):
-        interrupt_record = result["__interrupt__"][0]
-        payload = getattr(interrupt_record, "value", interrupt_record)
-        result = graph.invoke(
-            Command(resume=_answer_interrupt(payload)),
-            config=config,
-        )
-    return result
+def run_question(
+    question: str,
+    *,
+    trace: TraceLogger | None = None,
+) -> dict[str, Any]:
+    owns_trace = trace is None
+    trace = trace or TraceLogger()
+    callback = AgentCallbackHandler(trace)
+    thread_id = str(uuid.uuid4())
+    initial_state = _initial_state(question)
+    graph = build_graph(checkpointer=MemorySaver(), trace=trace)
+    config = {
+        "configurable": {"thread_id": thread_id},
+        "callbacks": [callback],
+        "metadata": {"trace_run_id": trace.run_id},
+    }
+    trace.event(
+        "run.start",
+        thread_id=thread_id,
+        question=question,
+        log_file=str(trace.file_path),
+        print_to_screen=trace.print_to_screen,
+    )
+    trace.event(
+        "state.initialized",
+        state=initial_state,
+    )
+    trace.event(
+        "node.transition",
+        from_node="START",
+        to_node="planner",
+        transition_type="fixed",
+    )
+    trace.event("agent.change", from_agent="START", to_agent="planner")
+    try:
+        result = graph.invoke(initial_state, config=config)
+        while result.get("__interrupt__"):
+            interrupt_record = result["__interrupt__"][0]
+            payload = getattr(interrupt_record, "value", interrupt_record)
+            trace.event("run.interrupt", payload=payload)
+            answer = _answer_interrupt(payload)
+            trace.event("run.resume", answer=answer)
+            result = graph.invoke(
+                Command(resume=answer),
+                config=config,
+            )
+        trace.event("run.end", status="completed", final_state=result)
+        return result
+    except BaseException as exc:
+        trace.event("run.end", status="error", error=exc)
+        raise
+    finally:
+        if owns_trace:
+            trace.close()
 
 
 def main() -> int:

@@ -27,26 +27,52 @@ def _text(content: object) -> str:
     return str(content)
 
 
+def _evidence_table(evidence: list[dict[str, Any]]) -> str:
+    if not evidence:
+        return "(none)"
+    lines = []
+    for item in evidence:
+        lines.append(
+            " | ".join(
+                [
+                    f"tool={item.get('tool')}",
+                    f"family={item.get('family_id')}",
+                    f"fact={item.get('canonical_fact_id')}",
+                    f"value_num={item.get('value_num')}",
+                    f"value_text={item.get('value_text')}",
+                    f"unit={item.get('unit')}",
+                    f"conditions={json.dumps(item.get('conditions') or {}, sort_keys=True)}",
+                    f"doc={item.get('doc')}",
+                    f"page={item.get('page')}",
+                ]
+            )
+        )
+    return "\n".join(lines)
+
+
 def composer(state: AgentState) -> dict[str, Any]:
     validation = state.get("validation") or {}
     correction = ""
     if validation.get("errors"):
         correction = (
-            "\nCorrect every prior validation error:\n"
+            "\n\nCorrect every prior validation error:\n"
             + "\n".join(f"- {error}" for error in validation["errors"])
         )
-    payload = {
-        "plan": state.get("plan"),
-        "assumptions": state.get("assumptions", []),
-        "evidence": state.get("evidence", []),
-    }
+    assumptions = state.get("assumptions") or []
+    system = (
+        PROMPT.replace("{evidence_table}", _evidence_table(state.get("evidence", [])))
+        .replace(
+            "{assumptions}",
+            "\n".join(f"- {item}" for item in assumptions) if assumptions else "(none)",
+        )
+        + correction
+    )
     response = get_model("composer").invoke(
         [
-            SystemMessage(content=PROMPT + correction),
+            SystemMessage(content=system),
             *state.get("messages", [])[:1],
             HumanMessage(
-                content="Compose the final answer from this data:\n"
-                + json.dumps(payload, ensure_ascii=False, default=str)
+                content="Compose the final answer now using only the evidence above."
             ),
         ]
     )

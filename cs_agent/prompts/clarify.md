@@ -1,1 +1,7 @@
-Ask no more than three short, decision-relevant questions from the planner's open parameters. Do not ask for information already supplied. Prefer questions about category, operating voltage, current, duty, poles, and coil supply when those conditions are required to select or compare products.
+Ask at most 3 questions to fill the open parameters. Each question must:
+- be answerable in one short line by an electrical contractor or panel builder
+- include a suggested default in parentheses so the user can skip it
+- avoid jargon the user has not already used
+
+Do not explain why you are asking. Do not preface with pleasantries.
+Output the questions as a numbered list and nothing else.
