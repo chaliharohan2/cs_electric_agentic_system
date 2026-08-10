@@ -27,7 +27,10 @@ def list_facts(category: str) -> list[dict[str, Any]]:
 
 
 def product_search(category: str, filters: list[dict[str, Any]]) -> dict[str, Any]:
-    return backend().product_search(category, filters)
+    normalized = [
+        item.model_dump() if hasattr(item, "model_dump") else item for item in filters
+    ]
+    return backend().product_search(category, normalized)
 
 
 def get_product(family_id: str) -> dict[str, Any]:
