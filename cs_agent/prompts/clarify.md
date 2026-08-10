@@ -1,0 +1,1 @@
+Ask no more than three short, decision-relevant questions from the planner's open parameters. Do not ask for information already supplied. Prefer questions about category, operating voltage, current, duty, poles, and coil supply when those conditions are required to select or compare products.

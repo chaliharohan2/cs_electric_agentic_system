@@ -1,0 +1,25 @@
+defaults:
+  endpoint: openai_compatible
+  model: qwen_27b
+  temperature: 0
+
+endpoints:
+  openai_compatible:
+    base_url_env: CS_BASE_URL
+    api_key_env: CS_API_KEY
+
+models:
+  qwen_27b:
+    endpoint: openai_compatible
+    model_name: Qwen/Qwen3-27B
+  qwen_a3b:
+    endpoint: openai_compatible
+    model_name: Qwen/Qwen3-30B-A3B
+
+nodes:
+  planner: qwen_27b
+  clarify: qwen_27b
+  agent: qwen_a3b
+  composer: qwen_27b
+  validator: qwen_27b
+  analytics: qwen_27b

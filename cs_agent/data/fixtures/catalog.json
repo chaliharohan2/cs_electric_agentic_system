@@ -1,0 +1,104 @@
+{
+  "categories": [
+    {
+      "id": "protection/mccb",
+      "name": "Moulded-case circuit breakers",
+      "description": "Synthetic WiNbreak2 circuit-breaker catalogue"
+    },
+    {
+      "id": "switching/contactor",
+      "name": "Power contactors",
+      "description": "Synthetic DP-Contactor catalogue"
+    }
+  ],
+  "canonical_facts": [
+    {"id": "rated_current_a", "category": "protection/mccb", "name": "Rated current", "unit": "A", "value_type": "number", "condition_keys": []},
+    {"id": "poles", "category": "protection/mccb", "name": "Number of poles", "unit": null, "value_type": "number", "condition_keys": []},
+    {"id": "icu_ka", "category": "protection/mccb", "name": "Ultimate breaking capacity", "unit": "kA", "value_type": "number", "condition_keys": ["voltage_v"]},
+    {"id": "trip_unit", "category": "protection/mccb", "name": "Trip unit", "unit": null, "value_type": "text", "condition_keys": []},
+    {"id": "operational_current_a", "category": "switching/contactor", "name": "Operational current AC-3", "unit": "A", "value_type": "number", "condition_keys": ["voltage_v"]},
+    {"id": "motor_power_kw", "category": "switching/contactor", "name": "Motor power AC-3", "unit": "kW", "value_type": "number", "condition_keys": ["voltage_v"]},
+    {"id": "coil_voltage_v", "category": "switching/contactor", "name": "Coil control voltage", "unit": "V", "value_type": "number", "condition_keys": ["frequency_hz"]},
+    {"id": "aux_contacts", "category": "switching/contactor", "name": "Built-in auxiliary contacts", "unit": null, "value_type": "text", "condition_keys": []}
+  ],
+  "families": [
+    {
+      "family_id": "WIN2-125",
+      "category": "protection/mccb",
+      "name": "WiNbreak2 125",
+      "summary": "Compact thermal-magnetic MCCB family",
+      "variants": ["WIN2-125-3P-63", "WIN2-125-3P-100"],
+      "facts": [
+        {"canonical_fact_id": "rated_current_a", "value_num": 125, "value_text": null, "unit": "A", "conditions": {}},
+        {"canonical_fact_id": "poles", "value_num": 3, "value_text": null, "unit": null, "conditions": {}},
+        {"canonical_fact_id": "icu_ka", "value_num": 36, "value_text": null, "unit": "kA", "conditions": {"voltage_v": 415}},
+        {"canonical_fact_id": "trip_unit", "value_num": null, "value_text": "thermal-magnetic", "unit": null, "conditions": {}}
+      ]
+    },
+    {
+      "family_id": "WIN2-250",
+      "category": "protection/mccb",
+      "name": "WiNbreak2 250",
+      "summary": "Adjustable thermal-magnetic MCCB family",
+      "variants": ["WIN2-250-3P-160", "WIN2-250-4P-250"],
+      "facts": [
+        {"canonical_fact_id": "rated_current_a", "value_num": 250, "value_text": null, "unit": "A", "conditions": {}},
+        {"canonical_fact_id": "poles", "value_num": 4, "value_text": null, "unit": null, "conditions": {}},
+        {"canonical_fact_id": "icu_ka", "value_num": 50, "value_text": null, "unit": "kA", "conditions": {"voltage_v": 415}},
+        {"canonical_fact_id": "trip_unit", "value_num": null, "value_text": "thermal-magnetic", "unit": null, "conditions": {}}
+      ]
+    },
+    {
+      "family_id": "WIN2-400E",
+      "category": "protection/mccb",
+      "name": "WiNbreak2 400 Electronic",
+      "summary": "Electronic-trip MCCB family",
+      "variants": ["WIN2-400E-3P-320", "WIN2-400E-4P-400"],
+      "facts": [
+        {"canonical_fact_id": "rated_current_a", "value_num": 400, "value_text": null, "unit": "A", "conditions": {}},
+        {"canonical_fact_id": "poles", "value_num": 4, "value_text": null, "unit": null, "conditions": {}},
+        {"canonical_fact_id": "icu_ka", "value_num": 70, "value_text": null, "unit": "kA", "conditions": {"voltage_v": 415}},
+        {"canonical_fact_id": "trip_unit", "value_num": null, "value_text": "electronic", "unit": null, "conditions": {}}
+      ]
+    },
+    {
+      "family_id": "DP09",
+      "category": "switching/contactor",
+      "name": "DP-Contactor 09",
+      "summary": "Compact three-pole AC contactor",
+      "variants": ["DP09-230-50", "DP09-110-50"],
+      "facts": [
+        {"canonical_fact_id": "operational_current_a", "value_num": 9, "value_text": null, "unit": "A", "conditions": {"voltage_v": 415}},
+        {"canonical_fact_id": "motor_power_kw", "value_num": 4, "value_text": null, "unit": "kW", "conditions": {"voltage_v": 415}},
+        {"canonical_fact_id": "coil_voltage_v", "value_num": 230, "value_text": null, "unit": "V", "conditions": {"frequency_hz": 50}},
+        {"canonical_fact_id": "aux_contacts", "value_num": null, "value_text": "1NO", "unit": null, "conditions": {}}
+      ]
+    },
+    {
+      "family_id": "DP18",
+      "category": "switching/contactor",
+      "name": "DP-Contactor 18",
+      "summary": "General-purpose three-pole AC contactor",
+      "variants": ["DP18-230-50", "DP18-24-50"],
+      "facts": [
+        {"canonical_fact_id": "operational_current_a", "value_num": 18, "value_text": null, "unit": "A", "conditions": {"voltage_v": 415}},
+        {"canonical_fact_id": "motor_power_kw", "value_num": 7.5, "value_text": null, "unit": "kW", "conditions": {"voltage_v": 415}},
+        {"canonical_fact_id": "coil_voltage_v", "value_num": 230, "value_text": null, "unit": "V", "conditions": {"frequency_hz": 50}},
+        {"canonical_fact_id": "aux_contacts", "value_num": null, "value_text": "1NO+1NC", "unit": null, "conditions": {}}
+      ]
+    },
+    {
+      "family_id": "DP32",
+      "category": "switching/contactor",
+      "name": "DP-Contactor 32",
+      "summary": "High-duty three-pole AC contactor",
+      "variants": ["DP32-230-50", "DP32-24-50"],
+      "facts": [
+        {"canonical_fact_id": "operational_current_a", "value_num": 32, "value_text": null, "unit": "A", "conditions": {"voltage_v": 415}},
+        {"canonical_fact_id": "motor_power_kw", "value_num": 15, "value_text": null, "unit": "kW", "conditions": {"voltage_v": 415}},
+        {"canonical_fact_id": "coil_voltage_v", "value_num": 230, "value_text": null, "unit": "V", "conditions": {"frequency_hz": 50}},
+        {"canonical_fact_id": "aux_contacts", "value_num": null, "value_text": "1NO+1NC", "unit": null, "conditions": {}}
+      ]
+    }
+  ]
+}

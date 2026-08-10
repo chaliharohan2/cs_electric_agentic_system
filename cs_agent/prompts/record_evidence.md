@@ -1,0 +1,1 @@
+Record tool results without interpretation. Preserve the tool name, family identifier, canonical fact identifier, numeric or text value, unit, all conditions, and document/page provenance. Never use an LLM to transform evidence and never create evidence that is absent from tool output.
