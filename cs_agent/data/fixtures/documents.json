@@ -1,0 +1,8 @@
+[
+  {"family_id": "WIN2-125", "doc": "WiNbreak2 synthetic brochure", "page": 4, "text": "WiNbreak2 125 is a compact moulded-case circuit breaker with thermal-magnetic protection for distribution panels."},
+  {"family_id": "WIN2-250", "doc": "WiNbreak2 synthetic brochure", "page": 8, "text": "WiNbreak2 250 supports adjustable overload protection and is offered in three-pole and four-pole variants."},
+  {"family_id": "WIN2-400E", "doc": "WiNbreak2 synthetic brochure", "page": 12, "text": "WiNbreak2 400 Electronic provides an electronic trip unit for selective protection applications."},
+  {"family_id": "DP09", "doc": "DP-Contactor synthetic brochure", "page": 3, "text": "DP-Contactor 09 is intended for compact motor starters and frequent AC-3 switching."},
+  {"family_id": "DP18", "doc": "DP-Contactor synthetic brochure", "page": 5, "text": "DP-Contactor 18 is a general-purpose contactor with built-in normally-open and normally-closed auxiliary indication."},
+  {"family_id": "DP32", "doc": "DP-Contactor synthetic brochure", "page": 7, "text": "DP-Contactor 32 is designed for higher-duty motor switching and coordinated starter assemblies."}
+]
