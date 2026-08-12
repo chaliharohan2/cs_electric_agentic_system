@@ -32,8 +32,8 @@ def _after_planner(state: AgentState) -> Literal["clarify", "agent"]:
 def _after_agent(state: AgentState) -> Literal["tools", "composer"]:
     messages = state.get("messages", [])
     calls = getattr(messages[-1], "tool_calls", []) if messages else []
-    # Cap is 12 completed tool calls; agent increments before this edge runs.
-    if calls and state.get("tool_calls_made", 0) <= 12:
+    # Do not dispatch a parallel batch that would exceed the hard budget.
+    if calls and state.get("tool_calls_made", 0) + len(calls) <= 12:
         return "tools"
     return "composer"
 

@@ -29,8 +29,4 @@ def agent(state: AgentState) -> dict[str, Any]:
         .bind_tools(TOOLS)
         .invoke([SystemMessage(content=system), *state.get("messages", [])])
     )
-    calls = len(getattr(response, "tool_calls", []) or [])
-    return {
-        "messages": [response],
-        "tool_calls_made": state.get("tool_calls_made", 0) + calls,
-    }
+    return {"messages": [response]}

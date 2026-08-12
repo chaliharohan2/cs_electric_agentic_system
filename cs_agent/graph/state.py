@@ -11,14 +11,16 @@ from langgraph.graph.message import add_messages
 
 class Evidence(TypedDict):
     tool: str
-    family_id: str | None
-    canonical_fact_id: str | None
+    sku_code: str | None
+    spec_id: str | None
     value_num: float | None
-    value_text: str | None
+    value_min: float | None
+    value_max: float | None
+    value_display: str | None
+    value_kind: str | None
     unit: str | None
-    conditions: dict
-    doc: str | None
-    page: int | None
+    source_of_truth: str | None
+    text: str | None
 
 
 class AgentState(TypedDict):

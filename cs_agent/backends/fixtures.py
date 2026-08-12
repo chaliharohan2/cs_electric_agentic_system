@@ -204,6 +204,291 @@ class FixturesBackend:
         ranked.sort(key=lambda pair: (-pair[0], pair[1]["page"]))
         return [{**chunk, "score": score} for score, chunk in ranked[:k]]
 
+    # SKU-centric fixture API. Each legacy variant is treated as a SKU carrying its
+    # family's facts; this keeps offline graph tests useful while production uses Postgres.
+    def _fixture_skus(self) -> list[dict[str, Any]]:
+        skus = []
+        for family in self._catalog["families"]:
+            facts = [
+                {
+                    "spec_id": fact["canonical_fact_id"],
+                    "spec_label": fact["canonical_fact_id"].replace("_", " ").title(),
+                    "unit": fact["unit"],
+                    "value_num": fact["value_num"],
+                    "value_min": None,
+                    "value_max": None,
+                    "value_display": str(
+                        fact["value_num"]
+                        if fact["value_num"] is not None
+                        else fact["value_text"]
+                    ),
+                    "value_kind": (
+                        "scalar" if fact["value_num"] is not None else "text"
+                    ),
+                    "source_of_truth": "fixture",
+                    "derived": False,
+                    "fact_sentence": None,
+                }
+                for fact in family["facts"]
+            ]
+            for code in family["variants"]:
+                skus.append(
+                    {
+                        "sku_code": code,
+                        "family": family["family_id"],
+                        "category": family["category"],
+                        "decoded": {},
+                        "completeness": {"missing": []},
+                        "facts": facts,
+                    }
+                )
+        return skus
+
+    def list_canonical_specs(self, category: str | None) -> list[dict]:
+        rows = []
+        for fact in self._catalog["canonical_facts"]:
+            if category and fact["category"] != category:
+                continue
+            values = [
+                item["value_num"]
+                for family in self._catalog["families"]
+                if family["category"] == fact["category"]
+                for item in family["facts"]
+                if item["canonical_fact_id"] == fact["id"]
+                and item["value_num"] is not None
+            ]
+            rows.append(
+                {
+                    "category": fact["category"],
+                    "spec_id": fact["id"],
+                    "spec_label": fact["name"],
+                    "unit": fact["unit"],
+                    "value_kind": (
+                        "scalar" if fact["value_type"] == "number" else "text"
+                    ),
+                    "sku_count": sum(
+                        len(family["variants"])
+                        for family in self._catalog["families"]
+                        if family["category"] == fact["category"]
+                        and any(
+                            item["canonical_fact_id"] == fact["id"]
+                            for item in family["facts"]
+                        )
+                    ),
+                    "observed_min": min(values) if values else None,
+                    "observed_max": max(values) if values else None,
+                }
+            )
+        return rows
+
+    def taxonomy_browse(
+        self, category: str | None = None, family: str | None = None
+    ) -> dict:
+        skus = self._fixture_skus()
+        if category is None:
+            names = sorted({sku["category"] for sku in skus})
+            return {
+                "level": "categories",
+                "categories": [
+                    {
+                        "category": name,
+                        "sku_count": sum(sku["category"] == name for sku in skus),
+                    }
+                    for name in names
+                ],
+            }
+        if family is None:
+            names = sorted(
+                {sku["family"] for sku in skus if sku["category"] == category}
+            )
+            return {
+                "level": "families",
+                "category": category,
+                "families": [
+                    {
+                        "family": name,
+                        "sku_count": sum(sku["family"] == name for sku in skus),
+                    }
+                    for name in names
+                ],
+            }
+        return {
+            "level": "facets",
+            "category": category,
+            "family": family,
+            "sku_count": sum(
+                sku["category"] == category and sku["family"] == family for sku in skus
+            ),
+            "axes": {},
+        }
+
+    def product_search(self, **kw: Any) -> list[dict] | dict:
+        hits = []
+        for sku in self._fixture_skus():
+            if kw.get("category") and sku["category"] != kw["category"]:
+                continue
+            if kw.get("family") and sku["family"] != kw["family"]:
+                continue
+            if kw.get("text") and kw["text"].lower() not in sku["sku_code"].lower():
+                continue
+            matched = True
+            for wanted in kw.get("filters") or []:
+                candidates = [
+                    fact
+                    for fact in sku["facts"]
+                    if fact["spec_id"] == wanted["spec_id"]
+                ]
+                if not candidates:
+                    matched = False
+                    break
+                op, expected = wanted["op"], wanted["value"]
+                matched = any(
+                    (op == "eq" and fact["value_num"] == expected)
+                    or (
+                        op == "gte"
+                        and fact["value_num"] is not None
+                        and fact["value_num"] >= expected
+                    )
+                    or (
+                        op == "lte"
+                        and fact["value_num"] is not None
+                        and fact["value_num"] <= expected
+                    )
+                    or (
+                        op == "contains"
+                        and str(expected).lower()
+                        in str(fact["value_display"]).lower()
+                    )
+                    for fact in candidates
+                )
+                if not matched:
+                    break
+            if matched:
+                requested = set(kw.get("return_specs") or [])
+                hits.append(
+                    {
+                        **{key: sku[key] for key in (
+                            "sku_code", "family", "category", "completeness"
+                        )},
+                        "decoded_summary": sku["decoded"],
+                        "price_display": None,
+                        "specs": [
+                            fact for fact in sku["facts"]
+                            if not requested or fact["spec_id"] in requested
+                        ],
+                    }
+                )
+            if len(hits) >= int(kw.get("limit", 20)):
+                break
+        return hits
+
+    def get_sku(self, sku_code: str, include: list[str]) -> dict:
+        sku = next(
+            (item for item in self._fixture_skus() if item["sku_code"] == sku_code),
+            None,
+        )
+        if not sku:
+            return {"error": f"Unknown SKU {sku_code!r}"}
+        result = {
+            key: sku[key]
+            for key in ("sku_code", "family", "category", "completeness")
+        }
+        if "facts" in include:
+            result["facts"] = sku["facts"]
+        if "decoded" in include:
+            result["decoded"] = sku["decoded"]
+        if "sources" in include:
+            result["sources"] = ["synthetic fixture"]
+        if "content" in include:
+            result["content"] = [
+                chunk
+                for chunk in self._documents
+                if chunk["family_id"] == sku["family"]
+            ]
+        return result
+
+    def compare_skus(
+        self, sku_codes: list[str], spec_ids: list[str] | None = None
+    ) -> dict:
+        selected = [
+            sku for sku in self._fixture_skus() if sku["sku_code"] in sku_codes
+        ]
+        ids = spec_ids or sorted(
+            {fact["spec_id"] for sku in selected for fact in sku["facts"]}
+        )
+        rows = []
+        for spec_id in ids:
+            matching = {
+                sku["sku_code"]: next(
+                    (
+                        fact
+                        for fact in sku["facts"]
+                        if fact["spec_id"] == spec_id
+                    ),
+                    None,
+                )
+                for sku in selected
+            }
+            sample = next((fact for fact in matching.values() if fact), {})
+            rows.append(
+                {
+                    "spec_id": spec_id,
+                    "spec_label": sample.get("spec_label"),
+                    "unit": sample.get("unit"),
+                    "values": {
+                        code: (
+                            matching.get(code, {}).get("value_display")
+                            if matching.get(code)
+                            else None
+                        )
+                        for code in sku_codes
+                    },
+                    "facts": [fact for fact in matching.values() if fact],
+                }
+            )
+        return {"sku_codes": sku_codes, "rows": rows}
+
+    def search_documents(
+        self,
+        *,
+        query: str,
+        category: str | None = None,
+        family: str | None = None,
+        sku_code: str | None = None,
+        k: int = 6,
+    ) -> list[dict]:
+        terms = set(re.findall(r"[a-z0-9]+", query.lower()))
+        sku = next(
+            (item for item in self._fixture_skus() if item["sku_code"] == sku_code),
+            None,
+        )
+        if sku_code and not sku:
+            return []
+        wanted_family = family or (sku["family"] if sku else None)
+        categories = {
+            item["family"]: item["category"] for item in self._fixture_skus()
+        }
+        ranked = []
+        for chunk in self._documents:
+            if wanted_family and chunk["family_id"] != wanted_family:
+                continue
+            if category and categories.get(chunk["family_id"]) != category:
+                continue
+            score = len(terms & set(re.findall(r"[a-z0-9]+", chunk["text"].lower())))
+            if score:
+                ranked.append((score, chunk))
+        ranked.sort(key=lambda pair: -pair[0])
+        return [
+            {
+                "text": chunk["text"],
+                "family": chunk["family_id"],
+                "sku_code": sku_code,
+                "score": score,
+                "shared_by_sku_count": 1,
+            }
+            for score, chunk in ranked[:k]
+        ]
+
     def execute_sql(self, sql: str) -> dict[str, Any]:
         statement = sql.strip().rstrip(";")
         if not _READ_ONLY.match(statement) or ";" in statement:

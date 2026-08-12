@@ -36,14 +36,16 @@ def _evidence_table(evidence: list[dict[str, Any]]) -> str:
             " | ".join(
                 [
                     f"tool={item.get('tool')}",
-                    f"family={item.get('family_id')}",
-                    f"fact={item.get('canonical_fact_id')}",
+                    f"sku={item.get('sku_code')}",
+                    f"spec={item.get('spec_id')}",
                     f"value_num={item.get('value_num')}",
-                    f"value_text={item.get('value_text')}",
+                    f"value_min={item.get('value_min')}",
+                    f"value_max={item.get('value_max')}",
+                    f"value_display={item.get('value_display')}",
+                    f"value_kind={item.get('value_kind')}",
                     f"unit={item.get('unit')}",
-                    f"conditions={json.dumps(item.get('conditions') or {}, sort_keys=True)}",
-                    f"doc={item.get('doc')}",
-                    f"page={item.get('page')}",
+                    f"source={item.get('source_of_truth')}",
+                    f"text={json.dumps(item.get('text'), default=str)}",
                 ]
             )
         )

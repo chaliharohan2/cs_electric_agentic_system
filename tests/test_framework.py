@@ -5,10 +5,15 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from langchain_core.messages import ToolMessage
+
 from cs_agent.backends import FixturesBackend, PostgresBackend
+from cs_agent.embeddings.factory import embed
 from cs_agent.graph import build_graph
+from cs_agent.graph.nodes.record_evidence import _extract, record_evidence
 from cs_agent.graph.state import Evidence
 from cs_agent.observability import AgentCallbackHandler, TraceLogger
+from cs_agent.subgraphs.analytics.build import _after_execute
 from cs_agent.tools.impl import backend, reset_backend
 from cs_agent.tools.registry import TOOLS_BY_NAME
 from cs_agent.validation.numeric_fidelity import validate_numeric_fidelity
@@ -19,37 +24,24 @@ class FixturesBackendTests(unittest.TestCase):
         self.catalog = FixturesBackend()
 
     def test_taxonomy_and_conditional_search(self):
-        root = self.catalog.taxonomy_browse(None, depth=2)
-        self.assertGreaterEqual(len(root["children"]), 2)
-        rejected = self.catalog.product_search(
-            category_path="protection/mccb",
-            filters=[
-                {
-                    "canonical_fact_id": "icu_ka",
-                    "op": "gte",
-                    "value": 36,
-                    "conditions": {},
-                }
-            ],
-        )
-        self.assertIn("requires conditions", rejected["error"])
+        root = self.catalog.taxonomy_browse()
+        self.assertGreaterEqual(len(root["categories"]), 2)
         accepted = self.catalog.product_search(
-            category_path="protection/mccb",
+            category="protection/mccb",
             filters=[
                 {
-                    "canonical_fact_id": "icu_ka",
+                    "spec_id": "icu_ka",
                     "op": "gte",
                     "value": 36,
-                    "conditions": {"voltage_v": 415},
                 }
             ],
         )
-        self.assertEqual(len(accepted), 3)
+        self.assertGreaterEqual(len(accepted), 3)
 
     def test_document_search_and_analytics(self):
         self.assertTrue(
             self.catalog.search_documents(
-                query="electronic trip", category_path="protection/mccb"
+                query="electronic trip", category="protection/mccb"
             )
         )
         result = self.catalog.execute_sql(
@@ -61,33 +53,40 @@ class FixturesBackendTests(unittest.TestCase):
     def test_structured_product_search_tool(self):
         result = TOOLS_BY_NAME["product_search"].invoke(
             {
-                "category_path": "switching/contactor",
+                "category": "switching/contactor",
                 "filters": [
                     {
-                        "canonical_fact_id": "motor_power_kw",
+                        "spec_id": "motor_power_kw",
                         "op": "gte",
                         "value": 7.5,
-                        "conditions": {"voltage_v": 415},
                     }
                 ],
             }
         )
-        self.assertEqual(len(result), 2)
+        self.assertEqual(len(result), 4)
 
-    def test_list_canonical_facts(self):
-        facts = self.catalog.list_canonical_facts("protection/mccb")
-        icu = next(fact for fact in facts if fact["id"] == "icu_ka")
-        self.assertEqual(icu["condition_keys"], ["voltage_v"])
+    def test_list_canonical_specs_and_compare(self):
+        specs = self.catalog.list_canonical_specs("protection/mccb")
+        icu = next(fact for fact in specs if fact["spec_id"] == "icu_ka")
+        self.assertEqual(icu["value_kind"], "scalar")
+        comparison = self.catalog.compare_skus(
+            ["WIN2-125-3P-63", "WIN2-250-4P-250"], ["rated_current_a"]
+        )
+        self.assertEqual(comparison["rows"][0]["values"]["WIN2-125-3P-63"], "125")
 
 
 class BoundaryTests(unittest.TestCase):
-    def test_postgres_is_explicitly_pending(self):
-        with self.assertRaisesRegex(NotImplementedError, "SCHEMA_PENDING"):
-            PostgresBackend().list_canonical_facts(None)
+    def test_postgres_requires_database_url(self):
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaisesRegex(RuntimeError, "DATABASE_URL"):
+                PostgresBackend()
 
     def test_environment_selects_postgres(self):
         reset_backend()
-        with patch.dict(os.environ, {"CS_BACKEND": "postgres"}):
+        with patch.dict(
+            os.environ,
+            {"CS_BACKEND": "postgres", "DATABASE_URL": "postgresql://example"},
+        ):
             self.assertIsInstance(backend(), PostgresBackend)
         reset_backend()
 
@@ -97,40 +96,70 @@ class GraphAndValidationTests(unittest.TestCase):
         graph = build_graph()
         self.assertIn("planner", graph.get_graph().nodes)
         self.assertIn("validator", graph.get_graph().nodes)
+        self.assertEqual(
+            set(TOOLS_BY_NAME),
+            {
+                "taxonomy_browse",
+                "list_canonical_specs",
+                "product_search",
+                "get_sku",
+                "compare_skus",
+                "search_documents",
+                "analytics_query",
+            },
+        )
 
-    def test_numeric_conditions_must_be_in_sentence(self):
+    def test_analytics_error_retry_is_bounded(self):
+        self.assertEqual(
+            _after_execute({"result": {"error": "bad SQL"}, "retries": 1}),
+            "write_sql",
+        )
+        self.assertEqual(
+            _after_execute({"result": {"error": "bad SQL"}, "retries": 3}),
+            "shape",
+        )
+        self.assertEqual(
+            _after_execute({"result": {"rows": []}, "retries": 0}),
+            "shape",
+        )
+
+    def test_numeric_range_and_ordering_code(self):
         evidence: list[Evidence] = [
             {
                 "tool": "product_search",
-                "family_id": "EXAMPLE-1",
-                "canonical_fact_id": "breaking_capacity",
-                "value_num": 36,
-                "value_text": None,
-                "unit": "kA",
-                "conditions": {"voltage_v": 415},
-                "doc": None,
-                "page": None,
+                "sku_code": "WX306L3P1MDOA(S)",
+                "spec_id": "rated_current_a",
+                "value_num": None,
+                "value_min": 630,
+                "value_max": 800,
+                "value_display": "630-800",
+                "value_kind": "range",
+                "unit": "A",
+                "source_of_truth": "pricelist_table",
+                "text": None,
             }
         ]
         valid = validate_numeric_fidelity(
-            "EXAMPLE-1 provides 36 kA at 415 V.", evidence
+            "WX306L3P1MDOA(S) covers 630-800 A.", evidence
         )
-        invalid = validate_numeric_fidelity("It provides 36 kA.", evidence)
+        invalid = validate_numeric_fidelity("It provides 900 A.", evidence)
         self.assertTrue(valid.passed)
         self.assertFalse(invalid.passed)
 
     def test_decimal_claim_is_not_split_as_two_sentences(self):
         evidence: list[Evidence] = [
             {
-                "tool": "get_product",
-                "family_id": "EXAMPLE-2",
-                "canonical_fact_id": "power",
+                "tool": "get_sku",
+                "sku_code": "EXAMPLE-2",
+                "spec_id": "power",
                 "value_num": 7.5,
-                "value_text": None,
+                "value_min": None,
+                "value_max": None,
+                "value_display": "7.5",
+                "value_kind": "scalar",
                 "unit": "kW",
-                "conditions": {},
-                "doc": None,
-                "page": None,
+                "source_of_truth": "fixture",
+                "text": None,
             }
         ]
         self.assertTrue(
@@ -138,6 +167,33 @@ class GraphAndValidationTests(unittest.TestCase):
                 "EXAMPLE-2 is rated at 7.5 kW.", evidence
             ).passed
         )
+
+    def test_evidence_parser_reads_compare_facts(self):
+        payload = FixturesBackend().compare_skus(
+            ["WIN2-125-3P-63", "WIN2-250-4P-250"], ["rated_current_a"]
+        )
+        records = _extract(payload, "compare_skus")
+        self.assertEqual(len(records), 2)
+        self.assertTrue(all(record["spec_id"] == "rated_current_a" for record in records))
+
+    def test_evidence_node_counts_completed_tool_calls(self):
+        update = record_evidence(
+            {
+                "messages": [
+                    ToolMessage(
+                        content="[]",
+                        name="product_search",
+                        tool_call_id="call-1",
+                    )
+                ],
+                "tool_calls_made": 4,
+            }
+        )
+        self.assertEqual(update["tool_calls_made"], 5)
+
+    def test_embedding_dimension_mismatch_fails_before_model_load(self):
+        with self.assertRaisesRegex(ValueError, "expects 768"):
+            embed("breaker", expected_dimension=768)
 
 
 class ObservabilityTests(unittest.TestCase):
@@ -147,7 +203,7 @@ class ObservabilityTests(unittest.TestCase):
             trace = TraceLogger(file_path=path, print_to_screen=False)
             callback = AgentCallbackHandler(trace)
             TOOLS_BY_NAME["taxonomy_browse"].invoke(
-                {"node_id": None, "depth": 1},
+                {"category": None, "family": None},
                 config={"callbacks": [callback]},
             )
             trace.close()

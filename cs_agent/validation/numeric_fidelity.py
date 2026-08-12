@@ -11,7 +11,11 @@ from cs_agent.graph.state import Evidence
 
 REL_TOL = 1e-6
 _STANDARD = re.compile(r"\b(?:IEC|EN|IS)\s*\d+(?:-\d+)*\b", re.IGNORECASE)
-_CODE = re.compile(r"\b(?=[A-Z0-9-]*[A-Z])(?=[A-Z0-9-]*\d)[A-Z0-9]+(?:-[A-Z0-9]+)+\b", re.IGNORECASE)
+_CODE = re.compile(
+    r"(?<!\w)(?=[A-Z0-9()./-]*[A-Z])(?=[A-Z0-9()./-]*\d)"
+    r"[A-Z0-9][A-Z0-9()./-]{3,}",
+    re.IGNORECASE,
+)
 _NUMBER = re.compile(
     r"(?<![\w.])(-?\d+(?:\.\d+)?)\s*(kA|A|kW|W|V|kV|Hz|kHz)?\b",
     re.IGNORECASE,
@@ -34,6 +38,9 @@ class FidelityResult:
     passed: bool
     errors: list[str]
     unsupported_sentences: list[str]
+    numbers_total: int
+    matched: int
+    unmatched: list[str]
 
 
 def _sentences(text: str) -> list[str]:
@@ -47,22 +54,6 @@ def _normalise(value: float, unit: str | None) -> tuple[float, str | None]:
     return value * multiplier, canonical
 
 
-def _contains_number(sentence: str, expected: float) -> bool:
-    return any(
-        math.isclose(float(match.group(1)), expected, rel_tol=REL_TOL, abs_tol=0)
-        for match in _NUMBER.finditer(sentence)
-    )
-
-
-def _conditions_present(sentence: str, evidence: Evidence) -> bool:
-    return all(
-        _contains_number(sentence, float(value))
-        if isinstance(value, (int, float))
-        else str(value).lower() in sentence.lower()
-        for value in evidence["conditions"].values()
-    )
-
-
 def _supported(
     sentence: str,
     value: float,
@@ -72,13 +63,14 @@ def _supported(
     claim_value, claim_unit = _normalise(value, unit)
     for item in evidence:
         candidates: list[tuple[float, str | None]] = []
-        if item["value_num"] is not None:
-            candidates.append((item["value_num"], item["unit"]))
-        if item["page"] is not None:
-            candidates.append((float(item["page"]), None))
-        for condition_value in item["conditions"].values():
-            if isinstance(condition_value, (int, float)):
-                candidates.append((float(condition_value), unit))
+        if item.get("value_num") is not None:
+            candidates.append((item["value_num"], item.get("unit")))
+        display = item.get("value_display")
+        if item.get("value_kind") in {"text", "set"} and display:
+            candidates.extend(
+                (float(match.group(1)), match.group(2))
+                for match in _NUMBER.finditer(display)
+            )
         for expected, expected_unit in candidates:
             evidence_value, evidence_unit = _normalise(expected, expected_unit)
             if claim_unit != evidence_unit:
@@ -87,37 +79,72 @@ def _supported(
                 claim_value, evidence_value, rel_tol=REL_TOL, abs_tol=0
             ):
                 continue
-            if item["value_num"] == expected and not _conditions_present(sentence, item):
-                continue
             return True
+        lower = item.get("value_min")
+        upper = item.get("value_max")
+        if lower is not None and upper is not None:
+            normal_lower, lower_unit = _normalise(lower, item.get("unit"))
+            normal_upper, upper_unit = _normalise(upper, item.get("unit"))
+            if (
+                claim_unit == lower_unit == upper_unit
+                and normal_lower <= claim_value <= normal_upper
+            ):
+                return True
     return False
 
 
 def validate_numeric_fidelity(
-    draft: str, evidence: list[Evidence]
+    draft: str, evidence: list[Evidence], user_text: str = ""
 ) -> FidelityResult:
-    family_ids = [item["family_id"] for item in evidence if item["family_id"]]
+    sku_codes = [item["sku_code"] for item in evidence if item.get("sku_code")]
+    user_numbers = {
+        (float(match.group(1)), (match.group(2) or "").lower())
+        for match in _NUMBER.finditer(user_text)
+    }
     errors: list[str] = []
     unsupported: list[str] = []
+    unmatched: list[str] = []
+    numbers_total = 0
+    matched = 0
     for original in _sentences(draft):
         cleaned = _STANDARD.sub("", original)
         cleaned = _CODE.sub("", cleaned)
-        for family_id in family_ids:
+        for sku_code in sku_codes:
             cleaned = re.sub(
-                rf"\b{re.escape(family_id or '')}\b", "", cleaned, flags=re.IGNORECASE
+                re.escape(sku_code or ""), "", cleaned, flags=re.IGNORECASE
             )
         bad_claims = []
-        for number in _NUMBER.finditer(cleaned):
+        number_matches = list(_NUMBER.finditer(cleaned))
+        for index, number in enumerate(number_matches):
             value = float(number.group(1))
             unit = number.group(2)
+            if unit is None and index + 1 < len(number_matches):
+                next_number = number_matches[index + 1]
+                separator = cleaned[number.end() : next_number.start()]
+                if re.fullmatch(r"\s*(?:-|–|—|to)\s*", separator, re.IGNORECASE):
+                    unit = next_number.group(2)
+            token = number.group(0).strip()
+            if (value, (unit or "").lower()) in user_numbers:
+                continue
+            if not unit and (
+                1900 <= value <= 2100
+                or bool(re.search(rf"\b{re.escape(token)}(?:st|nd|rd|th)\b", cleaned))
+            ):
+                continue
+            numbers_total += 1
             if not _supported(original, value, unit, evidence):
-                bad_claims.append(number.group(0).strip())
+                bad_claims.append(token)
+                unmatched.append(token)
+            else:
+                matched += 1
         if bad_claims:
             errors.append(
                 f"Unsupported numeric claim(s) {bad_claims} in: {original}"
             )
             unsupported.append(original)
-    return FidelityResult(not errors, errors, unsupported)
+    return FidelityResult(
+        not errors, errors, unsupported, numbers_total, matched, unmatched
+    )
 
 
 def strip_unsupported_sentences(
