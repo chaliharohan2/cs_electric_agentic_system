@@ -1,7 +1,9 @@
+import io
 import json
 import os
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
@@ -64,6 +66,21 @@ class FixturesBackendTests(unittest.TestCase):
             }
         )
         self.assertEqual(len(result), 4)
+
+    def test_text_fields_match_partially_and_case_insensitively(self):
+        self.assertTrue(self.catalog.list_canonical_specs("MCCB"))
+        families = self.catalog.taxonomy_browse("mccb")["families"]
+        self.assertTrue(families)
+        self.assertTrue(self.catalog.product_search(category="MCCB"))
+        self.assertTrue(self.catalog.product_search(text="win2-125"))
+        partial = self.catalog.get_sku("win2-125-3p", ["facts"])
+        self.assertEqual(partial["sku_code"], "WIN2-125-3P-63")
+        comparison = self.catalog.compare_skus(
+            ["win2-125-3p-63", "does-not-exist"], ["rated_current"]
+        )
+        self.assertEqual(comparison["sku_codes"], ["WIN2-125-3P-63"])
+        self.assertEqual(comparison["unresolved_sku_codes"], ["does-not-exist"])
+        self.assertEqual(comparison["rows"][0]["spec_id"], "rated_current_a")
 
     def test_list_canonical_specs_and_compare(self):
         specs = self.catalog.list_canonical_specs("protection/mccb")
@@ -197,6 +214,46 @@ class GraphAndValidationTests(unittest.TestCase):
 
 
 class ObservabilityTests(unittest.TestCase):
+    def test_terminal_trace_is_concise_but_jsonl_stays_detailed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "trace.jsonl"
+            screen = io.StringIO()
+            with redirect_stdout(screen):
+                trace = TraceLogger(file_path=path, print_to_screen=True)
+                callback = AgentCallbackHandler(trace)
+                TOOLS_BY_NAME["taxonomy_browse"].invoke(
+                    {"category": None, "family": None},
+                    config={"callbacks": [callback]},
+                )
+                trace.event(
+                    "state.update",
+                    node="validator",
+                    update={
+                        "validation": {
+                            "passed": True,
+                            "numbers_total": 2,
+                            "matched": 2,
+                            "action": "accepted",
+                        }
+                    },
+                )
+                trace.close()
+
+            terminal = screen.getvalue()
+            self.assertIn("🔧 taxonomy_browse", terminal)
+            self.assertIn("✓ taxonomy_browse:", terminal)
+            self.assertIn("[validator] validation: passed", terminal)
+            self.assertNotIn("[TRACE]", terminal)
+            self.assertNotIn("callback_run_id", terminal)
+
+            records = [
+                json.loads(line)
+                for line in path.read_text(encoding="utf-8").splitlines()
+            ]
+            tool_end = next(record for record in records if record["event"] == "tool.end")
+            self.assertIn("output", tool_end)
+            self.assertIn("callback_run_id", tool_end)
+
     def test_tool_events_are_written_to_jsonl(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "trace.jsonl"

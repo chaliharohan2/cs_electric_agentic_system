@@ -3,6 +3,9 @@
 CLI LangGraph product-support agent backed by PostgreSQL `in_use.product_chunks`,
 with synthetic fixtures retained for offline tests.
 
+For a full walkthrough of the catalogue model, materialized views, main graph,
+every node, and the analytics sub-agent, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
 ## Setup
 
 ```bash
@@ -66,7 +69,9 @@ fails clearly instead of issuing an invalid similarity query.
 Every run appends structured JSONL events to `logs/cs_agent_trace.jsonl`.
 The trace includes run lifecycle, node entry/exit and transitions, state snapshots
 and updates, LLM requests/responses, tool calls/results, interrupts, and errors.
-Events are also printed to the terminal by default.
+The JSONL file retains all details. Terminal output is intentionally concise: graph
+transitions, summarized state changes, tool inputs, identifying result fields/counts,
+clarification pauses, validation status, and errors.
 
 Configure tracing in `.env`:
 

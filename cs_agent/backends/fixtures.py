@@ -206,6 +206,13 @@ class FixturesBackend:
 
     # SKU-centric fixture API. Each legacy variant is treated as a SKU carrying its
     # family's facts; this keeps offline graph tests useful while production uses Postgres.
+    @staticmethod
+    def _matches_text(value: Any, wanted: Any) -> bool:
+        """Case-insensitive substring match, mirroring the Postgres ILIKE filters."""
+        if wanted in (None, ""):
+            return True
+        return str(wanted).strip().lower() in str(value or "").lower()
+
     def _fixture_skus(self) -> list[dict[str, Any]]:
         skus = []
         for family in self._catalog["families"]:
@@ -247,7 +254,7 @@ class FixturesBackend:
     def list_canonical_specs(self, category: str | None) -> list[dict]:
         rows = []
         for fact in self._catalog["canonical_facts"]:
-            if category and fact["category"] != category:
+            if not self._matches_text(fact["category"], category):
                 continue
             values = [
                 item["value_num"]
@@ -299,7 +306,11 @@ class FixturesBackend:
             }
         if family is None:
             names = sorted(
-                {sku["family"] for sku in skus if sku["category"] == category}
+                {
+                    sku["family"]
+                    for sku in skus
+                    if self._matches_text(sku["category"], category)
+                }
             )
             return {
                 "level": "families",
@@ -317,7 +328,9 @@ class FixturesBackend:
             "category": category,
             "family": family,
             "sku_count": sum(
-                sku["category"] == category and sku["family"] == family for sku in skus
+                self._matches_text(sku["category"], category)
+                and self._matches_text(sku["family"], family)
+                for sku in skus
             ),
             "axes": {},
         }
@@ -325,18 +338,22 @@ class FixturesBackend:
     def product_search(self, **kw: Any) -> list[dict] | dict:
         hits = []
         for sku in self._fixture_skus():
-            if kw.get("category") and sku["category"] != kw["category"]:
+            if not self._matches_text(sku["category"], kw.get("category")):
                 continue
-            if kw.get("family") and sku["family"] != kw["family"]:
+            if not self._matches_text(sku["family"], kw.get("family")):
                 continue
-            if kw.get("text") and kw["text"].lower() not in sku["sku_code"].lower():
+            text = kw.get("text")
+            if text and not any(
+                self._matches_text(sku[field], text)
+                for field in ("sku_code", "family", "category")
+            ):
                 continue
             matched = True
             for wanted in kw.get("filters") or []:
                 candidates = [
                     fact
                     for fact in sku["facts"]
-                    if fact["spec_id"] == wanted["spec_id"]
+                    if self._matches_text(fact["spec_id"], wanted["spec_id"])
                 ]
                 if not candidates:
                     matched = False
@@ -373,8 +390,13 @@ class FixturesBackend:
                         "decoded_summary": sku["decoded"],
                         "price_display": None,
                         "specs": [
-                            fact for fact in sku["facts"]
-                            if not requested or fact["spec_id"] in requested
+                            fact
+                            for fact in sku["facts"]
+                            if not requested
+                            or any(
+                                self._matches_text(fact["spec_id"], spec)
+                                for spec in requested
+                            )
                         ],
                     }
                 )
@@ -382,13 +404,27 @@ class FixturesBackend:
                 break
         return hits
 
-    def get_sku(self, sku_code: str, include: list[str]) -> dict:
-        sku = next(
-            (item for item in self._fixture_skus() if item["sku_code"] == sku_code),
+    def _resolve_sku(self, sku_code: str) -> dict[str, Any] | None:
+        skus = self._fixture_skus()
+        exact = next(
+            (
+                item
+                for item in skus
+                if item["sku_code"].lower() == str(sku_code).strip().lower()
+            ),
             None,
         )
+        if exact:
+            return exact
+        return next(
+            (item for item in skus if self._matches_text(item["sku_code"], sku_code)),
+            None,
+        )
+
+    def get_sku(self, sku_code: str, include: list[str]) -> dict:
+        sku = self._resolve_sku(sku_code)
         if not sku:
-            return {"error": f"Unknown SKU {sku_code!r}"}
+            return {"error": f"No SKU matches {sku_code!r}"}
         result = {
             key: sku[key]
             for key in ("sku_code", "family", "category", "completeness")
@@ -410,11 +446,26 @@ class FixturesBackend:
     def compare_skus(
         self, sku_codes: list[str], spec_ids: list[str] | None = None
     ) -> dict:
-        selected = [
-            sku for sku in self._fixture_skus() if sku["sku_code"] in sku_codes
-        ]
-        ids = spec_ids or sorted(
+        selected: list[dict[str, Any]] = []
+        unresolved: list[str] = []
+        for requested in sku_codes:
+            match = self._resolve_sku(requested)
+            if match is None:
+                unresolved.append(requested)
+            elif match not in selected:
+                selected.append(match)
+        sku_codes = [sku["sku_code"] for sku in selected]
+        available = sorted(
             {fact["spec_id"] for sku in selected for fact in sku["facts"]}
+        )
+        ids = (
+            [
+                spec
+                for spec in available
+                if any(self._matches_text(spec, wanted) for wanted in spec_ids)
+            ]
+            if spec_ids
+            else available
         )
         rows = []
         for spec_id in ids:
@@ -446,7 +497,10 @@ class FixturesBackend:
                     "facts": [fact for fact in matching.values() if fact],
                 }
             )
-        return {"sku_codes": sku_codes, "rows": rows}
+        result: dict[str, Any] = {"sku_codes": sku_codes, "rows": rows}
+        if unresolved:
+            result["unresolved_sku_codes"] = unresolved
+        return result
 
     def search_documents(
         self,
@@ -458,10 +512,7 @@ class FixturesBackend:
         k: int = 6,
     ) -> list[dict]:
         terms = set(re.findall(r"[a-z0-9]+", query.lower()))
-        sku = next(
-            (item for item in self._fixture_skus() if item["sku_code"] == sku_code),
-            None,
-        )
+        sku = self._resolve_sku(sku_code) if sku_code else None
         if sku_code and not sku:
             return []
         wanted_family = family or (sku["family"] if sku else None)
@@ -470,9 +521,9 @@ class FixturesBackend:
         }
         ranked = []
         for chunk in self._documents:
-            if wanted_family and chunk["family_id"] != wanted_family:
+            if not self._matches_text(chunk["family_id"], wanted_family):
                 continue
-            if category and categories.get(chunk["family_id"]) != category:
+            if not self._matches_text(categories.get(chunk["family_id"]), category):
                 continue
             score = len(terms & set(re.findall(r"[a-z0-9]+", chunk["text"].lower())))
             if score:
@@ -482,7 +533,7 @@ class FixturesBackend:
             {
                 "text": chunk["text"],
                 "family": chunk["family_id"],
-                "sku_code": sku_code,
+                "sku_code": sku["sku_code"] if sku else None,
                 "score": score,
                 "shared_by_sku_count": 1,
             }
