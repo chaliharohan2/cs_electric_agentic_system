@@ -2,6 +2,10 @@ langchain
 langchain-openai
 langchain-core
 langgraph
+langgraph-checkpoint-postgres
 pydantic
 pyyaml
 python-dotenv
+psycopg[binary,pool]
+pgvector
+sentence-transformers

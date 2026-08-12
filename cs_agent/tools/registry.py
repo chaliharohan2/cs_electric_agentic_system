@@ -6,16 +6,18 @@ from cs_agent.subgraphs.analytics.tool import analytics_query
 
 from . import descriptions
 from .impl import (
-    get_product,
-    list_canonical_facts,
+    compare_skus,
+    get_sku,
+    list_canonical_specs,
     product_search,
     search_documents,
     taxonomy_browse,
 )
 from .schemas import (
     AnalyticsQueryArgs,
-    GetProductArgs,
-    ListCanonicalFactsArgs,
+    CompareSkusArgs,
+    GetSkuArgs,
+    ListCanonicalSpecsArgs,
     ProductSearchArgs,
     SearchDocumentsArgs,
     TaxonomyBrowseArgs,
@@ -23,10 +25,10 @@ from .schemas import (
 
 TOOLS = [
     StructuredTool.from_function(
-        func=list_canonical_facts,
-        name="list_canonical_facts",
-        description=descriptions.LIST_CANONICAL_FACTS,
-        args_schema=ListCanonicalFactsArgs,
+        func=list_canonical_specs,
+        name="list_canonical_specs",
+        description=descriptions.LIST_CANONICAL_SPECS,
+        args_schema=ListCanonicalSpecsArgs,
     ),
     StructuredTool.from_function(
         func=taxonomy_browse,
@@ -41,10 +43,16 @@ TOOLS = [
         args_schema=ProductSearchArgs,
     ),
     StructuredTool.from_function(
-        func=get_product,
-        name="get_product",
-        description=descriptions.GET_PRODUCT,
-        args_schema=GetProductArgs,
+        func=get_sku,
+        name="get_sku",
+        description=descriptions.GET_SKU,
+        args_schema=GetSkuArgs,
+    ),
+    StructuredTool.from_function(
+        func=compare_skus,
+        name="compare_skus",
+        description=descriptions.COMPARE_SKUS,
+        args_schema=CompareSkusArgs,
     ),
     StructuredTool.from_function(
         func=search_documents,

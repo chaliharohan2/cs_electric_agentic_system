@@ -19,7 +19,7 @@ PROMPT = (Path(__file__).parents[2] / "prompts" / "planner.md").read_text(
 class Plan(BaseModel):
     intent: str
     categories: list[str] = Field(default_factory=list)
-    target_facts: list[str] = Field(default_factory=list)
+    target_specs: list[str] = Field(default_factory=list)
     known_params: dict[str, Any] = Field(default_factory=dict)
     open_params: list[str] = Field(default_factory=list)
     needs_clarification: bool = False

@@ -1,52 +1,54 @@
 """Tool description strings — ship as written; they steer tool choice."""
 
-LIST_CANONICAL_FACTS = (
-    "List the canonical fact IDs available for a product category, with their units, "
-    "value types, and the condition keys they require. "
+LIST_CANONICAL_SPECS = (
+    "List the specification IDs available for a category, with units, value kinds, "
+    "how many SKUs carry each, and the observed minimum and maximum in the catalogue. "
     "ALWAYS call this before using product_search filters in a category you have not "
-    "queried yet in this conversation. Fact IDs are exact strings — guessing them "
-    "(e.g. 'breaking_capacity' instead of 'icu_ka') returns nothing, and you will "
-    "wrongly conclude the product does not exist."
+    "queried yet. The category argument is matched case-insensitively as a partial "
+    "phrase, so 'winmaster' finds every WiNmaster category. Check "
+    "observed_min/observed_max before filtering; an out-of-range threshold cannot match."
 )
 
 TAXONOMY_BROWSE = (
-    "Browse the C&S product taxonomy one level at a time. Returns child categories "
-    "each with a product_count. Use this to find what C&S actually sells before "
-    "searching, and to tell 'no such product exists' apart from 'my filter was wrong' "
-    "— a category with product_count > 0 that returns no search hits means the filter "
-    "is wrong, not that the range is empty."
+    "Browse the C&S catalogue structure: categories, families, and ordering-code axes "
+    "(rating, poles, breaking capacity, release type, mounting), each with a SKU count. "
+    "Category and family are matched case-insensitively as partial phrases, so short "
+    "fragments like 'acb' or 'mccb' work. Use this first when you do not know what C&S "
+    "sells and to distinguish an empty catalogue range from an incorrect filter."
 )
 
 PRODUCT_SEARCH = (
-    "Find product families by structured attribute filters. This is the PRIMARY tool "
-    "for any question involving a number, a rating, a range, or a superlative "
-    "(cheapest, highest, smallest). Do not use document search for those. "
-    "Filters use exact canonical_fact_id values from list_canonical_facts. "
-    "If a fact requires conditions (e.g. breaking capacity depends on voltage) you "
-    "MUST supply them — the same breaker can be rated 200 kA at 240 V and 20 kA at "
-    "690 V, so an unconditioned filter is meaningless and will be rejected."
+    "Find SKUs by specification filters, ordering-code facets, or code fragment. This "
+    "is the PRIMARY tool for any number, rating, range, or superlative. Category, "
+    "family, facet values, spec IDs, and text are matched case-insensitively as partial "
+    "phrases, so approximate names still return hits. Range specs use their min/max "
+    "bounds. Missing specifications mean not published, never zero."
 )
 
-GET_PRODUCT = (
-    "Full detail for one product family: facts grouped by area, plus variants if "
-    "requested. Request only the fact_groups you need — asking for all of them returns "
-    "a large payload that makes the rest of the task harder. Use after product_search "
-    "or taxonomy_browse has identified a family_id."
+GET_SKU = (
+    "Everything known about one SKU: facts with units and value ranges, decoded "
+    "ordering code, and optionally brochure text and sources. The ordering code is "
+    "matched case-insensitively and may be partial; when it resolves to a different "
+    "code the response reports the resolved code and other candidates."
+)
+
+COMPARE_SKUS = (
+    "Side-by-side specification table for 2–10 named SKUs. Ordering codes and spec IDs "
+    "may be partial and are matched case-insensitively; codes that match nothing are "
+    "returned in unresolved_sku_codes. Use for straightforward comparison instead of "
+    "analytics_query. Empty cells mean the spec is not published."
 )
 
 SEARCH_DOCUMENTS = (
     "Semantic search over brochure text. Use ONLY for qualitative questions: how a "
-    "feature works, what an application note says, whether a product suits a use case, "
-    "what a standard requires. Never use it to find, rank, or compare numeric ratings "
-    "— embeddings cannot distinguish 30 A from 40 A, or TCDP301 from TCDP302. Always "
-    "pass a category_path or family_id filter; unfiltered search across 500 brochures "
-    "returns noise."
+    "feature works, application suitability, or what a standard requires. Never use it "
+    "to find, rank, or compare numeric ratings. Always pass category or family; both "
+    "are matched case-insensitively as partial phrases. Results shared across many "
+    "SKUs are family-level text, not one SKU's specification."
 )
 
 ANALYTICS_QUERY = (
-    "Run a free-form analytical query across many products — cross-family comparisons, "
-    "rankings, aggregates, or anything needing a pivot. Returns a result table only, "
-    "with no interpretation. Use when the answer is a table over several products "
-    "rather than a lookup on one. State the question in plain language and the shape "
-    "of table you want back."
+    "Run a free-form analytical query across many SKUs: aggregates, rankings, "
+    "distributions, or pivots over more than ten products. Returns a table without "
+    "interpretation. For 2–10 named SKUs use compare_skus."
 )

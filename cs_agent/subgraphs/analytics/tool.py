@@ -15,14 +15,13 @@ def _graph():
 
 def analytics_query(
     question: str,
-    scope: dict | None = None,
     output_shape: str = "tabular result",
 ) -> dict[str, Any]:
     state = _graph().invoke(
         {
             "question": question,
-            "scope": scope,
             "output_shape": output_shape,
+            "retries": 0,
         }
     )
     return state["answer"]

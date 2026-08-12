@@ -6,19 +6,24 @@ from typing import Any, Protocol
 
 
 class CatalogBackend(Protocol):
-    def list_canonical_facts(self, category_path: str | None) -> list[dict]:
-        """Return fact definitions: id, unit, value_type, condition_keys, category."""
+    def list_canonical_specs(self, category: str | None) -> list[dict]:
+        """Return observed specification definitions and bounds."""
 
-    def taxonomy_browse(self, node_id: str | None, depth: int) -> dict:
-        """Return taxonomy node with children and product_count per child."""
+    def taxonomy_browse(
+        self, category: str | None, family: str | None
+    ) -> dict:
+        """Return categories, families, or decoded ordering-code facets."""
 
     def product_search(self, **kw: Any) -> list[dict] | dict:
-        """Return matching families, or ``{"error": ...}`` on invalid filters."""
+        """Return matching SKUs, or ``{"error": ...}`` on invalid filters."""
 
-    def get_product(
-        self, family_id: str, fact_groups: list[str], include_variants: bool
+    def get_sku(self, sku_code: str, include: list[str]) -> dict:
+        """Return requested details for one SKU."""
+
+    def compare_skus(
+        self, sku_codes: list[str], spec_ids: list[str] | None
     ) -> dict:
-        """Return one family with grouped facts (and variants if requested)."""
+        """Return a deterministic specification pivot."""
 
     def search_documents(self, **kw: Any) -> list[dict]:
         """Return brochure chunks with doc/page/text metadata."""

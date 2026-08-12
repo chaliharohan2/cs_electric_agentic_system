@@ -18,18 +18,23 @@ def reset_backend() -> None:
     backend.cache_clear()
 
 
-def list_canonical_facts(category_path: str | None = None) -> list[dict[str, Any]]:
-    return backend().list_canonical_facts(category_path)
+def list_canonical_specs(category: str | None = None) -> list[dict[str, Any]]:
+    return backend().list_canonical_specs(category)
 
 
-def taxonomy_browse(node_id: str | None = None, depth: int = 1) -> dict[str, Any]:
-    return backend().taxonomy_browse(node_id, depth)
+def taxonomy_browse(
+    category: str | None = None, family: str | None = None
+) -> dict[str, Any]:
+    return backend().taxonomy_browse(category, family)
 
 
 def product_search(
-    category_path: str,
+    category: str | None = None,
+    family: str | None = None,
+    facets: dict[str, str] | None = None,
     filters: list[Any] | None = None,
     text: str | None = None,
+    return_specs: list[str] | None = None,
     limit: int = 20,
 ) -> list[dict[str, Any]] | dict[str, Any]:
     normalized = []
@@ -37,30 +42,41 @@ def product_search(
         data = item.model_dump() if hasattr(item, "model_dump") else dict(item)
         normalized.append(data)
     return backend().product_search(
-        category_path=category_path,
+        category=category,
+        family=family,
+        facets=facets,
         filters=normalized,
         text=text,
+        return_specs=return_specs or [],
         limit=limit,
     )
 
 
-def get_product(
-    family_id: str,
-    fact_groups: list[str],
-    include_variants: bool = False,
+def get_sku(
+    sku_code: str,
+    include: list[str] | None = None,
 ) -> dict[str, Any]:
-    return backend().get_product(family_id, fact_groups, include_variants)
+    return backend().get_sku(sku_code, include or ["facts", "decoded"])
+
+
+def compare_skus(
+    sku_codes: list[str],
+    spec_ids: list[str] | None = None,
+) -> dict[str, Any]:
+    return backend().compare_skus(sku_codes, spec_ids)
 
 
 def search_documents(
     query: str,
-    category_path: str | None = None,
-    family_id: str | None = None,
+    category: str | None = None,
+    family: str | None = None,
+    sku_code: str | None = None,
     k: int = 6,
 ) -> list[dict[str, Any]]:
     return backend().search_documents(
         query=query,
-        category_path=category_path,
-        family_id=family_id,
+        category=category,
+        family=family,
+        sku_code=sku_code,
         k=k,
     )

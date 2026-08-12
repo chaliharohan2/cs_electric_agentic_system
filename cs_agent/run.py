@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import json
+import os
 import sys
 import uuid
 from typing import Any
@@ -11,10 +13,24 @@ from typing import Any
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.types import Command
 
 from cs_agent.graph import build_graph
 from cs_agent.observability import AgentCallbackHandler, TraceLogger
+
+
+@contextmanager
+def _checkpointer():
+    if os.getenv("CS_BACKEND", "fixtures").lower() != "postgres":
+        yield MemorySaver()
+        return
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        raise RuntimeError("DATABASE_URL is required when CS_BACKEND=postgres")
+    with PostgresSaver.from_conn_string(database_url) as saver:
+        saver.setup()
+        yield saver
 
 
 def _initial_state(question: str) -> dict[str, Any]:
@@ -48,7 +64,6 @@ def run_question(
     callback = AgentCallbackHandler(trace)
     thread_id = str(uuid.uuid4())
     initial_state = _initial_state(question)
-    graph = build_graph(checkpointer=MemorySaver(), trace=trace)
     config = {
         "configurable": {"thread_id": thread_id},
         "callbacks": [callback],
@@ -73,17 +88,19 @@ def run_question(
     )
     trace.event("agent.change", from_agent="START", to_agent="planner")
     try:
-        result = graph.invoke(initial_state, config=config)
-        while result.get("__interrupt__"):
-            interrupt_record = result["__interrupt__"][0]
-            payload = getattr(interrupt_record, "value", interrupt_record)
-            trace.event("run.interrupt", payload=payload)
-            answer = _answer_interrupt(payload)
-            trace.event("run.resume", answer=answer)
-            result = graph.invoke(
-                Command(resume=answer),
-                config=config,
-            )
+        with _checkpointer() as checkpointer:
+            graph = build_graph(checkpointer=checkpointer, trace=trace)
+            result = graph.invoke(initial_state, config=config)
+            while result.get("__interrupt__"):
+                interrupt_record = result["__interrupt__"][0]
+                payload = getattr(interrupt_record, "value", interrupt_record)
+                trace.event("run.interrupt", payload=payload)
+                answer = _answer_interrupt(payload)
+                trace.event("run.resume", answer=answer)
+                result = graph.invoke(
+                    Command(resume=answer),
+                    config=config,
+                )
         trace.event("run.end", status="completed", final_state=result)
         return result
     except BaseException as exc:
