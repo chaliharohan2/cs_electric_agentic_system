@@ -78,4 +78,9 @@ def composer(state: AgentState) -> dict[str, Any]:
             ),
         ]
     )
-    return {"draft": _text(response.content).strip()}
+    draft = _text(response.content).strip()
+    if not draft:
+        # A retry that runs out of output tokens returns nothing; the earlier
+        # draft, flaws and all, is a better answer than none.
+        return {"draft": state.get("draft")}
+    return {"draft": draft}

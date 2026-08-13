@@ -180,7 +180,7 @@ User question (CLI)
           │ analytics_query tool                       ▼
           │                               ┌──────────────────────────┐
           └─────────────────────────────► │ Analytics subgraph       │
-                                          │ plan_sql→write→exec→shape│
+                                          │ analyst⇄SQL tool→summary │
                                           └──────────────────────────┘
 ```
 
@@ -344,7 +344,7 @@ Reads the latest `ToolMessage`s and converts them into normalized `Evidence` row
 |------|-------------------|
 | `product_search`, `get_sku`, `compare_skus` | one record per fact / returned spec |
 | `search_documents` | one record per chunk (`text`) |
-| `analytics_query` | one record per numeric cell (+ optional note) |
+| `analytics_query` | structured numeric evidence + factual summary/limitations |
 | `taxonomy_browse`, `list_canonical_specs` | summary/count payload only (not citable specs) |
 
 Also increments `tool_calls_made` by the number of completed tool messages.
@@ -399,7 +399,7 @@ Registered in [`cs_agent/tools/registry.py`](cs_agent/tools/registry.py). All st
 | `get_sku` | Full detail for one ordering code (`facts`, `decoded`, optional `content`/`sources`) |
 | `compare_skus` | Deterministic side-by-side pivot for 2–10 SKUs (no free-form SQL) |
 | `search_documents` | Semantic brochure search (qualitative questions only) |
-| `analytics_query` | Free-form aggregates / rankings over many SKUs (subgraph) |
+| `analytics_query` | Bounded multi-query analysis over many SKUs/views (subgraph) |
 
 ### Text matching is fuzzy
 
@@ -427,7 +427,7 @@ Typical sequencing taught by the agent prompt:
 3. `product_search` to shortlist  
 4. `get_sku` or `compare_skus` for detail  
 5. `search_documents` only for qualitative “how/why” questions  
-6. `analytics_query` only for large aggregates
+6. `analytics_query` for complex quantitative work across many SKUs/views
 
 ### Document search notes
 
@@ -448,34 +448,44 @@ On Postgres, `search_documents`:
 START
   │
   ▼
-plan_sql          # load spec registry; init retry counter
+prepare             # load spec registry; initialize query count
   │
   ▼
-write_sql         # LLM writes one PostgreSQL SELECT over mv_* views
+analyst              # tool-bound LLM chooses the next focused SELECT
   │
-  ▼
-execute_sql       # run SQL via backend.execute_sql
+  ├── tool call, budget remains ──► execute_analytics_sql
+  │                                      │
+  │                                      ▼
+  │                                record_queries
+  │                                      │
+  │                   budget remains ────┘
   │
-  ├── on error AND retries <= 2 ──► write_sql   (fix with error text)
-  │
-  └── otherwise ──► shape         # LLM formats table + exclusion note
-                      │
-                      ▼
-                     END  → returns SqlResult to the main agent
+  └── complete or cap reached ──► summarize
+                                     │
+                                     ▼
+                                    END
 ```
 
 ### Nodes
 
 | Node | What it does |
 |------|--------------|
-| `plan_sql` | Fetches `list_canonical_specs(None)` so the SQL writer knows legal `spec_id`s |
-| `write_sql` | Asks the LLM for **one** `SELECT` against `mv_sku` / `mv_fact` / `mv_spec_registry` / `mv_facet`. On retry, includes the previous database error. Logs the SQL string. |
-| `execute_sql` | Runs the statement. Marked with `# GUARDRAIL_HOOK` for future read-only role / timeout / row caps. On error, increments `retries`. |
-| `shape` | Turns the result set into the requested output shape and a one-line note about exclusions (POR rows, missing specs, etc.). Returns `SqlResult`. |
+| `prepare` | Fetches `list_canonical_specs(None)` so the analyst knows legal `spec_id`s |
+| `analyst` | Uses a model bound to exactly one private tool. It can decompose the question, issue one focused `SELECT` at a time, inspect results/errors, cross-check, and stop early. |
+| `query` | Runs `execute_analytics_sql` through a private `ToolNode`; the main agent cannot call this SQL tool directly. |
+| `record_queries` | Counts every execution, including failed SQL, against the hard internal budget. |
+| `summarize` | Produces a Pydantic-validated factual report with a concise summary, numeric evidence, query count, limitations, and optional error. It must not infer, recommend, or expose raw SQL/results. |
 
-`SqlResult` fields: `columns`, `rows`, `sql`, `row_count`, `note`, `error`.
+`AnalyticsReport` fields: `summary`, `evidence`, `queries_run`, `limitations`,
+`error`. Each numeric evidence item carries its supporting statement, raw/display
+value, and optional unit, SKU, and spec ID so the main numeric-fidelity validator can
+still verify the composed answer.
 
-The analytics prompt encodes the same range predicates as the structured search tools, and requires identifying products by `sku_code` only (never `product_id`).
+The default hard cap is four SQL executions. Set `CS_ANALYTICS_MAX_QUERIES` to a
+positive integer to change it. The router enforces the cap independently of the
+prompt. The analytics prompt encodes the same range predicates as the structured
+search tools and requires identifying products by `sku_code` only (never
+`product_id`).
 
 ---
 
@@ -559,7 +569,10 @@ Question: *“Find a WiNmaster 3 ACB around 630 A, 3-pole, and show its key spec
 
 If the question was vague (“recommend an ACB”), planner may route through **clarify** once or twice before tools begin.
 
-If the question was “distribution of breaking capacities across WiNmaster 3”, the agent may call **`analytics_query`**, which spins up the SQL subgraph and returns a table only.
+If the question was “distribution of breaking capacities across WiNmaster 3”, the
+agent may call **`analytics_query`** once. Its sub-agent can run several focused SQL
+queries and returns a factual summary with supporting numeric evidence; the main
+agent owns any interpretation.
 
 ---
 

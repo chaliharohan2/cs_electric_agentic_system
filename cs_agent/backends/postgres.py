@@ -12,19 +12,15 @@ from pgvector.psycopg import register_vector
 from psycopg import sql
 from psycopg.rows import dict_row
 
+from cs_agent.backends.matching import (
+    any_term_predicate,
+    distinctive_words,
+    normalized_sql,
+    text_predicate,
+)
 from cs_agent.embeddings import embed
 
-
-def like_pattern(value: str) -> str:
-    """Wrap a user-supplied term for substring ILIKE matching."""
-    escaped = (
-        str(value)
-        .strip()
-        .replace("\\", "\\\\")
-        .replace("%", "\\%")
-        .replace("_", "\\_")
-    )
-    return f"%{escaped}%"
+SPEC_NAME_COLUMNS = ("spec_id", "spec_label")
 
 
 class PostgresBackend:
@@ -39,21 +35,25 @@ class PostgresBackend:
         return connection
 
     def list_canonical_specs(self, category: str | None) -> list[dict]:
-        query = """
+        clause, params = (
+            text_predicate(("category",), category) if category else ("TRUE", [])
+        )
+        query = f"""
             SELECT spec_id, spec_label, unit, value_kind, sku_count,
                    observed_min, observed_max, category
             FROM in_use.mv_spec_registry
-            WHERE (%s::text IS NULL OR category ILIKE %s)
+            WHERE {clause}
             ORDER BY category, spec_label, spec_id
         """
-        pattern = like_pattern(category) if category else None
         with self._connect() as connection:
-            return list(connection.execute(query, (category, pattern)).fetchall())
+            return list(connection.execute(query, params).fetchall())
 
     def taxonomy_browse(
         self, category: str | None = None, family: str | None = None
     ) -> dict:
         with self._connect() as connection:
+            if family is not None:
+                return self._facets(connection, category, family)
             if category is None:
                 rows = connection.execute(
                     """
@@ -62,30 +62,42 @@ class PostgresBackend:
                     """
                 ).fetchall()
                 return {"level": "categories", "categories": list(rows)}
-            if family is None:
-                rows = connection.execute(
-                    """
-                    SELECT category, family, count(*) AS sku_count
-                    FROM in_use.mv_sku
-                    WHERE category ILIKE %s
-                    GROUP BY category, family ORDER BY category, family
-                    """,
-                    (like_pattern(category),),
-                ).fetchall()
-                return {
-                    "level": "families",
-                    "category": category,
-                    "families": list(rows),
-                }
+            clause, params = text_predicate(("category",), category)
             rows = connection.execute(
-                """
-                SELECT category, family, axis, code, meaning, sku_count
-                FROM in_use.mv_facet
-                WHERE category ILIKE %s AND family ILIKE %s
-                ORDER BY axis, code
+                f"""
+                SELECT category, family, count(*) AS sku_count
+                FROM in_use.mv_sku
+                WHERE {clause}
+                GROUP BY category, family ORDER BY category, family
                 """,
-                (like_pattern(category), like_pattern(family)),
+                params,
             ).fetchall()
+        return {
+            "level": "families",
+            "category": category,
+            "families": list(rows),
+        }
+
+    def _facets(self, connection, category: str | None, family: str) -> dict:
+        """Ordering-code axes for the matching families.
+
+        ``category`` is optional: a family or product-line name is often all the
+        caller knows, and silently ignoring it would return the whole catalogue.
+        """
+        clause, params = text_predicate(("family",), family)
+        if category:
+            category_clause, category_params = text_predicate(("category",), category)
+            clause = f"{clause} AND {category_clause}"
+            params = params + category_params
+        rows = connection.execute(
+            f"""
+            SELECT category, family, axis, code, meaning, sku_count
+            FROM in_use.mv_facet
+            WHERE {clause}
+            ORDER BY category, family, axis, code
+            """,
+            params,
+        ).fetchall()
         axes: dict[str, list[dict[str, Any]]] = {}
         matched_families: list[str] = []
         for row in rows:
@@ -96,7 +108,7 @@ class PostgresBackend:
             if matched not in matched_families:
                 matched_families.append(matched)
             axes.setdefault(axis, []).append(item)
-        return {
+        result = {
             "level": "facets",
             "category": category,
             "family": family,
@@ -106,6 +118,32 @@ class PostgresBackend:
                 default=0,
             ),
             "axes": axes,
+        }
+        if not matched_families:
+            result["no_matches"] = (
+                f"No family matches {family!r}"
+                + (f" within category {category!r}" if category else "")
+            )
+            result["suggestions"] = self._name_suggestions(connection, family)
+        return result
+
+    @staticmethod
+    def _name_suggestions(connection, term: str) -> dict[str, list[str]]:
+        """Catalogue names sharing a word with ``term``, to unstick a bad guess."""
+        words = distinctive_words(term)
+        if not words:
+            return {"categories": [], "families": []}
+        clause, params = any_term_predicate(("category", "family"), words)
+        rows = connection.execute(
+            f"""
+            SELECT DISTINCT category, family FROM in_use.mv_sku
+            WHERE {clause} ORDER BY category, family LIMIT 15
+            """,
+            params,
+        ).fetchall()
+        return {
+            "categories": sorted({row["category"] for row in rows}),
+            "families": sorted({row["family"] for row in rows}),
         }
 
     def product_search(self, **kw: Any) -> list[dict] | dict:
@@ -117,32 +155,39 @@ class PostgresBackend:
         return_specs = kw.get("return_specs") or []
         limit = max(1, min(int(kw.get("limit", 20)), 100))
 
+        # Name and narrowing clauses are tracked apart so an empty result can say
+        # whether the name was unknown or the filters were too tight.
+        name_clauses: list[sql.Composable] = []
+        name_params: list[Any] = []
         clauses: list[sql.Composable] = []
         params: list[Any] = []
+
+        def add_name(fragment: str, fragment_params: list[Any]) -> None:
+            name_clauses.append(sql.SQL(fragment))
+            name_params.extend(fragment_params)
+
+        def add(fragment: str, fragment_params: list[Any]) -> None:
+            clauses.append(sql.SQL(fragment))
+            params.extend(fragment_params)
+
         if category:
-            clauses.append(sql.SQL("s.category ILIKE %s"))
-            params.append(like_pattern(category))
+            add_name(*text_predicate(("s.category",), category))
         if family:
-            clauses.append(sql.SQL("s.family ILIKE %s"))
-            params.append(like_pattern(family))
+            add_name(*text_predicate(("s.family",), family))
         if text:
-            clauses.append(
-                sql.SQL(
-                    "(s.sku_code ILIKE %s OR s.family ILIKE %s OR s.category ILIKE %s)"
-                )
-            )
-            params.extend([like_pattern(text)] * 3)
+            add_name(*text_predicate(("s.sku_code", "s.family", "s.category"), text))
         for axis, code in facets.items():
-            clauses.append(
-                sql.SQL(
-                    "EXISTS (SELECT 1 FROM jsonb_each("
-                    "CASE WHEN jsonb_typeof(s.decoded) = 'object' "
-                    "THEN s.decoded ELSE '{}'::jsonb END) AS d(axis, spec) "
-                    "WHERE d.axis ILIKE %s AND ("
-                    "d.spec->>'code' ILIKE %s OR d.spec->>'meaning' ILIKE %s))"
-                )
+            axis_clause, axis_params = text_predicate(("d.axis",), axis)
+            code_clause, code_params = text_predicate(
+                ("d.spec->>'code'", "d.spec->>'meaning'"), code
             )
-            params.extend([like_pattern(axis), like_pattern(code), like_pattern(code)])
+            add(
+                "EXISTS (SELECT 1 FROM jsonb_each("
+                "CASE WHEN jsonb_typeof(s.decoded) = 'object' "
+                "THEN s.decoded ELSE '{}'::jsonb END) AS d(axis, spec) "
+                f"WHERE {axis_clause} AND {code_clause})",
+                axis_params + code_params,
+            )
         for item in filters:
             spec_id = item["spec_id"]
             operator = item["op"]
@@ -161,19 +206,25 @@ class PostgresBackend:
                 value = f"%{value}%"
             else:
                 return {"error": f"Unsupported filter operator: {operator}"}
+            spec_clause, spec_params = text_predicate(
+                tuple(f"f.{column}" for column in SPEC_NAME_COLUMNS), spec_id
+            )
             clauses.append(
                 sql.SQL(
                     "EXISTS (SELECT 1 FROM in_use.mv_fact f "
-                    "WHERE f.sku_code = s.sku_code AND f.spec_id ILIKE %s AND "
+                    f"WHERE f.sku_code = s.sku_code AND {spec_clause} AND "
                 )
                 + predicate
                 + sql.SQL(")")
             )
-            params.extend((like_pattern(spec_id), value))
+            params.extend(spec_params)
+            params.append(value)
 
+        all_clauses = name_clauses + clauses
+        all_params = name_params + params
         where = (
-            sql.SQL(" WHERE ") + sql.SQL(" AND ").join(clauses)
-            if clauses
+            sql.SQL(" WHERE ") + sql.SQL(" AND ").join(all_clauses)
+            if all_clauses
             else sql.SQL("")
         )
         query = (
@@ -187,22 +238,36 @@ class PostgresBackend:
             + where
             + sql.SQL(" ORDER BY s.sku_code LIMIT %s")
         )
-        params.append(limit)
         with self._connect() as connection:
-            hits = [dict(row) for row in connection.execute(query, params).fetchall()]
-            if hits and return_specs:
+            hits = [
+                dict(row)
+                for row in connection.execute(query, [*all_params, limit]).fetchall()
+            ]
+            if not hits:
+                return self._no_search_matches(
+                    connection,
+                    term=next(
+                        (value for value in (category, family, text) if value), None
+                    ),
+                    name_clauses=name_clauses,
+                    name_params=name_params,
+                    narrowed=bool(clauses),
+                )
+            if return_specs:
                 sku_codes = [hit["sku_code"] for hit in hits]
+                spec_clause, spec_params = any_term_predicate(
+                    SPEC_NAME_COLUMNS, return_specs
+                )
                 facts = connection.execute(
-                    """
+                    f"""
                     SELECT sku_code, spec_id, spec_label, unit, value_num, value_min,
                            value_max, value_display, value_kind, source_of_truth,
                            derived, fact_sentence
                     FROM in_use.mv_fact
-                    WHERE sku_code = ANY(%s)
-                      AND spec_id ILIKE ANY(%s)
+                    WHERE sku_code = ANY(%s) AND {spec_clause}
                     ORDER BY sku_code, spec_id
                     """,
-                    (sku_codes, [like_pattern(spec) for spec in return_specs]),
+                    [sku_codes, *spec_params],
                 ).fetchall()
                 by_sku: dict[str, list[dict]] = {}
                 for fact in facts:
@@ -211,18 +276,60 @@ class PostgresBackend:
                     hit["specs"] = by_sku.get(hit["sku_code"], [])
         return hits
 
+    def _no_search_matches(
+        self,
+        connection,
+        *,
+        term: str | None,
+        name_clauses: list[sql.Composable],
+        name_params: list[Any],
+        narrowed: bool,
+    ) -> list[dict] | dict:
+        """Explain an empty result: unknown name, or filters that excluded everything."""
+        if term is None:
+            return []
+        if narrowed and name_clauses:
+            named = connection.execute(
+                sql.SQL("SELECT count(*) AS total FROM in_use.mv_sku s WHERE ")
+                + sql.SQL(" AND ").join(name_clauses),
+                name_params,
+            ).fetchone()
+            if named and named["total"]:
+                return {
+                    "hits": [],
+                    "no_matches": (
+                        f"{term!r} matches {named['total']} SKUs, but none satisfy the "
+                        "filters and facets given. Check the observed_min and "
+                        "observed_max from list_canonical_specs and relax them."
+                    ),
+                }
+        suggestions = self._name_suggestions(connection, term)
+        if not suggestions["categories"] and not suggestions["families"]:
+            return []
+        return {
+            "hits": [],
+            "no_matches": (
+                f"No SKU matched. The catalogue has no name matching {term!r}, but "
+                "the names below share a word with it. Retry with one of them."
+            ),
+            "suggestions": suggestions,
+        }
+
     @staticmethod
     def _match_sku_codes(connection, sku_code: str, limit: int = 10) -> list[str]:
         """Resolve a possibly-partial ordering code, exact matches ranked first."""
+        clause, params = text_predicate(("sku_code",), sku_code)
+        normalized = normalized_sql("sku_code")
         rows = connection.execute(
-            """
+            f"""
             SELECT sku_code
             FROM in_use.mv_sku
-            WHERE sku_code ILIKE %s
-            ORDER BY (lower(sku_code) = lower(%s)) DESC, length(sku_code), sku_code
+            WHERE {clause}
+            ORDER BY ({normalized} = {normalized_sql('%s::text')}) DESC,
+                     length(sku_code), sku_code
             LIMIT %s
             """,
-            (like_pattern(sku_code), sku_code.strip(), limit),
+            [*params, str(sku_code).strip(), limit],
         ).fetchall()
         return [row["sku_code"] for row in rows]
 
@@ -230,7 +337,10 @@ class PostgresBackend:
         with self._connect() as connection:
             candidates = self._match_sku_codes(connection, sku_code)
             if not candidates:
-                return {"error": f"No SKU matches {sku_code!r}"}
+                return {
+                    "error": f"No ordering code matches {sku_code!r}",
+                    "suggestions": self._name_suggestions(connection, sku_code),
+                }
             resolved = candidates[0]
             sku = connection.execute(
                 """
@@ -280,8 +390,10 @@ class PostgresBackend:
     def compare_skus(
         self, sku_codes: list[str], spec_ids: list[str] | None = None
     ) -> dict:
-        spec_patterns = (
-            [like_pattern(spec) for spec in spec_ids] if spec_ids else None
+        spec_clause, spec_params = (
+            any_term_predicate(SPEC_NAME_COLUMNS, spec_ids)
+            if spec_ids
+            else ("TRUE", [])
         )
         with self._connect() as connection:
             resolved: list[str] = []
@@ -294,21 +406,28 @@ class PostgresBackend:
                     resolved.append(matches[0])
             if not resolved:
                 return {
-                    "error": f"No SKUs matched {sku_codes!r}",
+                    "error": (
+                        f"No ordering code matches {sku_codes!r}. compare_skus takes "
+                        "ordering codes, not family or product-line names; use "
+                        "product_search to turn a name into ordering codes first."
+                    ),
                     "sku_codes": [],
                     "rows": [],
+                    "suggestions": {
+                        requested: self._name_suggestions(connection, requested)
+                        for requested in unresolved
+                    },
                 }
             sku_codes = resolved
             rows = connection.execute(
-                """
+                f"""
                 SELECT sku_code, spec_id, spec_label, unit, value_display,
                        value_num, value_min, value_max, value_kind, source_of_truth
                 FROM in_use.mv_fact
-                WHERE sku_code = ANY(%s)
-                  AND (%s::text[] IS NULL OR spec_id ILIKE ANY(%s))
+                WHERE sku_code = ANY(%s) AND {spec_clause}
                 ORDER BY spec_id, sku_code
                 """,
-                (sku_codes, spec_patterns, spec_patterns),
+                [sku_codes, *spec_params],
             ).fetchall()
         specs: dict[str, dict[str, Any]] = {}
         for raw in rows:
@@ -334,7 +453,21 @@ class PostgresBackend:
     def search_documents(self, **kw: Any) -> list[dict]:
         dimension = self._embedding_dimension()
         vector = Vector(embed(kw["query"], expected_dimension=dimension))
-        query = """
+        filters = [
+            ("pc.taxonomy->>'category'", kw.get("category")),
+            ("pc.product->>'family'", kw.get("family")),
+            ("pc.product->>'sku_code'", kw.get("sku_code")),
+        ]
+        clauses = ["pc.is_active", "pc.embedding IS NOT NULL"]
+        params: list[Any] = [vector, vector]
+        for expression, wanted in filters:
+            if not wanted:
+                continue
+            clause, clause_params = text_predicate((expression,), wanted)
+            clauses.append(clause)
+            params.extend(clause_params)
+        params.append(max(1, min(int(kw.get("k", 6)), 20)))
+        query = f"""
             WITH ranked AS (
               SELECT pc.id::text AS chunk_id, pc.content, pc.chunk_type,
                      pc.product->>'sku_code' AS sku_code,
@@ -349,31 +482,12 @@ class PostgresBackend:
                        PARTITION BY md5(pc.content)
                      ) AS shared_by_sku_count
               FROM in_use.product_chunks pc
-              WHERE pc.is_active AND pc.embedding IS NOT NULL
-                AND (%s::text IS NULL OR pc.taxonomy->>'category' ILIKE %s)
-                AND (%s::text IS NULL OR pc.product->>'family' ILIKE %s)
-                AND (%s::text IS NULL OR pc.product->>'sku_code' ILIKE %s)
+              WHERE {" AND ".join(clauses)}
             )
             SELECT chunk_id, content AS text, chunk_type, sku_code, family, category,
                    distance, 1 - distance AS score, shared_by_sku_count
             FROM ranked WHERE rn = 1 ORDER BY distance LIMIT %s
         """
-        category, family, sku_code = (
-            kw.get("category"),
-            kw.get("family"),
-            kw.get("sku_code"),
-        )
-        params = (
-            vector,
-            vector,
-            category,
-            like_pattern(category) if category else None,
-            family,
-            like_pattern(family) if family else None,
-            sku_code,
-            like_pattern(sku_code) if sku_code else None,
-            max(1, min(int(kw.get("k", 6)), 20)),
-        )
         with self._connect() as connection:
             return list(connection.execute(query, params).fetchall())
 

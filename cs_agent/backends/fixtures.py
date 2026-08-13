@@ -8,6 +8,8 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from cs_agent.backends.matching import distinctive_words, matches
+
 DATA_DIR = Path(__file__).parents[1] / "data" / "fixtures"
 _READ_ONLY = re.compile(r"^\s*(select|with)\b", re.IGNORECASE)
 
@@ -208,10 +210,26 @@ class FixturesBackend:
     # family's facts; this keeps offline graph tests useful while production uses Postgres.
     @staticmethod
     def _matches_text(value: Any, wanted: Any) -> bool:
-        """Case-insensitive substring match, mirroring the Postgres ILIKE filters."""
-        if wanted in (None, ""):
-            return True
-        return str(wanted).strip().lower() in str(value or "").lower()
+        """Delegate to the matcher the Postgres adapter mirrors in SQL."""
+        return matches(value, wanted)
+
+    def _catalogue_names(self, term: str) -> dict[str, list[str]]:
+        """Catalogue names sharing a word with ``term``, to unstick a bad guess."""
+        words = distinctive_words(term)
+        skus = self._fixture_skus()
+        hits = [
+            sku
+            for sku in skus
+            if any(
+                self._matches_text(sku[field], word)
+                for word in words
+                for field in ("category", "family")
+            )
+        ]
+        return {
+            "categories": sorted({sku["category"] for sku in hits}),
+            "families": sorted({sku["family"] for sku in hits}),
+        }
 
     def _fixture_skus(self) -> list[dict[str, Any]]:
         skus = []
@@ -292,6 +310,27 @@ class FixturesBackend:
         self, category: str | None = None, family: str | None = None
     ) -> dict:
         skus = self._fixture_skus()
+        if family is not None:
+            # ``category`` stays optional: a family name is often all the caller
+            # knows, and ignoring it would return the whole catalogue instead.
+            matched = [
+                sku
+                for sku in skus
+                if self._matches_text(sku["family"], family)
+                and self._matches_text(sku["category"], category)
+            ]
+            result = {
+                "level": "facets",
+                "category": category,
+                "family": family,
+                "matched_families": sorted({sku["family"] for sku in matched}),
+                "sku_count": len(matched),
+                "axes": {},
+            }
+            if not matched:
+                result["no_matches"] = f"No family matches {family!r}"
+                result["suggestions"] = self._catalogue_names(family)
+            return result
         if category is None:
             names = sorted({sku["category"] for sku in skus})
             return {
@@ -304,39 +343,28 @@ class FixturesBackend:
                     for name in names
                 ],
             }
-        if family is None:
-            names = sorted(
-                {
-                    sku["family"]
-                    for sku in skus
-                    if self._matches_text(sku["category"], category)
-                }
-            )
-            return {
-                "level": "families",
-                "category": category,
-                "families": [
-                    {
-                        "family": name,
-                        "sku_count": sum(sku["family"] == name for sku in skus),
-                    }
-                    for name in names
-                ],
-            }
-        return {
-            "level": "facets",
-            "category": category,
-            "family": family,
-            "sku_count": sum(
-                self._matches_text(sku["category"], category)
-                and self._matches_text(sku["family"], family)
+        names = sorted(
+            {
+                sku["family"]
                 for sku in skus
-            ),
-            "axes": {},
+                if self._matches_text(sku["category"], category)
+            }
+        )
+        return {
+            "level": "families",
+            "category": category,
+            "families": [
+                {
+                    "family": name,
+                    "sku_count": sum(sku["family"] == name for sku in skus),
+                }
+                for name in names
+            ],
         }
 
     def product_search(self, **kw: Any) -> list[dict] | dict:
         hits = []
+        named = 0
         for sku in self._fixture_skus():
             if not self._matches_text(sku["category"], kw.get("category")):
                 continue
@@ -348,12 +376,13 @@ class FixturesBackend:
                 for field in ("sku_code", "family", "category")
             ):
                 continue
+            named += 1
             matched = True
             for wanted in kw.get("filters") or []:
                 candidates = [
                     fact
                     for fact in sku["facts"]
-                    if self._matches_text(fact["spec_id"], wanted["spec_id"])
+                    if self._matches_spec(fact, wanted["spec_id"])
                 ]
                 if not candidates:
                     matched = False
@@ -394,15 +423,47 @@ class FixturesBackend:
                             for fact in sku["facts"]
                             if not requested
                             or any(
-                                self._matches_text(fact["spec_id"], spec)
-                                for spec in requested
+                                self._matches_spec(fact, spec) for spec in requested
                             )
                         ],
                     }
                 )
             if len(hits) >= int(kw.get("limit", 20)):
                 break
-        return hits
+        if hits:
+            return hits
+        term = next(
+            (kw.get(key) for key in ("category", "family", "text") if kw.get(key)),
+            None,
+        )
+        if term is None:
+            return []
+        if named:
+            return {
+                "hits": [],
+                "no_matches": (
+                    f"{term!r} matches {named} SKUs, but none satisfy the filters and "
+                    "facets given. Check the observed_min and observed_max from "
+                    "list_canonical_specs and relax them."
+                ),
+            }
+        suggestions = self._catalogue_names(term)
+        if not (suggestions["categories"] or suggestions["families"]):
+            return []
+        return {
+            "hits": [],
+            "no_matches": (
+                f"No SKU matched. The catalogue has no name matching {term!r}, but "
+                "the names below share a word with it. Retry with one of them."
+            ),
+            "suggestions": suggestions,
+        }
+
+    def _matches_spec(self, fact: dict[str, Any], wanted: Any) -> bool:
+        return any(
+            self._matches_text(fact.get(field), wanted)
+            for field in ("spec_id", "spec_label")
+        )
 
     def _resolve_sku(self, sku_code: str) -> dict[str, Any] | None:
         skus = self._fixture_skus()
@@ -424,7 +485,10 @@ class FixturesBackend:
     def get_sku(self, sku_code: str, include: list[str]) -> dict:
         sku = self._resolve_sku(sku_code)
         if not sku:
-            return {"error": f"No SKU matches {sku_code!r}"}
+            return {
+                "error": f"No ordering code matches {sku_code!r}",
+                "suggestions": self._catalogue_names(sku_code),
+            }
         result = {
             key: sku[key]
             for key in ("sku_code", "family", "category", "completeness")
@@ -454,15 +518,33 @@ class FixturesBackend:
                 unresolved.append(requested)
             elif match not in selected:
                 selected.append(match)
+        if not selected:
+            return {
+                "error": (
+                    f"No ordering code matches {sku_codes!r}. compare_skus takes "
+                    "ordering codes, not family or product-line names; use "
+                    "product_search to turn a name into ordering codes first."
+                ),
+                "sku_codes": [],
+                "rows": [],
+                "suggestions": {
+                    requested: self._catalogue_names(requested)
+                    for requested in unresolved
+                },
+            }
         sku_codes = [sku["sku_code"] for sku in selected]
-        available = sorted(
-            {fact["spec_id"] for sku in selected for fact in sku["facts"]}
-        )
+        facts_by_id = {
+            fact["spec_id"]: fact for sku in selected for fact in sku["facts"]
+        }
+        available = sorted(facts_by_id)
         ids = (
             [
                 spec
                 for spec in available
-                if any(self._matches_text(spec, wanted) for wanted in spec_ids)
+                if any(
+                    self._matches_spec(facts_by_id[spec], wanted)
+                    for wanted in spec_ids
+                )
             ]
             if spec_ids
             else available
