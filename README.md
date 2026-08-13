@@ -1,7 +1,7 @@
 # CS Electric Client Support Agent
 
-CLI LangGraph product-support agent backed by PostgreSQL `in_use.product_chunks`,
-with synthetic fixtures retained for offline tests.
+Multi-agent CLI product-support system backed by the `cs_electric_v2` PostgreSQL
+catalogue, with synthetic fixtures retained for offline tests.
 
 For a full walkthrough of the catalogue model, materialized views, main graph,
 every node, and the analytics sub-agent, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
@@ -18,8 +18,8 @@ Set `ANTHROPIC_API_KEY` (and optionally `LOCAL_LLM_API_KEY`) in `.env`. Configur
 
 ```bash
 CS_BACKEND=postgres
-DATABASE_URL=postgresql://postgres:your-password@localhost:5432/cs_electric
-CS_EMBEDDING_MODEL=minilm_l6_v2
+DATABASE_URL=postgresql://postgres:your-password@localhost:5432/cs_electric_v2
+CS_EMBEDDING_MODEL=gte_base_en_v1_5
 ```
 
 Keep database credentials in `.env`; do not commit them.
@@ -47,6 +47,8 @@ python -m cs_agent.db.refresh refresh
 python -m cs_agent.run
 # or
 python -m cs_agent.run --question "Compare two WiNmaster 3 ACB SKUs."
+# reuse a persisted conversation
+python -m cs_agent.run --thread-id customer-42
 ```
 
 Model routing is controlled by `cs_agent/config/endpoints.yaml`. Override with
@@ -57,14 +59,20 @@ Set `CS_BACKEND=fixtures` for deterministic offline fixture tests.
 
 ## Embeddings
 
-Query embedding profiles live in `cs_agent/config/embeddings.yaml`. The current
-`minilm_l6_v2` profile uses `sentence-transformers/all-MiniLM-L6-v2` and emits the
-384 dimensions stored in `product_chunks.embedding`.
+The active `gte_base_en_v1_5` profile uses
+`Alibaba-NLP/gte-base-en-v1.5` and emits normalized 768-dimensional query vectors.
+Database setup migrates an empty embedding column to `vector(768)`. Corpus ingestion
+is external to this repository. Until vectors are loaded, `search_documents` uses its
+PostgreSQL full-text fallback and returns `mode: "lexical"`.
 
-The prepared `gte_base_en_v1_5` profile emits 768 dimensions. Do not enable it until
-the catalogue has been re-embedded, the vector column has been migrated to
-`vector(768)`, and the vector index has been rebuilt. Runtime dimension validation
-fails clearly instead of issuing an invalid similarity query.
+## Workflow
+
+`intake` resolves follow-ups, the planner dispatches one to five private specialists
+in parallel, a deterministic gate checks each report, and the composer performs a
+structured sufficiency pass before writing the answer. Missing evidence triggers only
+the named specialist, up to the configured revision cap. Runtime caps live in
+`cs_agent/config/limits.yaml` and can be overridden with `CS_GLOBAL_TOOL_BUDGET`,
+`CS_PER_AGENT_TOOL_BUDGET`, `CS_COMPOSER_REVISIONS`, and related variables.
 
 ## Execution tracing
 
@@ -89,4 +97,11 @@ in the terminal.
 
 ```bash
 python -m unittest tests.test_framework
+```
+
+Vector integration tests are intentionally excluded. After 768-dimensional corpus
+vectors are loaded, run them explicitly with:
+
+```bash
+CS_VECTOR_TEST_FAMILY="..." make test-vector
 ```

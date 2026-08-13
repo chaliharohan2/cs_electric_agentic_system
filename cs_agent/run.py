@@ -32,14 +32,31 @@ def _checkpointer():
         yield saver
 
 
-def _initial_state(question: str) -> dict[str, Any]:
+def _initial_state(
+    question: str, session: dict[str, Any] | None = None
+) -> dict[str, Any]:
     return {
         "messages": [HumanMessage(content=question)],
+        "session": session or {
+            "turns": [],
+            "focus_skus": [],
+            "focus_family": None,
+            "resolved_params": {},
+            "prior_reports": {},
+        },
+        "standalone_question": question,
         "plan": None,
+        "dispatch": [],
+        "reports": {"__reset__": {}},
         "evidence": [],
         "clarify_count": 0,
         "tool_calls_made": 0,
+        "turn_tool_calls_start": 0,
         "tool_failures": 0,
+        "revision_round": 0,
+        "gate_retries": 0,
+        "gate_result": None,
+        "sufficiency": None,
         "assumptions": [],
         "draft": None,
     }
@@ -57,12 +74,14 @@ def run_question(
     question: str,
     *,
     trace: TraceLogger | None = None,
+    thread_id: str | None = None,
+    session: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     owns_trace = trace is None
     trace = trace or TraceLogger()
     callback = AgentCallbackHandler(trace)
-    thread_id = str(uuid.uuid4())
-    initial_state = _initial_state(question)
+    thread_id = thread_id or str(uuid.uuid4())
+    initial_state = _initial_state(question, session=session)
     config = {
         "configurable": {"thread_id": thread_id},
         "callbacks": [callback],
@@ -82,10 +101,10 @@ def run_question(
     trace.event(
         "node.transition",
         from_node="START",
-        to_node="planner",
+        to_node="intake",
         transition_type="fixed",
     )
-    trace.event("agent.change", from_agent="START", to_agent="planner")
+    trace.event("agent.change", from_agent="START", to_agent="intake")
     try:
         with _checkpointer() as checkpointer:
             graph = build_graph(checkpointer=checkpointer, trace=trace)
@@ -114,18 +133,35 @@ def main() -> int:
     load_dotenv()
     parser = argparse.ArgumentParser(description="C&S product support agent")
     parser.add_argument("--question", help="Run one question instead of prompting first")
+    parser.add_argument("--thread-id", help="Stable conversation thread identifier")
     args = parser.parse_args()
     question = args.question or input("Product question: ").strip()
     if not question:
         parser.error("a product question is required")
     try:
-        result = run_question(question)
+        thread_id = args.thread_id or str(uuid.uuid4())
+        session = None
+        result = run_question(question, thread_id=thread_id, session=session)
+        if not args.question:
+            print("\nAnswer\n------")
+            print(result.get("draft") or "No answer was produced.")
+            while True:
+                follow_up = input("\nFollow-up (blank to finish): ").strip()
+                if not follow_up:
+                    break
+                session = result.get("session")
+                result = run_question(
+                    follow_up, thread_id=thread_id, session=session
+                )
+                print("\nAnswer\n------")
+                print(result.get("draft") or "No answer was produced.")
     except (KeyboardInterrupt, EOFError):
         print("\nCancelled.", file=sys.stderr)
         return 130
 
-    print("\nAnswer\n------")
-    print(result.get("draft") or "No answer was produced.")
+    if args.question:
+        print("\nAnswer\n------")
+        print(result.get("draft") or "No answer was produced.")
     return 0
 
 
