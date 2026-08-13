@@ -7,12 +7,18 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
 
 from cs_agent.backends import FixturesBackend, PostgresBackend
 from cs_agent.embeddings.factory import embed
 from cs_agent.graph import build_graph
+from cs_agent.graph.build import _after_agent
+from cs_agent.llm import clear_model_cache, get_model, resolve_endpoint
+from cs_agent.llm.factory import ollama_host
 from cs_agent.graph.nodes.composer import composer
+from cs_agent.graph.nodes.planner import Plan
 from cs_agent.graph.nodes.record_evidence import _extract, record_evidence
 from cs_agent.graph.state import Evidence
 from cs_agent.observability import AgentCallbackHandler, TraceLogger
@@ -27,6 +33,11 @@ from cs_agent.subgraphs.analytics.nodes import (
     record_queries,
 )
 from cs_agent.subgraphs.analytics.tool import _max_queries
+from cs_agent.tool_errors import (
+    TOOL_FAILURE_LIMIT,
+    count_failures,
+    tool_error_message,
+)
 from cs_agent.tools.impl import backend, reset_backend
 from cs_agent.tools.registry import TOOLS_BY_NAME
 from cs_agent.validation.numeric_fidelity import validate_numeric_fidelity
@@ -163,11 +174,70 @@ class BoundaryTests(unittest.TestCase):
         reset_backend()
 
 
+class EndpointConfigTests(unittest.TestCase):
+    def _model(self, endpoint: str):
+        clear_model_cache()
+        with patch.dict(os.environ, {"CS_MODELS": f"all:{endpoint}"}):
+            return get_model("agent")
+
+    def tearDown(self):
+        clear_model_cache()
+
+    def test_api_route_is_stripped_from_the_ollama_host(self):
+        # The Ollama client appends its own route, so a base_url copied from the
+        # API docs would otherwise be requested as /api/chat/api/chat.
+        for base_url in (
+            "http://host:11434/api/chat",
+            "http://host:11434/v1",
+            "http://host:11434/",
+            "http://host:11434",
+        ):
+            self.assertEqual(ollama_host(base_url), "http://host:11434")
+
+    def test_ollama_endpoint_maps_thinking_and_output_cap(self):
+        model = self._model("ollama_27b")
+        self.assertIsInstance(model, ChatOllama)
+        self.assertEqual(model.base_url, "http://192.168.0.147:11434")
+        self.assertEqual(model.model, "qwen3.6:27b")
+        self.assertEqual(model.temperature, 0.0)
+        # Ollama names the output cap num_predict and needs num_ctx set, or it
+        # truncates a long prompt against a default far below what qwen3.6 allows.
+        self.assertEqual(model.num_predict, 20000)
+        self.assertIsNotNone(model.num_ctx)
+        self.assertIs(model.reasoning, False)
+
+    def test_vllm_and_anthropic_endpoints_still_use_the_openai_client(self):
+        self.assertIsInstance(self._model("qwen_a3b"), ChatOpenAI)
+        sonnet = self._model("sonnet")
+        self.assertIsInstance(sonnet, ChatOpenAI)
+        # Sonnet rejects requests carrying temperature.
+        self.assertIsNone(sonnet.temperature)
+
+    def test_every_configured_node_resolves_for_both_local_providers(self):
+        nodes = [
+            "planner",
+            "clarify",
+            "agent",
+            "composer",
+            "analytics.write_sql",
+            "analytics.shape",
+        ]
+        for endpoint in ("ollama_27b", "ollama_35b"):
+            with patch.dict(os.environ, {"CS_MODELS": f"all:{endpoint}"}):
+                for node in nodes:
+                    self.assertEqual(resolve_endpoint(node).provider, "ollama")
+
+
 class GraphAndValidationTests(unittest.TestCase):
     def test_graph_builds_without_live_llm(self):
         graph = build_graph()
         self.assertIn("planner", graph.get_graph().nodes)
-        self.assertIn("validator", graph.get_graph().nodes)
+        self.assertIn("composer", graph.get_graph().nodes)
+        self.assertNotIn("validator", graph.get_graph().nodes)
+        self.assertIn(
+            ("composer", "__end__"),
+            {(edge.source, edge.target) for edge in graph.get_graph().edges},
+        )
         self.assertEqual(
             set(TOOLS_BY_NAME),
             {
@@ -326,7 +396,7 @@ class GraphAndValidationTests(unittest.TestCase):
             ).passed
         )
 
-    def test_empty_recomposition_keeps_the_previous_draft(self):
+    def test_empty_composer_response_keeps_an_existing_draft(self):
         class Empty:
             content = "   "
 
@@ -337,7 +407,6 @@ class GraphAndValidationTests(unittest.TestCase):
                     "messages": [],
                     "evidence": [],
                     "draft": "The earlier answer.",
-                    "validation": {"errors": ["Unsupported numeric claim(s) ['9']"]},
                 }
             )
         self.assertEqual(update["draft"], "The earlier answer.")
@@ -519,6 +588,182 @@ class GraphAndValidationTests(unittest.TestCase):
     def test_embedding_dimension_mismatch_fails_before_model_load(self):
         with self.assertRaisesRegex(ValueError, "expects 768"):
             embed("breaker", expected_dimension=768)
+
+
+class ToolFailureTests(unittest.TestCase):
+    def _error(self, tool: str, call_id: str) -> ToolMessage:
+        return ToolMessage(
+            content=tool_error_message(RuntimeError("boom")),
+            name=tool,
+            tool_call_id=call_id,
+            status="error",
+        )
+
+    def test_error_message_names_the_argument_to_change(self):
+        detail = tool_error_message(
+            ValueError("invalid input syntax for type double precision: 'fixed'")
+        )
+        payload = json.loads(detail)
+        self.assertIn("double precision", payload["error"])
+        # The raw cast error says nothing about which argument was wrong.
+        self.assertIn("contains", payload["hint"])
+        self.assertIn("facets", payload["hint"])
+        self.assertIn(str(TOOL_FAILURE_LIMIT), payload["next_step"])
+
+    def test_a_failing_tool_is_retried_then_the_run_still_answers(self):
+        """The whole graph must survive a tool that raises on every call."""
+        broken = FixturesBackend()
+        broken.product_search = lambda **kw: (_ for _ in ()).throw(
+            ValueError("invalid input syntax for type double precision: 'fixed'")
+        )
+        bad_call = AIMessage(
+            content="",
+            tool_calls=[
+                {
+                    "name": "product_search",
+                    "args": {
+                        "filters": [
+                            {"spec_id": "mounting_type", "op": "eq", "value": "fixed"}
+                        ]
+                    },
+                    "id": "call-1",
+                    "type": "tool_call",
+                }
+            ],
+        )
+        plan = Plan(intent="select", strategy="search").model_dump()
+
+        def fresh_call(_state):
+            # A new id each turn; LangGraph rejects a duplicated message id.
+            call = bad_call.model_copy(deep=True)
+            call.id = None
+            call.tool_calls[0]["id"] = f"call-{next(counter)}"
+            return {"messages": [call]}
+
+        counter = iter(range(1, 99))
+        with (
+            patch("cs_agent.tools.impl.backend", return_value=broken),
+            patch("cs_agent.graph.nodes.planner.structured", return_value=Plan(**plan)),
+            patch("cs_agent.graph.build.agent", new=fresh_call),
+            patch("cs_agent.graph.nodes.composer.get_model") as composer_model,
+        ):
+            composer_model.return_value.invoke.return_value = AIMessage(
+                content="Some lookups failed, so this answer is partial."
+            )
+            graph = build_graph()
+            result = graph.invoke(
+                {
+                    "messages": [HumanMessage(content="Breakers for a home?")],
+                    "evidence": [],
+                    "clarify_count": 0,
+                    "tool_calls_made": 0,
+                    "tool_failures": 0,
+                    "assumptions": [],
+                    "draft": None,
+                },
+                config={"configurable": {"thread_id": "t-1"}},
+            )
+
+        # Retried up to the cap, then answered instead of raising.
+        self.assertEqual(result["tool_failures"], TOOL_FAILURE_LIMIT)
+        self.assertIn("partial", result["draft"])
+
+    def test_failures_accumulate_and_do_not_become_evidence(self):
+        update = record_evidence(
+            {
+                "messages": [
+                    self._error("product_search", "call-1"),
+                    ToolMessage(content="[]", name="get_sku", tool_call_id="call-2"),
+                ],
+                "tool_calls_made": 4,
+                "tool_failures": 1,
+            }
+        )
+        self.assertEqual(update["tool_failures"], 2)
+        # A failed call still consumes the call budget.
+        self.assertEqual(update["tool_calls_made"], 6)
+        self.assertEqual(update["evidence"], [])
+
+    def test_agent_retries_below_the_limit_and_stops_at_it(self):
+        call = AIMessage(
+            content="",
+            tool_calls=[
+                {
+                    "name": "product_search",
+                    "args": {},
+                    "id": "call-1",
+                    "type": "tool_call",
+                }
+            ],
+        )
+        state = {"messages": [call], "tool_calls_made": 1}
+        self.assertEqual(
+            _after_agent({**state, "tool_failures": TOOL_FAILURE_LIMIT - 1}), "tools"
+        )
+        self.assertEqual(
+            _after_agent({**state, "tool_failures": TOOL_FAILURE_LIMIT}), "composer"
+        )
+
+    def test_analytics_retries_below_the_limit_and_stops_at_it(self):
+        state = {
+            "messages": [self._error("execute_analytics_sql", "call-1")],
+            "query_count": 1,
+            "max_queries": 4,
+        }
+        self.assertEqual(
+            _after_record({**state, "query_failures": TOOL_FAILURE_LIMIT - 1}),
+            "analyst",
+        )
+        self.assertEqual(
+            _after_record({**state, "query_failures": TOOL_FAILURE_LIMIT}), "summarize"
+        )
+
+    def test_analytics_records_failures_against_its_own_budget(self):
+        update = record_queries(
+            {
+                "messages": [self._error("execute_analytics_sql", "call-1")],
+                "query_count": 2,
+                "query_failures": 0,
+            }
+        )
+        self.assertEqual(update["query_failures"], 1)
+        self.assertEqual(update["query_count"], 3)
+
+    def test_a_rejected_argument_counts_even_though_nothing_raised(self):
+        """The backends report bad SQL and bad arguments without raising."""
+        returned_error = ToolMessage(
+            content=json.dumps({"error": "no such table: skus"}),
+            name="execute_analytics_sql",
+            tool_call_id="call-1",
+        )
+        self.assertEqual(count_failures([returned_error]), 1)
+        self.assertEqual(
+            count_failures(
+                [
+                    ToolMessage(
+                        content=json.dumps({"rows": [], "row_count": 0}),
+                        name="execute_analytics_sql",
+                        tool_call_id="call-2",
+                    )
+                ]
+            ),
+            0,
+        )
+        # An empty result set is not a failure; neither is unparseable content.
+        self.assertEqual(
+            count_failures(
+                [ToolMessage(content="[]", name="product_search", tool_call_id="c3")]
+            ),
+            0,
+        )
+
+    def test_composer_is_told_that_retrieval_was_incomplete(self):
+        with patch("cs_agent.graph.nodes.composer.get_model") as get_model:
+            get_model.return_value.invoke.return_value = AIMessage(content="Answer.")
+            composer({"messages": [], "evidence": [], "tool_failures": 2})
+        system = get_model.return_value.invoke.call_args[0][0][0].content
+        self.assertIn("2 catalogue lookup(s) failed", system)
+        self.assertIn("could not be retrieved", system)
 
 
 class ObservabilityTests(unittest.TestCase):

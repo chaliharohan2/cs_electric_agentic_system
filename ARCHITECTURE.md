@@ -216,11 +216,13 @@ evidence          # append-only list of retrieved facts the answer may cite
 clarify_count     # how many clarify rounds happened (hard cap 2)
 tool_calls_made   # how many tools have completed (hard cap 12)
 assumptions       # defaults taken when the user did not answer
+tool_failures     # how many tool calls failed (hard cap 3)
 draft             # composer’s current answer text
-validation        # validator result / metrics
+validation        # reserved for the dormant validator; absent in the active flow
 ```
 
-**Evidence** is the only thing the validator trusts. Each evidence record looks like:
+**Evidence** is the only source the composer may use for catalogue claims. Each
+evidence record looks like:
 
 ```python
 tool, sku_code, spec_id,
@@ -254,19 +256,31 @@ planner
                       │                                       ▼
                       │                                     agent   (loop)
                       │
-                      └── no more tools / budget hit ──► composer
-                                                           │
-                                                           ▼
-                                                       validator
-                                                           │
-                                                           ├── fail, attempt < 2 ──► composer
-                                                           └── otherwise ──► END
+                      └── no more tools / budget hit ──► composer ──► END
 ```
 
 Hard caps are enforced in **graph edges**, not only in prompts:
 
 - clarify rounds: max **2**
 - completed tool calls: max **12** (a parallel batch that would exceed 12 is not dispatched)
+- failed tool calls: max **3** (`TOOL_FAILURE_LIMIT`), after which the agent stops
+  calling tools and routes to `composer`
+
+### Failed tool calls
+
+A tool that raises no longer aborts the run. Both tool nodes are built with
+`handle_tool_errors=tool_error_message` ([`cs_agent/tool_errors.py`](cs_agent/tool_errors.py)),
+so the exception comes back as a tool result carrying `error`, an actionable `hint`
+where the argument mistake is recognisable, and `next_step`. The agent sees which call
+failed and can revise its arguments.
+
+A failure is either an exception (`ToolMessage.status == "error"`) or a result payload
+carrying an `error` field, since the backends report a rejected argument or a bad
+`SELECT` by returning one rather than raising.
+
+Failed calls also consume the 12-call budget, so a tool erroring in a loop cannot
+outlast it. On reaching the cap the composer is told the evidence may be incomplete, so
+it reports data as *not retrieved* rather than *not published*.
 
 Persistence:
 
@@ -361,9 +375,9 @@ Writes the final answer using **only** the evidence table and listed assumptions
 - `(C&S pricelist)` for `source_of_truth = pricelist_table`
 - `(derived from ordering code)` for `code_grammar`
 
-It must report ranges as ranges, treat missing specs as “not published”, and treat POR prices as price-on-request (not zero).
-
-If the validator previously failed, the composer also receives the list of validation errors to correct.
+It must report ranges as ranges, treat missing specs as “not published”, and treat
+POR prices as price-on-request (not zero). It performs a final silent evidence check
+because the active graph ends immediately after composition.
 
 ### 7.7 `validator`
 
@@ -378,12 +392,15 @@ Checks that numbers in the draft are supported by evidence:
 3. ignore numbers that already appeared in the user’s question, years, ordinals
 4. accept a figure if it matches `value_num`, falls in `[value_min, value_max]`, or matches `value_display` for text/set specs
 
-Routing:
+Dormant behavior if re-enabled:
 
 - first failure → back to `composer`
 - second failure → strip unsupported sentences and append a caveat that some figures could not be verified
 
 Reports `numbers_total / matched / unmatched[]` in the validation payload.
+
+The validator implementation is retained for possible future use, but it is not
+registered in the active graph. `composer` routes directly to `END`.
 
 ---
 
@@ -473,17 +490,18 @@ analyst              # tool-bound LLM chooses the next focused SELECT
 | `prepare` | Fetches `list_canonical_specs(None)` so the analyst knows legal `spec_id`s |
 | `analyst` | Uses a model bound to exactly one private tool. It can decompose the question, issue one focused `SELECT` at a time, inspect results/errors, cross-check, and stop early. |
 | `query` | Runs `execute_analytics_sql` through a private `ToolNode`; the main agent cannot call this SQL tool directly. |
-| `record_queries` | Counts every execution, including failed SQL, against the hard internal budget. |
+| `record_queries` | Counts every execution, including failed SQL, against the hard internal budget, and counts failures separately against `TOOL_FAILURE_LIMIT`. |
 | `summarize` | Produces a Pydantic-validated factual report with a concise summary, numeric evidence, query count, limitations, and optional error. It must not infer, recommend, or expose raw SQL/results. |
 
 `AnalyticsReport` fields: `summary`, `evidence`, `queries_run`, `limitations`,
 `error`. Each numeric evidence item carries its supporting statement, raw/display
-value, and optional unit, SKU, and spec ID so the main numeric-fidelity validator can
-still verify the composed answer.
+value, and optional unit, SKU, and spec ID so the composer receives precise,
+source-backed figures.
 
 The default hard cap is four SQL executions. Set `CS_ANALYTICS_MAX_QUERIES` to a
 positive integer to change it. The router enforces the cap independently of the
-prompt. The analytics prompt encodes the same range predicates as the structured
+prompt. A failing `SELECT` is returned to the analyst to rewrite; after three failures
+the subgraph stops querying and `summarize` reports the analysis as partial. The analytics prompt encodes the same range predicates as the structured
 search tools and requires identifying products by `sku_code` only (never
 `product_id`).
 
@@ -493,9 +511,20 @@ search tools and requires identifying products by `sku_code` only (never
 
 ### LLMs
 
-[`cs_agent/config/endpoints.yaml`](cs_agent/config/endpoints.yaml) maps each node name to an endpoint profile (`sonnet`, `qwen_a3b`, `qwen_27b`, …).
+[`cs_agent/config/endpoints.yaml`](cs_agent/config/endpoints.yaml) maps each node name to an endpoint profile (`sonnet`, `qwen_a3b`, `qwen_27b`, `ollama_27b`, `ollama_35b`, …).
 
-[`cs_agent/llm/factory.py`](cs_agent/llm/factory.py) builds a `ChatOpenAI` client for that node. Override without editing YAML:
+[`cs_agent/llm/factory.py`](cs_agent/llm/factory.py) builds the client for that node. A profile's `provider` selects which one:
+
+| `provider` | Client | Used by |
+| --- | --- | --- |
+| `openai` (default) | `ChatOpenAI` | Anthropic and vLLM, which both speak the OpenAI wire format |
+| `ollama` | `ChatOllama` | A native Ollama server, which needs no API key |
+
+An Ollama profile takes `thinking` and `num_ctx` as first-class fields, where a vLLM profile passes the equivalents through `extra_body.chat_template_kwargs`. `max_tokens` becomes Ollama's `num_predict`, and `base_url` may include the `/api/chat` route or omit it — the factory reduces it to the host root either way.
+
+Setting `num_ctx` matters: Ollama otherwise defaults the context window well below what these models allow, silently truncating the tool schemas out of a long prompt.
+
+Override the YAML mapping without editing it:
 
 ```bash
 CS_MODELS=all:qwen_27b
@@ -546,7 +575,7 @@ The JSONL file keeps those complete payloads for debugging. The terminal rendere
 not dump them. It prints only:
 
 - graph transitions (`planner → agent`, etc.)
-- concise state changes (plan intent, evidence count, tool budget, validation result)
+- concise state changes (plan intent, evidence count, tool budget)
 - tool inputs and summarized outputs (result count plus SKU/spec/category identifiers)
 - clarification pauses/resumes, errors, and run completion
 
@@ -563,9 +592,9 @@ Question: *“Find a WiNmaster 3 ACB around 630 A, 3-pole, and show its key spec
 3. **tools** run; **record_evidence** stores counts/spec vocabulary; back to **agent**.
 4. **agent** calls `product_search` with `rated_current_a` / poles facets or filters.
 5. evidence gains SKU hits; agent may call `get_sku` for the shortlist winner.
-6. **composer** writes an answer citing ordering codes and sources.
-7. **validator** checks every stated ampere / pole count against evidence.
-8. CLI prints the draft + validation JSON.
+6. **composer** checks its claims against the evidence table and writes the final
+   answer, citing ordering codes and sources.
+7. The graph ends and the CLI prints the draft.
 
 If the question was vague (“recommend an ACB”), planner may route through **clarify** once or twice before tools begin.
 

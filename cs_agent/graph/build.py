@@ -15,10 +15,10 @@ from cs_agent.graph.nodes import (
     composer,
     planner,
     record_evidence,
-    validator,
 )
 from cs_agent.graph.state import AgentState
 from cs_agent.observability import TraceLogger
+from cs_agent.tool_errors import TOOL_FAILURE_LIMIT, tool_error_message
 from cs_agent.tools import TOOLS
 
 
@@ -32,17 +32,14 @@ def _after_planner(state: AgentState) -> Literal["clarify", "agent"]:
 def _after_agent(state: AgentState) -> Literal["tools", "composer"]:
     messages = state.get("messages", [])
     calls = getattr(messages[-1], "tool_calls", []) if messages else []
+    # A tool that keeps failing has had its retries; answer with what is already
+    # retrieved rather than spending the remaining call budget on it.
+    if state.get("tool_failures", 0) >= TOOL_FAILURE_LIMIT:
+        return "composer"
     # Do not dispatch a parallel batch that would exceed the hard budget.
     if calls and state.get("tool_calls_made", 0) + len(calls) <= 12:
         return "tools"
     return "composer"
-
-
-def _after_validator(state: AgentState) -> Literal["composer", "__end__"]:
-    validation = state.get("validation") or {}
-    if not validation.get("passed") and validation.get("attempt", 0) < 2:
-        return "composer"
-    return END
 
 
 def _trace_node(
@@ -103,7 +100,7 @@ def _trace_route(
 
 def build_graph(checkpointer=None, trace: TraceLogger | None = None):
     graph = StateGraph(AgentState)
-    tool_node = ToolNode(TOOLS)
+    tool_node = ToolNode(TOOLS, handle_tool_errors=tool_error_message)
     if trace is None:
         graph.add_node("planner", planner)
         graph.add_node("clarify", clarify)
@@ -111,10 +108,8 @@ def build_graph(checkpointer=None, trace: TraceLogger | None = None):
         graph.add_node("tools", tool_node)
         graph.add_node("record_evidence", record_evidence)
         graph.add_node("composer", composer)
-        graph.add_node("validator", validator)
         after_planner = _after_planner
         after_agent = _after_agent
-        after_validator = _after_validator
     else:
         graph.add_node("planner", _trace_node("planner", planner, trace))
         graph.add_node(
@@ -133,12 +128,10 @@ def build_graph(checkpointer=None, trace: TraceLogger | None = None):
         )
         graph.add_node(
             "composer",
-            _trace_node("composer", composer, trace, next_node="validator"),
+            _trace_node("composer", composer, trace, next_node=END),
         )
-        graph.add_node("validator", _trace_node("validator", validator, trace))
         after_planner = _trace_route("planner", _after_planner, trace)
         after_agent = _trace_route("agent", _after_agent, trace)
-        after_validator = _trace_route("validator", _after_validator, trace)
 
     graph.add_edge(START, "planner")
     graph.add_conditional_edges("planner", after_planner)
@@ -146,6 +139,5 @@ def build_graph(checkpointer=None, trace: TraceLogger | None = None):
     graph.add_conditional_edges("agent", after_agent)
     graph.add_edge("tools", "record_evidence")
     graph.add_edge("record_evidence", "agent")
-    graph.add_edge("composer", "validator")
-    graph.add_conditional_edges("validator", after_validator)
+    graph.add_edge("composer", END)
     return graph.compile(checkpointer=checkpointer)

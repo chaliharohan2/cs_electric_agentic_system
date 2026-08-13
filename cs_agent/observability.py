@@ -13,6 +13,8 @@ from typing import Any
 from langchain_core.callbacks import BaseCallbackHandler
 from pydantic import BaseModel
 
+from cs_agent.tool_errors import TOOL_FAILURE_LIMIT
+
 
 def _env_bool(name: str, default: bool) -> bool:
     value = os.getenv(name)
@@ -120,6 +122,10 @@ def _summarize_state_update(update: Any) -> list[str]:
         lines.append(f"evidence: +{len(evidence)} record(s){suffix}")
     if "tool_calls_made" in update:
         lines.append(f"completed tool calls: {update['tool_calls_made']}/12")
+    if update.get("tool_failures"):
+        lines.append(
+            f"failed tool calls: {update['tool_failures']}/{TOOL_FAILURE_LIMIT}"
+        )
     if "clarify_count" in update:
         lines.append(f"clarification rounds: {update['clarify_count']}/2")
     if update.get("assumptions"):

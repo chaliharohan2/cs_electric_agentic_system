@@ -53,13 +53,6 @@ def _evidence_table(evidence: list[dict[str, Any]]) -> str:
 
 
 def composer(state: AgentState) -> dict[str, Any]:
-    validation = state.get("validation") or {}
-    correction = ""
-    if validation.get("errors"):
-        correction = (
-            "\n\nCorrect every prior validation error:\n"
-            + "\n".join(f"- {error}" for error in validation["errors"])
-        )
     assumptions = state.get("assumptions") or []
     system = (
         PROMPT.replace("{evidence_table}", _evidence_table(state.get("evidence", [])))
@@ -67,8 +60,17 @@ def composer(state: AgentState) -> dict[str, Any]:
             "{assumptions}",
             "\n".join(f"- {item}" for item in assumptions) if assumptions else "(none)",
         )
-        + correction
     )
+    failures = state.get("tool_failures", 0)
+    if failures:
+        # Absent evidence and unretrieved evidence are different claims, and only
+        # this node can tell the reader which one it is looking at.
+        system += (
+            f"\n\n{failures} catalogue lookup(s) failed during this run, so the "
+            "evidence above may be incomplete. Where the evidence does not cover "
+            "part of the question, say the data could not be retrieved. Do not "
+            "state or imply that C&S does not publish it."
+        )
     response = get_model("composer").invoke(
         [
             SystemMessage(content=system),
@@ -80,7 +82,7 @@ def composer(state: AgentState) -> dict[str, Any]:
     )
     draft = _text(response.content).strip()
     if not draft:
-        # A retry that runs out of output tokens returns nothing; the earlier
-        # draft, flaws and all, is a better answer than none.
+        # Preserve an existing draft if the composer is invoked manually as a
+        # retry and the model returns no content.
         return {"draft": state.get("draft")}
     return {"draft": draft}

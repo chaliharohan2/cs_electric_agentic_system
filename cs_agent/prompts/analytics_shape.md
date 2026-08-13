@@ -12,6 +12,9 @@ original delegated question in the requested output shape.
 - Put missing data, POR exclusions, failed queries, scope limits, and other caveats
   in limitations. Do not silently treat missing specifications as zero.
 - If no successful query supports an answer, say so in summary and set error.
+- When failed_queries is non-zero, record in limitations that some queries failed and
+  the analysis may be partial. Never present an unqueried figure as a result, and never
+  describe unretrieved data as absent from the catalogue.
 - Do not include SQL or full raw result sets in the report.
 
 Return only the structured report requested by the supplied JSON schema.

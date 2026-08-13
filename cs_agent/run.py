@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 from contextlib import contextmanager
-import json
 import os
 import sys
 import uuid
@@ -40,9 +39,9 @@ def _initial_state(question: str) -> dict[str, Any]:
         "evidence": [],
         "clarify_count": 0,
         "tool_calls_made": 0,
+        "tool_failures": 0,
         "assumptions": [],
         "draft": None,
-        "validation": None,
     }
 
 
@@ -127,8 +126,6 @@ def main() -> int:
 
     print("\nAnswer\n------")
     print(result.get("draft") or "No answer was produced.")
-    print("\nValidation\n----------")
-    print(json.dumps(result.get("validation"), indent=2, default=str))
     return 0
 
 

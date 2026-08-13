@@ -6,9 +6,8 @@ import json
 from collections.abc import Iterator
 from typing import Any
 
-from langchain_core.messages import ToolMessage
-
 from cs_agent.graph.state import AgentState, Evidence
+from cs_agent.tool_errors import count_failures, trailing_tool_messages
 
 # Decoded ordering-code axes state their unit as the key, e.g. {"ka": 50}.
 _UNIT_BY_KEY = {
@@ -194,8 +193,8 @@ def _axis_records(
 def _catalogue_index(tool: str, payload: dict[str, Any]) -> Iterator[Evidence | None]:
     """Counts, observed bounds, and decoded axes are retrieved facts too.
 
-    Without them the validator rejects every sentence quoting a SKU count or a
-    category's observed range, although both came straight from a tool. Only the
+    Without them the composer cannot safely quote a SKU count or a category's
+    observed range, although both came straight from a tool. Only the
     catalogue-shape tools are indexed this way; doing it per SKU hit would add
     hundreds of near-duplicate rows to the composer's evidence table.
     """
@@ -349,11 +348,8 @@ def _collapse_names(records: list[Evidence]) -> list[Evidence]:
 
 def record_evidence(state: AgentState) -> dict[str, Any]:
     records: list[Evidence] = []
-    completed_calls = 0
-    for message in reversed(state.get("messages", [])):
-        if not isinstance(message, ToolMessage):
-            break
-        completed_calls += 1
+    results = trailing_tool_messages(state.get("messages"))
+    for message in results:
         content = message.content
         if isinstance(content, str):
             try:
@@ -361,7 +357,10 @@ def record_evidence(state: AgentState) -> dict[str, Any]:
             except json.JSONDecodeError:
                 continue
         records.extend(_extract(content, message.name or "unknown"))
+    # A failed call still consumes the call budget, so a tool erroring in a loop
+    # cannot outlast it.
     return {
-        "evidence": _collapse_names(list(reversed(records))),
-        "tool_calls_made": state.get("tool_calls_made", 0) + completed_calls,
+        "evidence": _collapse_names(records),
+        "tool_calls_made": state.get("tool_calls_made", 0) + len(results),
+        "tool_failures": state.get("tool_failures", 0) + count_failures(results),
     }

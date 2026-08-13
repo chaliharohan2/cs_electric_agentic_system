@@ -391,10 +391,11 @@ class AgentState(TypedDict):
     tool_calls_made: int        # HARD CAP 12
     assumptions: list[str]
     draft: str | None
-    validation: dict | None
+    validation: dict | None        # reserved; validator is dormant
 ```
 
-`evidence` is append-only and is the only thing the validator trusts.
+`evidence` is append-only and is the only source the composer may use for
+catalogue claims.
 
 ### 4.2 Topology
 
@@ -403,9 +404,7 @@ START → planner
           ├ needs_clarification and clarify_count < 2 → clarify → planner
           └ otherwise                                          → agent
 agent → tools (ToolNode) → record_evidence → agent   [until no tool_calls or budget hit]
-      → composer → validator
-                     ├ fail, first attempt → composer
-                     └ otherwise           → END
+      → composer → END
 ```
 
 Checkpointer: `PostgresSaver` (`MemorySaver` in tests) — required for `interrupt()`.
@@ -661,7 +660,7 @@ Do NOT interpret, rank by judgement, or recommend anything.
 
 ---
 
-## 7. Numeric fidelity validator
+## 7. Numeric fidelity validator (dormant)
 
 Deterministic, no LLM. `validation/numeric_fidelity.py`.
 
@@ -672,9 +671,15 @@ Deterministic, no LLM. `validation/numeric_fidelity.py`.
 5. Assert that any matched fact carrying a stated condition has that condition in the same sentence.
 6. Unmatched → `fail` with the offending spans.
 
-Routing: first failure → composer with the spans listed. Second → strip those sentences and append *"Some figures could not be verified against the catalogue and were removed."*
+Dormant routing behavior if re-enabled: first failure → composer with the spans
+listed. Second → strip those sentences and append *"Some figures could not be
+verified against the catalogue and were removed."*
 
 Report `numbers_total / matched / unmatched[]` to the trace. Headline metric when comparing Sonnet against the Qwen profiles.
+
+The implementation is retained for future evaluation, but it is not registered
+in the active graph. The composer performs its own evidence check and routes
+directly to `END`.
 
 ---
 

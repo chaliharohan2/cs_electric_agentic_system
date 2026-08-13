@@ -23,6 +23,30 @@ endpoints:
     extra_body:
       chat_template_kwargs: {enable_thinking: true}
 
+  # Native Ollama endpoints. `provider: ollama` swaps ChatOpenAI for ChatOllama,
+  # which needs no API key and takes thinking and the context window directly.
+  ollama_27b:
+    provider: ollama
+    base_url: http://192.168.0.147:11434/api/chat
+    model: qwen3.6:27b
+    temperature: 0.0
+    max_tokens: 20000
+    thinking: false
+    # keep_alive: -1 # to keep the model loaded forever
+    num_ctx: 80000
+    timeout: 1800.0
+
+  ollama_35b:
+    provider: ollama
+    base_url: http://192.168.0.147:11434/api/chat
+    model: qwen3.6:35b
+    temperature: 0.0
+    max_tokens: 20000
+    thinking: false
+    keep_alive: -1 # to keep the model loaded forever
+    num_ctx: 80000
+    timeout: 1800.0
+
 # ---- switching models = editing this block only ----
 nodes:
   planner:   sonnet

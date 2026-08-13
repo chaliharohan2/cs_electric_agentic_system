@@ -29,6 +29,7 @@ class AgentState(TypedDict):
     evidence: Annotated[list[Evidence], operator.add]
     clarify_count: int
     tool_calls_made: int
+    tool_failures: int
     assumptions: list[str]
     draft: str | None
     validation: dict | None
