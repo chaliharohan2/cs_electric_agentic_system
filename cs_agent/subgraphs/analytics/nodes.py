@@ -1,17 +1,19 @@
-"""Nodes for natural-language catalogue analytics."""
+"""Nodes and the private SQL tool for catalogue analytics."""
 
 from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Annotated, Any, TypedDict
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AnyMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.tools import StructuredTool
+from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
 
 from cs_agent.llm import get_model, structured
-from cs_agent.llm.structured import strip_fences
 from cs_agent.tools.impl import backend
 
 PROMPTS = Path(__file__).resolve().parents[2] / "prompts"
@@ -19,110 +21,124 @@ WRITE_SQL_PROMPT = (PROMPTS / "analytics_write_sql.md").read_text(encoding="utf-
 SHAPE_PROMPT = (PROMPTS / "analytics_shape.md").read_text(encoding="utf-8")
 
 logger = logging.getLogger(__name__)
+_READ_ONLY_SELECT = re.compile(r"^\s*select\b", re.IGNORECASE)
 
 
 class AnalyticsState(TypedDict, total=False):
+    messages: Annotated[list[AnyMessage], add_messages]
     question: str
     output_shape: str
     spec_registry: list[dict[str, Any]]
-    sql: str
-    result: dict[str, Any]
     answer: dict[str, Any]
-    retries: int
-    sql_error: str | None
+    query_count: int
+    max_queries: int
 
 
-class ShapedAnswer(BaseModel):
-    table: list[dict[str, Any]] = Field(default_factory=list)
-    note: str = Field(
-        description="One-line note stating what was excluded and why."
+class AnalyticsEvidence(BaseModel):
+    statement: str = Field(
+        description="A factual statement directly supported by a query result."
     )
+    value_num: float | None = Field(
+        default=None,
+        description="The unformatted numeric value in the statement, if it has one.",
+    )
+    value_display: str | None = Field(
+        default=None, description="The value as it should be displayed."
+    )
+    unit: str | None = None
+    sku_code: str | None = None
+    spec_id: str | None = None
 
 
-class SqlResult(BaseModel):
-    columns: list[str] = Field(default_factory=list)
-    rows: list[list[Any]] = Field(default_factory=list)
-    sql: str = ""
-    row_count: int = 0
-    note: str = ""
+class AnalyticsReport(BaseModel):
+    summary: str = Field(
+        description="A concise factual synthesis answering the delegated question."
+    )
+    evidence: list[AnalyticsEvidence] = Field(default_factory=list)
+    queries_run: int = 0
+    limitations: list[str] = Field(default_factory=list)
     error: str | None = None
 
 
-def plan_sql(state: AnalyticsState) -> dict[str, Any]:
+def prepare(state: AnalyticsState) -> dict[str, Any]:
     return {
         "spec_registry": backend().list_canonical_specs(None),
-        "retries": state.get("retries", 0),
+        "query_count": state.get("query_count", 0),
     }
 
 
-def write_sql(state: AnalyticsState) -> dict[str, str]:
-    prompt = WRITE_SQL_PROMPT.format(
-        spec_registry=json.dumps(state.get("spec_registry", []), indent=2),
-    )
-    human = (
-        f"Question: {state['question']}\n"
-        f"Output shape: {state.get('output_shape') or 'tabular result'}"
-    )
-    if state.get("sql_error"):
-        human += (
-            "\nThe previous SQL failed. Correct it using this database error:\n"
-            + str(state["sql_error"])
-        )
-    response = get_model("analytics.write_sql").invoke(
-        [SystemMessage(content=prompt), HumanMessage(content=human)]
-    )
-    content = response.content
-    text = content if isinstance(content, str) else str(content)
-    statement = strip_fences(text).strip().rstrip(";")
+def execute_analytics_sql(sql: str) -> dict[str, Any]:
+    """Execute one read-only PostgreSQL SELECT against the analytics views."""
+    statement = sql.strip().rstrip(";")
+    if not _READ_ONLY_SELECT.match(statement) or ";" in statement:
+        return {"error": "Only one read-only SELECT statement is allowed."}
     logger.info("analytics SQL: %s", statement)
-    return {"sql": statement, "sql_error": None}
+    return backend().execute_sql(statement)
 
 
-def execute_sql(state: AnalyticsState) -> dict[str, dict[str, Any]]:
-    # GUARDRAIL_HOOK: add a read-only role, timeout, and row cap after the POC.
-    result = backend().execute_sql(state["sql"])
-    update: dict[str, Any] = {"result": result}
-    if result.get("error"):
-        update["sql_error"] = str(result["error"])
-        update["retries"] = state.get("retries", 0) + 1
-    return update
+ANALYTICS_TOOLS = [
+    StructuredTool.from_function(
+        func=execute_analytics_sql,
+        name="execute_analytics_sql",
+        description=(
+            "Execute one read-only PostgreSQL SELECT and return its columns, rows, "
+            "row count, or database error. Use one call at a time."
+        ),
+    )
+]
 
 
-def shape(state: AnalyticsState) -> dict[str, dict[str, Any]]:
-    result = state["result"]
-    if "error" in result:
-        answer = SqlResult(
-            sql=state.get("sql", ""),
-            note="Query failed; no rows returned.",
-            error=result["error"],
-        )
-        return {
-            "answer": answer.model_dump()
-        }
-    prompt = SHAPE_PROMPT
+def analyst(state: AnalyticsState) -> dict[str, list[AnyMessage]]:
+    remaining = max(0, state.get("max_queries", 0) - state.get("query_count", 0))
+    system = WRITE_SQL_PROMPT.format(
+        spec_registry=json.dumps(state.get("spec_registry", []), indent=2)
+    )
+    system += (
+        f"\n\nQueries already executed: {state.get('query_count', 0)}."
+        f"\nQueries remaining: {remaining}."
+    )
+    response = (
+        get_model("analytics.write_sql")
+        .bind_tools(ANALYTICS_TOOLS)
+        .invoke([SystemMessage(content=system), *state.get("messages", [])])
+    )
+    return {"messages": [response]}
+
+
+def record_queries(state: AnalyticsState) -> dict[str, int]:
+    completed = 0
+    for message in reversed(state.get("messages", [])):
+        if not isinstance(message, ToolMessage):
+            break
+        completed += 1
+    return {"query_count": state.get("query_count", 0) + completed}
+
+
+def _transcript(messages: list[AnyMessage]) -> list[dict[str, Any]]:
+    rendered: list[dict[str, Any]] = []
+    for message in messages:
+        item: dict[str, Any] = {"type": message.type, "content": message.content}
+        tool_calls = getattr(message, "tool_calls", None)
+        if tool_calls:
+            item["tool_calls"] = tool_calls
+        rendered.append(item)
+    return rendered
+
+
+def summarize(state: AnalyticsState) -> dict[str, dict[str, Any]]:
     payload = {
+        "question": state["question"],
         "output_shape": state.get("output_shape"),
-        "columns": result.get("columns", []),
-        "rows": result.get("rows", []),
+        "queries_run": state.get("query_count", 0),
+        "analysis_transcript": _transcript(state.get("messages", [])),
     }
-    shaped = structured(
+    report = structured(
         "analytics.shape",
         [
-            SystemMessage(content=prompt),
+            SystemMessage(content=SHAPE_PROMPT),
             HumanMessage(content=json.dumps(payload, default=str)),
         ],
-        ShapedAnswer,
+        AnalyticsReport,
     )
-    columns = list(result.get("columns", []))
-    rows = result.get("rows", [])
-    if shaped.table:
-        columns = list(shaped.table[0])
-        rows = [[row.get(column) for column in columns] for row in shaped.table]
-    answer = SqlResult(
-        columns=columns,
-        rows=rows,
-        sql=state.get("sql", ""),
-        row_count=len(rows),
-        note=shaped.note,
-    )
-    return {"answer": answer.model_dump()}
+    report.queries_run = state.get("query_count", 0)
+    return {"answer": report.model_dump()}

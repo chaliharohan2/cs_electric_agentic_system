@@ -3,7 +3,7 @@ endpoints:
     base_url: https://api.anthropic.com/v1/
     model: claude-sonnet-5
     api_key_env: ANTHROPIC_API_KEY
-    max_tokens: 4096
+    max_tokens: 20000
 
   qwen_a3b:
     base_url: http://10.0.0.11:8000/v1

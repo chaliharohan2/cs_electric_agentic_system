@@ -56,5 +56,8 @@ class AnalyticsQueryArgs(BaseModel):
     question: str
     output_shape: str = Field(
         ...,
-        description="Requested columns and row grain for the result table.",
+        description=(
+            "Requested focus and organization of the final factual summary, "
+            "including any desired groups, metrics, or comparison grain."
+        ),
     )
