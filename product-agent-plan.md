@@ -167,7 +167,8 @@ class AgentState(TypedDict):
     validation: dict | None
 ```
 
-`evidence` is append-only and is the only thing the validator trusts.
+`evidence` is append-only and is the only source the composer may use for
+catalogue claims.
 
 ---
 
@@ -178,9 +179,7 @@ START → planner
           ├ needs_clarification and clarify_count < 2 → clarify → planner
           └ otherwise                                          → agent
 agent → tools (ToolNode) → record_evidence → agent   [until no tool_calls or budget hit]
-      → composer → validator
-                     ├ fail, first attempt → composer
-                     └ otherwise           → END
+      → composer → END
 ```
 
 Checkpointer: `PostgresSaver` (`MemorySaver` in tests) — required for `interrupt()`.
@@ -460,7 +459,7 @@ facts). Do NOT interpret, rank by judgement, or recommend anything.
 
 ---
 
-## 8. Numeric fidelity validator
+## 8. Numeric fidelity validator (dormant)
 
 Deterministic, no LLM. `validation/numeric_fidelity.py`.
 
@@ -471,7 +470,12 @@ Deterministic, no LLM. `validation/numeric_fidelity.py`.
 5. Assert that any matched fact with non-empty `conditions` has those conditions stated in the same sentence.
 6. Unmatched → `fail` with the offending spans.
 
-Routing: first failure → composer with the spans listed. Second → strip those sentences and append *"Some figures could not be verified against the catalogue and were removed."*
+Dormant routing behavior if re-enabled: first failure → composer with the spans
+listed. Second → strip those sentences and append *"Some figures could not be
+verified against the catalogue and were removed."*
+
+The implementation is retained for future evaluation, but it is not registered
+in the active graph. The composer routes directly to `END`.
 
 Report `numbers_total / matched / unmatched[]` to the trace. This is the headline metric when comparing Sonnet against the Qwen profiles.
 

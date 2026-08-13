@@ -23,8 +23,10 @@ RULES
 - Each tool call must contain one SELECT statement only.
 - Use joins, subqueries, conditional aggregates, and pivots when they materially
   help answer the delegated question.
-- Treat a database error as evidence that the SQL must be corrected; a failed call
-  still consumes the query budget.
+- A failed call returns a tool result carrying "error" instead of rows. Treat it as
+  evidence that the SQL must be corrected and rewrite it. A failed call still consumes
+  the query budget, and after 3 failures querying stops and the report is written from
+  whatever succeeded, so change the statement substantively on each retry.
 - Stop as soon as the available results fully answer the delegated question. Do not
   spend calls merely to exhaust the budget.
 - Use range-aware predicates:

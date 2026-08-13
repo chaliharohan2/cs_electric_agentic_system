@@ -51,6 +51,8 @@ python -m cs_agent.run --question "Compare two WiNmaster 3 ACB SKUs."
 
 Model routing is controlled by `cs_agent/config/endpoints.yaml`. Override with
 `CS_MODELS=all:qwen_27b` or `CS_MODELS=agent:qwen_a3b,composer:qwen_27b`.
+A profile's `provider` picks the client: `openai` for Anthropic and vLLM,
+`ollama` for a native Ollama server (`ollama_27b`, `ollama_35b`).
 Set `CS_BACKEND=fixtures` for deterministic offline fixture tests.
 
 ## Embeddings
@@ -71,7 +73,7 @@ The trace includes run lifecycle, node entry/exit and transitions, state snapsho
 and updates, LLM requests/responses, tool calls/results, interrupts, and errors.
 The JSONL file retains all details. Terminal output is intentionally concise: graph
 transitions, summarized state changes, tool inputs, identifying result fields/counts,
-clarification pauses, validation status, and errors.
+clarification pauses, and errors.
 
 Configure tracing in `.env`:
 

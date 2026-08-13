@@ -10,6 +10,7 @@ from langchain_core.messages import SystemMessage
 
 from cs_agent.graph.state import AgentState
 from cs_agent.llm import get_model
+from cs_agent.tool_errors import TOOL_FAILURE_LIMIT
 from cs_agent.tools import TOOLS
 
 PROMPT = (Path(__file__).parents[2] / "prompts" / "agent.md").read_text(
@@ -24,6 +25,8 @@ def agent(state: AgentState) -> dict[str, Any]:
         system += "\nAssumptions:\n" + json.dumps(state["assumptions"])
     remaining = max(0, 12 - state.get("tool_calls_made", 0))
     system += f"\nTool calls remaining: {remaining}"
+    failures = state.get("tool_failures", 0)
+    system += f"\nFailed tool calls: {failures} of {TOOL_FAILURE_LIMIT} allowed"
     response = (
         get_model("agent")
         .bind_tools(TOOLS)

@@ -41,6 +41,7 @@ def analytics_query(
             "question": question,
             "output_shape": output_shape,
             "query_count": 0,
+            "query_failures": 0,
             "max_queries": _max_queries(),
         }
     )

@@ -8,12 +8,17 @@ import re
 from pathlib import Path
 from typing import Annotated, Any, TypedDict
 
-from langchain_core.messages import AnyMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AnyMessage, HumanMessage, SystemMessage
 from langchain_core.tools import StructuredTool
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
 
 from cs_agent.llm import get_model, structured
+from cs_agent.tool_errors import (
+    TOOL_FAILURE_LIMIT,
+    count_failures,
+    trailing_tool_messages,
+)
 from cs_agent.tools.impl import backend
 
 PROMPTS = Path(__file__).resolve().parents[2] / "prompts"
@@ -32,6 +37,7 @@ class AnalyticsState(TypedDict, total=False):
     answer: dict[str, Any]
     query_count: int
     max_queries: int
+    query_failures: int
 
 
 class AnalyticsEvidence(BaseModel):
@@ -64,6 +70,7 @@ def prepare(state: AnalyticsState) -> dict[str, Any]:
     return {
         "spec_registry": backend().list_canonical_specs(None),
         "query_count": state.get("query_count", 0),
+        "query_failures": state.get("query_failures", 0),
     }
 
 
@@ -90,12 +97,14 @@ ANALYTICS_TOOLS = [
 
 def analyst(state: AnalyticsState) -> dict[str, list[AnyMessage]]:
     remaining = max(0, state.get("max_queries", 0) - state.get("query_count", 0))
+    failures = state.get("query_failures", 0)
     system = WRITE_SQL_PROMPT.format(
         spec_registry=json.dumps(state.get("spec_registry", []), indent=2)
     )
     system += (
         f"\n\nQueries already executed: {state.get('query_count', 0)}."
         f"\nQueries remaining: {remaining}."
+        f"\nFailed queries: {failures} of {TOOL_FAILURE_LIMIT} allowed."
     )
     response = (
         get_model("analytics.write_sql")
@@ -106,12 +115,11 @@ def analyst(state: AnalyticsState) -> dict[str, list[AnyMessage]]:
 
 
 def record_queries(state: AnalyticsState) -> dict[str, int]:
-    completed = 0
-    for message in reversed(state.get("messages", [])):
-        if not isinstance(message, ToolMessage):
-            break
-        completed += 1
-    return {"query_count": state.get("query_count", 0) + completed}
+    results = trailing_tool_messages(state.get("messages"))
+    return {
+        "query_count": state.get("query_count", 0) + len(results),
+        "query_failures": state.get("query_failures", 0) + count_failures(results),
+    }
 
 
 def _transcript(messages: list[AnyMessage]) -> list[dict[str, Any]]:
@@ -130,6 +138,7 @@ def summarize(state: AnalyticsState) -> dict[str, dict[str, Any]]:
         "question": state["question"],
         "output_shape": state.get("output_shape"),
         "queries_run": state.get("query_count", 0),
+        "failed_queries": state.get("query_failures", 0),
         "analysis_transcript": _transcript(state.get("messages", [])),
     }
     report = structured(
