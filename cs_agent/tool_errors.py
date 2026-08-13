@@ -18,9 +18,11 @@ from collections.abc import Iterable, Sequence
 
 from langchain_core.messages import AnyMessage, ToolMessage
 
+from cs_agent.config.limits import get_limits
+
 # Failed tool calls allowed per run, across every tool, before the graph stops
 # calling tools and answers with whatever it already has.
-TOOL_FAILURE_LIMIT = 3
+TOOL_FAILURE_LIMIT = get_limits().tool_failure_limit
 
 _NEXT_STEP = (
     "Fix the arguments and call the tool again, or call a different tool. "

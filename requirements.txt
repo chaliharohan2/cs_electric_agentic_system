@@ -9,4 +9,6 @@ pyyaml
 python-dotenv
 psycopg[binary,pool]
 pgvector
+# GTE v1.5 custom modeling is not compatible with transformers 5.x yet.
+transformers>=4.44,<5
 sentence-transformers

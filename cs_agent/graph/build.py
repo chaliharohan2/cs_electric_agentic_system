@@ -3,43 +3,129 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, Literal
+from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
-from langgraph.prebuilt import ToolNode
+from langgraph.types import Send
 
+from cs_agent.config.limits import get_limits
 from cs_agent.graph.nodes import (
-    agent,
     clarify,
-    composer,
+    compose_final,
+    composer_sufficiency,
+    gate,
+    intake,
     planner,
-    record_evidence,
 )
 from cs_agent.graph.state import AgentState
 from cs_agent.observability import TraceLogger
-from cs_agent.tool_errors import TOOL_FAILURE_LIMIT, tool_error_message
-from cs_agent.tools import TOOLS
+from cs_agent.subgraphs.agents import build_specialist_graph
 
 
-def _after_planner(state: AgentState) -> Literal["clarify", "agent"]:
+def _after_planner(state: AgentState):
     plan = state.get("plan") or {}
-    if plan.get("needs_clarification") and state.get("clarify_count", 0) < 2:
+    if (
+        plan.get("needs_clarification")
+        and state.get("clarify_count", 0) < get_limits().clarify_rounds
+    ):
         return "clarify"
-    return "agent"
+    question = state.get("standalone_question", "")
+    return [
+        Send("specialist", {"brief": brief, "standalone_question": question})
+        for brief in state.get("dispatch", [])
+    ]
 
 
-def _after_agent(state: AgentState) -> Literal["tools", "composer"]:
-    messages = state.get("messages", [])
-    calls = getattr(messages[-1], "tool_calls", []) if messages else []
-    # A tool that keeps failing has had its retries; answer with what is already
-    # retrieved rather than spending the remaining call budget on it.
-    if state.get("tool_failures", 0) >= TOOL_FAILURE_LIMIT:
-        return "composer"
-    # Do not dispatch a parallel batch that would exceed the hard budget.
-    if calls and state.get("tool_calls_made", 0) + len(calls) <= 12:
-        return "tools"
+def _run_specialist(state: AgentState) -> dict[str, Any]:
+    brief = state["brief"]
+    agent_name = brief["agent"]
+    result = build_specialist_graph(agent_name).invoke(
+        {
+            "brief": brief,
+            "question": state.get("standalone_question", ""),
+            "messages": [],
+            "evidence": [],
+        }
+    )
+    report = result["report"]
+    return {
+        "reports": {agent_name: report},
+        "evidence": result.get("evidence", []),
+        "tool_calls_made": int(report.get("tool_calls_used", 0)),
+    }
+
+
+def _after_gate(state: AgentState):
+    result = state.get("gate_result") or {}
+    failures = result.get("failures") or []
+    if failures and state.get("gate_retries", 0) <= 1:
+        briefs = {brief["agent"]: brief for brief in state.get("dispatch", [])}
+        used = state.get("tool_calls_made", 0) - state.get("turn_tool_calls_start", 0)
+        remaining = max(0, get_limits().global_tool_budget - used)
+        allowance = min(
+            get_limits().per_agent_tool_budget,
+            remaining // max(1, len(failures)),
+        )
+        if allowance:
+            return [
+                Send(
+                    "specialist",
+                    {
+                        "brief": {
+                            **briefs[item["agent"]],
+                            "allowance": allowance,
+                            "revision_note": "; ".join(item["violations"]),
+                        },
+                        "standalone_question": state.get("standalone_question", ""),
+                    },
+                )
+                for item in failures
+            ]
     return "composer"
+
+
+def _after_composer(state: AgentState):
+    sufficiency = state.get("sufficiency") or {}
+    gaps = sufficiency.get("gaps") or []
+    limits = get_limits()
+    if (
+        sufficiency.get("revision_allowed", False)
+        and gaps
+    ):
+        used = state.get("tool_calls_made", 0) - state.get("turn_tool_calls_start", 0)
+        remaining = max(0, limits.global_tool_budget - used)
+        allowance = min(limits.per_agent_tool_budget, remaining // len(gaps))
+        if allowance:
+            originals = {
+                brief["agent"]: brief for brief in state.get("dispatch", [])
+            }
+            sends = []
+            for gap in gaps:
+                original = originals.get(gap["agent"], {
+                    "agent": gap["agent"],
+                    "objective": gap["missing"],
+                    "scope": [],
+                    "parameters": {},
+                    "must_return": [gap["missing"]],
+                })
+                sends.append(
+                    Send(
+                        "specialist",
+                        {
+                            "brief": {
+                                **original,
+                                "allowance": allowance,
+                                "revision_note": gap["missing"],
+                            },
+                            "standalone_question": state.get(
+                                "standalone_question", ""
+                            ),
+                        },
+                    )
+                )
+            return sends
+    return "compose_final"
 
 
 def _trace_node(
@@ -100,44 +186,23 @@ def _trace_route(
 
 def build_graph(checkpointer=None, trace: TraceLogger | None = None):
     graph = StateGraph(AgentState)
-    tool_node = ToolNode(TOOLS, handle_tool_errors=tool_error_message)
-    if trace is None:
-        graph.add_node("planner", planner)
-        graph.add_node("clarify", clarify)
-        graph.add_node("agent", agent)
-        graph.add_node("tools", tool_node)
-        graph.add_node("record_evidence", record_evidence)
-        graph.add_node("composer", composer)
-        after_planner = _after_planner
-        after_agent = _after_agent
-    else:
-        graph.add_node("planner", _trace_node("planner", planner, trace))
-        graph.add_node(
-            "clarify", _trace_node("clarify", clarify, trace, next_node="planner")
-        )
-        graph.add_node("agent", _trace_node("agent", agent, trace))
-        graph.add_node(
-            "tools",
-            _trace_node("tools", tool_node, trace, next_node="record_evidence"),
-        )
-        graph.add_node(
-            "record_evidence",
-            _trace_node(
-                "record_evidence", record_evidence, trace, next_node="agent"
-            ),
-        )
-        graph.add_node(
-            "composer",
-            _trace_node("composer", composer, trace, next_node=END),
-        )
-        after_planner = _trace_route("planner", _after_planner, trace)
-        after_agent = _trace_route("agent", _after_agent, trace)
-
-    graph.add_edge(START, "planner")
-    graph.add_conditional_edges("planner", after_planner)
+    nodes = {
+        "intake": intake,
+        "planner": planner,
+        "clarify": clarify,
+        "specialist": _run_specialist,
+        "gate": gate,
+        "composer": composer_sufficiency,
+        "compose_final": compose_final,
+    }
+    for name, node in nodes.items():
+        graph.add_node(name, _trace_node(name, node, trace) if trace else node)
+    graph.add_edge(START, "intake")
+    graph.add_edge("intake", "planner")
+    graph.add_conditional_edges("planner", _after_planner)
     graph.add_edge("clarify", "planner")
-    graph.add_conditional_edges("agent", after_agent)
-    graph.add_edge("tools", "record_evidence")
-    graph.add_edge("record_evidence", "agent")
-    graph.add_edge("composer", END)
+    graph.add_edge("specialist", "gate")
+    graph.add_conditional_edges("gate", _after_gate)
+    graph.add_conditional_edges("composer", _after_composer)
+    graph.add_edge("compose_final", END)
     return graph.compile(checkpointer=checkpointer)

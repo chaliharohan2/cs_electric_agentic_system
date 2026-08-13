@@ -1,0 +1,180 @@
+"""Structured contracts shared by the v2 parent and specialist graphs."""
+
+from __future__ import annotations
+
+from typing import Any, Literal
+
+from pydantic import BaseModel, Field
+
+AgentName = Literal[
+    "discovery",
+    "spec_selection",
+    "solution_advisory",
+    "comparison",
+    "compliance",
+]
+ReportStatus = Literal["complete", "partial", "no_result"]
+
+
+class SourceRef(BaseModel):
+    sku_code: str | None = None
+    brochure_md: str | None = None
+    pricelist_pdf: str | None = None
+    pricelist_page: int | None = None
+    product_page_url: str | None = None
+    source_of_truth: str | None = None
+
+
+class Finding(BaseModel):
+    statement: str
+    kind: Literal["specification", "catalogue", "price", "general"] = "catalogue"
+    source: SourceRef | None = None
+
+
+class AgentBrief(BaseModel):
+    agent: AgentName
+    objective: str
+    scope: list[str] = Field(default_factory=list)
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    must_return: list[str] = Field(default_factory=list)
+    allowance: int = Field(0, ge=0)
+    revision_note: str | None = None
+
+
+class Plan(BaseModel):
+    intent: str
+    dispatch: list[AgentBrief] = Field(min_length=1, max_length=5)
+    known_params: dict[str, Any] = Field(default_factory=dict)
+    open_params: list[str] = Field(default_factory=list)
+    needs_clarification: bool = False
+    strategy: str = ""
+
+
+class KeySpec(BaseModel):
+    spec_id: str
+    value_display: str | None = None
+    unit: str | None = None
+    source: SourceRef | None = None
+
+
+class Candidate(BaseModel):
+    sku_code: str
+    why_it_fits: str
+    key_specs: list[KeySpec] = Field(default_factory=list)
+    price_status: str | None = None
+
+
+class FamilyBrief(BaseModel):
+    name: str
+    path: list[str] = Field(default_factory=list)
+    description: str | None = None
+    sku_count: int = 0
+    url: str | None = None
+
+
+class ComparisonTable(BaseModel):
+    axes: list[str] = Field(default_factory=list)
+    rows: dict[str, dict[str, Any]] = Field(default_factory=dict)
+
+
+class StandardClaim(BaseModel):
+    sku_code: str
+    spec_id: str
+    value_display: str
+    source_of_truth: str | None = None
+    source: SourceRef | None = None
+
+
+class Claim(BaseModel):
+    statement: str
+    source: SourceRef | None = None
+
+
+class Slot(BaseModel):
+    function: str
+    resolution: str
+    family: str | None = None
+    sku_code: str | None = None
+
+
+class AgentReport(BaseModel):
+    agent: AgentName
+    status: ReportStatus
+    summary: str = Field(max_length=1000)
+    findings: list[Finding] = Field(default_factory=list)
+    sources: list[SourceRef] = Field(default_factory=list)
+    gaps: list[str] = Field(default_factory=list)
+    tool_calls_used: int = Field(0, ge=0)
+    caveats: list[str] = Field(default_factory=list)
+
+
+class SpecSelectionReport(AgentReport):
+    agent: Literal["spec_selection"] = "spec_selection"
+    candidates: list[Candidate] = Field(default_factory=list)
+    no_candidates_reason: str | None = None
+    filters_tried: list[str] = Field(default_factory=list)
+
+
+class DiscoveryReport(AgentReport):
+    agent: Literal["discovery"] = "discovery"
+    families: list[FamilyBrief] = Field(default_factory=list)
+    representative_skus: list[str] = Field(default_factory=list)
+    uncategorised_note: str | None = None
+
+
+class ComparisonReport(AgentReport):
+    agent: Literal["comparison"] = "comparison"
+    table: ComparisonTable = Field(default_factory=ComparisonTable)
+    peer_group_match: bool = False
+    differentiators: list[str] = Field(default_factory=list)
+
+
+class ComplianceReport(AgentReport):
+    agent: Literal["compliance"] = "compliance"
+    standards: list[StandardClaim] = Field(default_factory=list)
+    certifications: list[str] = Field(default_factory=list)
+    not_established: list[str] = Field(default_factory=list)
+
+
+class AdvisoryReport(AgentReport):
+    agent: Literal["solution_advisory"] = "solution_advisory"
+    catalog_backed: list[Claim] = Field(default_factory=list)
+    engineering_guidance: list[Claim] = Field(default_factory=list)
+    recommended_slots: list[Slot] = Field(default_factory=list)
+
+
+REPORT_SCHEMAS: dict[str, type[AgentReport]] = {
+    "discovery": DiscoveryReport,
+    "spec_selection": SpecSelectionReport,
+    "solution_advisory": AdvisoryReport,
+    "comparison": ComparisonReport,
+    "compliance": ComplianceReport,
+}
+
+
+class GateFailure(BaseModel):
+    agent: AgentName
+    violations: list[str]
+
+
+class GateResult(BaseModel):
+    ok: bool
+    failures: list[GateFailure] = Field(default_factory=list)
+
+
+class SufficiencyGap(BaseModel):
+    agent: AgentName
+    missing: str
+    suggested_tool: str | None = None
+
+
+class SufficiencyResult(BaseModel):
+    sufficient: bool
+    gaps: list[SufficiencyGap] = Field(default_factory=list)
+
+
+class IntakeResult(BaseModel):
+    standalone_question: str
+    referenced_skus: list[str] = Field(default_factory=list)
+    is_followup: bool = False
+    carried_params: dict[str, Any] = Field(default_factory=dict)

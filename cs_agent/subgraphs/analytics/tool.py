@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 from typing import Any
 
 from langchain_core.messages import HumanMessage
 
-from .build import build_analytics_graph
+from cs_agent.config.limits import get_limits
 
-DEFAULT_MAX_QUERIES = 4
+from .build import build_analytics_graph
 
 
 @lru_cache(maxsize=1)
@@ -19,12 +18,7 @@ def _graph():
 
 
 def _max_queries() -> int:
-    raw = os.getenv("CS_ANALYTICS_MAX_QUERIES", str(DEFAULT_MAX_QUERIES))
-    try:
-        value = int(raw)
-    except ValueError:
-        return DEFAULT_MAX_QUERIES
-    return value if value > 0 else DEFAULT_MAX_QUERIES
+    return get_limits().analytics_max_queries
 
 
 def analytics_query(

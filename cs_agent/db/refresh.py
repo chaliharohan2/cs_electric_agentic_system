@@ -12,7 +12,16 @@ from dotenv import load_dotenv
 
 
 _VIEWS_SQL = Path(__file__).with_name("views.sql")
-_REFRESH_ORDER = ("mv_sku", "mv_fact", "mv_spec_registry", "mv_facet")
+_REFRESH_ORDER = (
+    "mv_sku",
+    "mv_code_alias",
+    "mv_fact",
+    "mv_price",
+    "mv_source",
+    "mv_spec_registry",
+    "mv_facet",
+    "mv_chunk_index",
+)
 
 
 def database_url() -> str:
@@ -36,6 +45,18 @@ def refresh() -> None:
 def inspect() -> dict[str, object]:
     result: dict[str, object] = {}
     with psycopg.connect(database_url()) as connection:
+        base_counts = connection.execute(
+            """
+            SELECT count(DISTINCT product_id), count(*),
+                   count(embedding), count(content_tsv)
+            FROM in_use.product_chunks
+            WHERE is_active
+            """
+        ).fetchone()
+        result["products"] = int(base_counts[0])
+        result["chunks"] = int(base_counts[1])
+        result["embeddings_loaded"] = int(base_counts[2])
+        result["content_tsv_rows"] = int(base_counts[3])
         for view in _REFRESH_ORDER:
             count = connection.execute(
                 f"SELECT count(*) FROM in_use.{view}"

@@ -13,6 +13,7 @@ from typing import Any
 from langchain_core.callbacks import BaseCallbackHandler
 from pydantic import BaseModel
 
+from cs_agent.config.limits import get_limits
 from cs_agent.tool_errors import TOOL_FAILURE_LIMIT
 
 
@@ -66,7 +67,7 @@ def _short(value: Any, limit: int = 240) -> str:
 def _identifiers(item: Any) -> list[str]:
     if not isinstance(item, dict):
         return []
-    fields = ("sku_code", "spec_id", "category", "family", "level", "code")
+    fields = ("sku_code", "spec_id", "family", "path", "level", "code", "agent")
     return [f"{field}={item[field]}" for field in fields if item.get(field) is not None]
 
 
@@ -105,8 +106,12 @@ def _summarize_state_update(update: Any) -> list[str]:
     plan = update.get("plan")
     if isinstance(plan, dict):
         parts = [f"intent={plan.get('intent', '?')}"]
-        if plan.get("categories"):
-            parts.append("categories=" + ", ".join(map(str, plan["categories"])))
+        if plan.get("dispatch"):
+            parts.append(
+                "agents=" + ", ".join(
+                    brief.get("agent", "?") for brief in plan["dispatch"]
+                )
+            )
         if plan.get("open_params"):
             parts.append("open=" + ", ".join(map(str, plan["open_params"])))
         parts.append(f"clarify={bool(plan.get('needs_clarification'))}")
@@ -121,13 +126,19 @@ def _summarize_state_update(update: Any) -> list[str]:
         suffix = f" ({' | '.join(identities)})" if identities else ""
         lines.append(f"evidence: +{len(evidence)} record(s){suffix}")
     if "tool_calls_made" in update:
-        lines.append(f"completed tool calls: {update['tool_calls_made']}/12")
+        lines.append(
+            "completed tool calls: "
+            f"{update['tool_calls_made']}/{get_limits().global_tool_budget}"
+        )
     if update.get("tool_failures"):
         lines.append(
             f"failed tool calls: {update['tool_failures']}/{TOOL_FAILURE_LIMIT}"
         )
     if "clarify_count" in update:
-        lines.append(f"clarification rounds: {update['clarify_count']}/2")
+        lines.append(
+            "clarification rounds: "
+            f"{update['clarify_count']}/{get_limits().clarify_rounds}"
+        )
     if update.get("assumptions"):
         lines.append("assumptions: " + _short(update["assumptions"], 180))
     if update.get("draft") is not None:

@@ -68,7 +68,7 @@ class AnalyticsReport(BaseModel):
 
 def prepare(state: AnalyticsState) -> dict[str, Any]:
     return {
-        "spec_registry": backend().list_canonical_specs(None),
+        "spec_registry": backend().list_canonical_specs(),
         "query_count": state.get("query_count", 0),
         "query_failures": state.get("query_failures", 0),
     }

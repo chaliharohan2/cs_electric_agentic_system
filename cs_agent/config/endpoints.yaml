@@ -49,6 +49,7 @@ endpoints:
 
 # ---- switching models = editing this block only ----
 nodes:
+  intake:    sonnet
   planner:   sonnet
   clarify:   sonnet
   agent:     sonnet

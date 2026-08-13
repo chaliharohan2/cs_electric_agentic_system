@@ -11,4 +11,4 @@ profiles:
     normalize: true
     trust_remote_code: true
 
-active: minilm_l6_v2
+active: gte_base_en_v1_5

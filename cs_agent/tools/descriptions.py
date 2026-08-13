@@ -9,37 +9,32 @@ NAME_MATCHING = (
 )
 
 LIST_CANONICAL_SPECS = (
-    "List the specification IDs available for a category, with units, value kinds, "
-    "how many SKUs carry each, and the observed minimum and maximum in the catalogue. "
-    "ALWAYS call this before using product_search filters in a category you have not "
-    "queried yet. " + NAME_MATCHING + " Check observed_min/observed_max before "
-    "filtering; an out-of-range threshold cannot match."
+    "List specification IDs for a family with units, value kinds, SKU counts, "
+    "composite counts, and observed bounds. Use spec_id_contains to discover topic "
+    "vocabulary. Call before product_search filters; never guess spec IDs."
 )
 
 TAXONOMY_BROWSE = (
-    "Browse the C&S catalogue structure: categories, families, and ordering-code axes "
-    "(rating, poles, breaking capacity, release type, mounting), each with a SKU count. "
-    "Pass nothing for every category, a category for its families, or a family on its "
-    "own to get that family's axes without knowing its category. " + NAME_MATCHING +
-    " Use this first when you do not know what C&S sells and to distinguish an empty "
-    "catalogue range from an incorrect filter."
+    "Walk the 2–4 level C&S catalogue path one level at a time, returning published "
+    "descriptions, URLs, leaf status and SKU counts. _no_category entries are separated "
+    "as uncategorised pricelist sections. Browsing alone is not a product answer."
 )
 
 PRODUCT_SEARCH = (
     "Find SKUs by specification filters, ordering-code facets, or name and code "
-    "fragments. This is the PRIMARY tool for any number, rating, range, or "
+    "fragments, path, market segment, price status, or chunk presence. This is the "
+    "PRIMARY tool for any number, rating, range, or "
     "superlative, and the way to turn a product-line name into ordering codes. "
     + NAME_MATCHING + " Spec IDs also match their labels, so 'breaking capacity' "
     "finds breaking_capacity_ka. Range specs use their min/max bounds. Missing "
-    "specifications mean not published, never zero. When nothing matches, the reply "
-    "carries no_matches and suggestions listing the real catalogue names to retry with."
+    "specifications mean not published, never zero. composite_excluded values are "
+    "unknown, not ruled out. Read widening_hint before concluding no product exists."
 )
 
 GET_SKU = (
     "Everything known about one SKU: facts with units and value ranges, decoded "
-    "ordering code, and optionally brochure text and sources. The ordering code may be "
-    "partial; when it resolves to a different code the response reports the resolved "
-    "code and other candidates. " + NAME_MATCHING
+    "ordering code, source references, extraction missing/confidence, and optionally "
+    "chunks, price and peers. Resolve user-entered codes with resolve_product first."
 )
 
 COMPARE_SKUS = (
@@ -51,11 +46,24 @@ COMPARE_SKUS = (
 )
 
 SEARCH_DOCUMENTS = (
-    "Semantic search over brochure text. Use ONLY for qualitative questions: how a "
-    "feature works, application suitability, or what a standard requires. Never use it "
-    "to find, rank, or compare numeric ratings. Always pass category or family. "
-    + NAME_MATCHING + " Results shared across many SKUs are family-level text, not "
-    "one SKU's specification."
+    "Semantic search over qualitative catalogue text, filterable by path, family, SKU, "
+    "and chunk_type. Never use it for numeric ratings. Always pass family or path. "
+    "Falls back to lexical search and reports its mode."
+)
+
+RESOLVE_PRODUCT = (
+    "Resolve a product code, alias, partial code, misspelling, or description to real "
+    "SKU codes. Always use this before SKU-specific tools when the user typed the code."
+)
+
+GET_PRICE_DETAIL = (
+    "Retrieve provenance-aware pricing for up to 10 SKUs. Respect price_status; never "
+    "quote multiple_variants or observations whose context names another code."
+)
+
+GET_PEER_GROUP = (
+    "Return a SKU's catalogue peer set, comparable_on axes, related codes, and decoded "
+    "differences. Use for shortlists and like-for-like comparison."
 )
 
 ANALYTICS_QUERY = (

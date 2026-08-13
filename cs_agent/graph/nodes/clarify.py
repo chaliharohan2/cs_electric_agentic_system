@@ -59,8 +59,11 @@ def clarify(state: AgentState) -> dict[str, Any]:
     answer = interrupt({"questions": questions})
     if isinstance(answer, dict):
         rendered = "; ".join(f"{key}: {value}" for key, value in answer.items())
+        resolved = answer
     else:
         rendered = str(answer)
+        resolved = {"clarification": rendered}
+    session = state.get("session") or {}
     return {
         "messages": [
             HumanMessage(
@@ -68,4 +71,11 @@ def clarify(state: AgentState) -> dict[str, Any]:
             )
         ],
         "clarify_count": state.get("clarify_count", 0) + 1,
+        "session": {
+            **session,
+            "resolved_params": {
+                **session.get("resolved_params", {}),
+                **resolved,
+            },
+        },
     }
