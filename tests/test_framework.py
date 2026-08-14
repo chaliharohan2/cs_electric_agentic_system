@@ -5,7 +5,10 @@ from __future__ import annotations
 import importlib
 import os
 import unittest
+import uuid
 from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
 from unittest.mock import patch
 
 from langchain_core.messages import HumanMessage
@@ -34,6 +37,11 @@ from cs_agent.graph.build import (
 from cs_agent.graph.nodes.gate import gate
 from cs_agent.graph.state import merge_reports
 from cs_agent.llm.factory import clear_model_cache, resolve_endpoint
+from cs_agent.observability import (
+    AGENT_METADATA_KEY,
+    AgentCallbackHandler,
+    agent_scoped_config,
+)
 from cs_agent.run import _initial_state
 from cs_agent.subgraphs.agents import build_specialist_graph
 from cs_agent.tools.registry import TOOLS_BY_NAME, tools_for_agent
@@ -355,6 +363,44 @@ class GraphTests(unittest.TestCase):
         self.assertIn("session", state)
         self.assertIn("reports", state)
         self.assertEqual(0, state["revision_round"])
+
+
+class TraceLabellingTests(unittest.TestCase):
+    """Parallel specialists must be distinguishable in the trace."""
+
+    def test_scoped_config_nests_labels(self) -> None:
+        outer = agent_scoped_config("discovery")
+        self.assertEqual("discovery", outer["metadata"][AGENT_METADATA_KEY])
+        inner = agent_scoped_config("analytics", outer)
+        self.assertEqual("discovery/analytics", inner["metadata"][AGENT_METADATA_KEY])
+
+    def test_tool_events_carry_the_calling_agent(self) -> None:
+        events: list[dict[str, Any]] = []
+        trace = SimpleNamespace(event=lambda name, **fields: events.append(
+            {"event": name, **fields}
+        ))
+        handler = AgentCallbackHandler(trace)
+        run_id = uuid.uuid4()
+        handler.on_tool_start(
+            {"name": "sku_lookup"},
+            "{}",
+            run_id=run_id,
+            metadata={AGENT_METADATA_KEY: "compliance"},
+        )
+        handler.on_tool_end({"rows": []}, run_id=run_id)
+        self.assertEqual(["compliance", "compliance"], [e["agent"] for e in events])
+
+    def test_agent_is_inherited_from_the_parent_run(self) -> None:
+        handler = AgentCallbackHandler(SimpleNamespace(event=lambda *a, **k: None))
+        parent = uuid.uuid4()
+        child = uuid.uuid4()
+        handler.on_chain_start(
+            None, {}, run_id=parent, metadata={AGENT_METADATA_KEY: "pricing"}
+        )
+        handler.on_tool_start(
+            {"name": "sku_lookup"}, "{}", run_id=child, parent_run_id=parent
+        )
+        self.assertEqual("pricing", handler._run_agents[child])
 
 
 class DatabaseDefinitionTests(unittest.TestCase):

@@ -95,21 +95,32 @@ ANALYTICS_TOOLS = [
 ]
 
 
-def analyst(state: AnalyticsState) -> dict[str, list[AnyMessage]]:
+def _budget_note(state: AnalyticsState) -> str:
     remaining = max(0, state.get("max_queries", 0) - state.get("query_count", 0))
-    failures = state.get("query_failures", 0)
+    return (
+        f"Queries already executed: {state.get('query_count', 0)}."
+        f"\nQueries remaining: {remaining}."
+        f"\nFailed queries: {state.get('query_failures', 0)} of "
+        f"{TOOL_FAILURE_LIMIT} allowed."
+    )
+
+
+def analyst(state: AnalyticsState) -> dict[str, list[AnyMessage]]:
     system = WRITE_SQL_PROMPT.format(
         spec_registry=json.dumps(state.get("spec_registry", []), indent=2)
     )
-    system += (
-        f"\n\nQueries already executed: {state.get('query_count', 0)}."
-        f"\nQueries remaining: {remaining}."
-        f"\nFailed queries: {failures} of {TOOL_FAILURE_LIMIT} allowed."
-    )
+    # Counters trail the history so the prompt prefix stays byte-identical across
+    # turns; see the note in cs_agent/subgraphs/agents/nodes.py.
     response = (
         get_model("analytics.write_sql")
         .bind_tools(ANALYTICS_TOOLS)
-        .invoke([SystemMessage(content=system), *state.get("messages", [])])
+        .invoke(
+            [
+                SystemMessage(content=system),
+                *state.get("messages", []),
+                HumanMessage(content=_budget_note(state)),
+            ]
+        )
     )
     return {"messages": [response]}
 

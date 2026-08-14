@@ -50,6 +50,13 @@ def prepare(state: SpecialistState) -> dict[str, Any]:
     }
 
 
+def _budget_note(state: SpecialistState) -> str:
+    return (
+        f"Tool calls used: {state.get('tool_calls_used', 0)}."
+        f"\nFailed calls: {state.get('tool_failures', 0)}."
+    )
+
+
 def make_agent_node(agent_name: str, tools: list[Any]):
     role_prompt = (PROMPTS / "agents" / f"{agent_name}.md").read_text(encoding="utf-8")
 
@@ -60,14 +67,20 @@ def make_agent_node(agent_name: str, tools: list[Any]):
             allowance=state.get("allowance", brief.allowance),
         )
         system += "\n\n" + role_prompt
-        system += (
-            f"\n\nTool calls used: {state.get('tool_calls_used', 0)}."
-            f"\nFailed calls: {state.get('tool_failures', 0)}."
-        )
+        # The running counters change every turn, so they go after the history
+        # rather than into the system prompt. Anything before the first differing
+        # token is a KV cache hit, and a counter at the front of the prompt would
+        # force the server to re-read the whole accumulated transcript each turn.
         response = (
             get_model("agent")
             .bind_tools(tools)
-            .invoke([SystemMessage(content=system), *state.get("messages", [])])
+            .invoke(
+                [
+                    SystemMessage(content=system),
+                    *state.get("messages", []),
+                    HumanMessage(content=_budget_note(state)),
+                ]
+            )
         )
         return {"messages": [response]}
 

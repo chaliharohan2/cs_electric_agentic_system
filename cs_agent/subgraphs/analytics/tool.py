@@ -8,6 +8,7 @@ from typing import Any
 from langchain_core.messages import HumanMessage
 
 from cs_agent.config.limits import get_limits
+from cs_agent.observability import agent_scoped_config
 
 from .build import build_analytics_graph
 
@@ -37,6 +38,7 @@ def analytics_query(
             "query_count": 0,
             "query_failures": 0,
             "max_queries": _max_queries(),
-        }
+        },
+        config=agent_scoped_config("analytics"),
     )
     return state["answer"]
