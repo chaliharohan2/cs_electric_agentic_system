@@ -23,10 +23,14 @@ class EndpointConfig(BaseModel):
     max_tokens: int = 4096
     timeout: float | None = 120.0
     extra_body: dict[str, Any] | None = None
-    # Ollama exposes reasoning and the context window as first-class request
-    # fields; vLLM takes the equivalents through `extra_body` instead.
+    # Ollama exposes reasoning, the context window, and model residency as
+    # first-class request fields; vLLM takes the equivalents through
+    # `extra_body` instead.
     thinking: bool | None = None
     num_ctx: int | None = None
+    # Seconds to keep the model resident after a request; -1 never unloads.
+    # Unloading discards the KV cache along with the weights.
+    keep_alive: float | str | None = None
 
 
 class EndpointsFile(BaseModel):
@@ -108,6 +112,8 @@ def _build_ollama(ep: EndpointConfig) -> ChatOllama:
         kwargs["temperature"] = ep.temperature
     if ep.thinking is not None:
         kwargs["reasoning"] = ep.thinking
+    if ep.keep_alive is not None:
+        kwargs["keep_alive"] = ep.keep_alive
     return ChatOllama(**kwargs)
 
 

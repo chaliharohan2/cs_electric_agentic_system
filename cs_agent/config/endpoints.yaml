@@ -1,3 +1,12 @@
+# A tool-calling turn re-sends the whole transcript, so nearly all prompt tokens
+# are ones the server has already seen. Keeping them cheap needs a stable prompt
+# prefix (see cs_agent/subgraphs/agents/nodes.py) *and* KV cache reuse on the
+# server: Ollama does this by default, and vLLM needs --enable-prefix-caching
+# unless it is running the V1 engine, where it is already on. Specialists fan out
+# in parallel, so a server holding only one KV slot makes them evict each other;
+# OLLAMA_NUM_PARALLEL (or vLLM's --max-num-seqs) should be at least
+# CS_MAX_PARALLEL_AGENTS, at the cost of num_ctx worth of KV cache per slot.
+# Verify with: python latency_profile.py logs/<run>.jsonl
 endpoints:
   sonnet:
     base_url: https://api.anthropic.com/v1/
