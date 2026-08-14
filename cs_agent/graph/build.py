@@ -19,7 +19,7 @@ from cs_agent.graph.nodes import (
     planner,
 )
 from cs_agent.graph.state import AgentState
-from cs_agent.observability import TraceLogger
+from cs_agent.observability import TraceLogger, agent_scoped_config
 from cs_agent.subgraphs.agents import build_specialist_graph
 
 
@@ -46,7 +46,8 @@ def _run_specialist(state: AgentState) -> dict[str, Any]:
             "question": state.get("standalone_question", ""),
             "messages": [],
             "evidence": [],
-        }
+        },
+        config=agent_scoped_config(agent_name),
     )
     report = result["report"]
     return {
@@ -128,6 +129,14 @@ def _after_composer(state: AgentState):
     return "compose_final"
 
 
+def _node_agent(state: AgentState) -> str | None:
+    """Name the specialist a fan-out branch is running, when there is one."""
+    brief = state.get("brief")
+    if isinstance(brief, dict):
+        return brief.get("agent")
+    return None
+
+
 def _trace_node(
     name: str,
     node: Callable[..., Any] | Any,
@@ -136,23 +145,25 @@ def _trace_node(
     next_node: str | None = None,
 ) -> Callable[[AgentState, RunnableConfig], Any]:
     def traced(state: AgentState, config: RunnableConfig) -> Any:
-        trace.event("node.start", node=name)
-        trace.event("state.snapshot", node=name, state=state)
+        agent = _node_agent(state)
+        trace.event("node.start", node=name, agent=agent)
+        trace.event("state.snapshot", node=name, agent=agent, state=state)
         try:
             if hasattr(node, "invoke"):
                 update = node.invoke(state, config=config)
             else:
                 update = node(state)
         except BaseException as exc:
-            trace.event("node.error", node=name, error=exc)
+            trace.event("node.error", node=name, agent=agent, error=exc)
             raise
-        trace.event("state.update", node=name, update=update)
-        trace.event("node.end", node=name)
+        trace.event("state.update", node=name, agent=agent, update=update)
+        trace.event("node.end", node=name, agent=agent)
         if next_node:
             trace.event(
                 "node.transition",
                 from_node=name,
                 to_node=next_node,
+                agent=agent,
                 transition_type="fixed",
             )
             trace.event("agent.change", from_agent=name, to_agent=next_node)

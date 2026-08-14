@@ -11,10 +11,34 @@ from pathlib import Path
 from typing import Any
 
 from langchain_core.callbacks import BaseCallbackHandler
+from langchain_core.runnables import RunnableConfig
+from langchain_core.runnables.config import ensure_config
 from pydantic import BaseModel
 
 from cs_agent.config.limits import get_limits
 from cs_agent.tool_errors import TOOL_FAILURE_LIMIT
+
+AGENT_METADATA_KEY = "cs_agent"
+
+
+def agent_scoped_config(
+    label: str, config: RunnableConfig | None = None
+) -> RunnableConfig:
+    """Tag everything run under `label` so traces name the calling sub-agent.
+
+    Nested scopes are joined with `/`, so SQL issued by the analytics subgraph on
+    behalf of the coverage specialist is labelled `coverage/analytics`.
+    """
+    metadata = dict(ensure_config(config).get("metadata") or {})
+    parent = metadata.get(AGENT_METADATA_KEY)
+    metadata[AGENT_METADATA_KEY] = f"{parent}/{label}" if parent else label
+    return {"metadata": metadata}
+
+
+def _agent_from_metadata(metadata: Any) -> str | None:
+    if isinstance(metadata, dict) and metadata.get(AGENT_METADATA_KEY):
+        return str(metadata[AGENT_METADATA_KEY])
+    return None
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -73,6 +97,9 @@ def _identifiers(item: Any) -> list[str]:
 
 def _summarize_tool_output(raw: Any) -> str:
     value = _parse_json_string(raw)
+    if isinstance(value, dict) and "tool_call_id" in value and "content" in value:
+        # ToolNode reports the wrapping ToolMessage; the payload is its content.
+        value = _parse_json_string(value["content"])
     if isinstance(value, dict):
         if value.get("error"):
             return f"error: {_short(value['error'], 180)}"
@@ -215,35 +242,42 @@ class TraceLogger:
     def _print_record(record: dict[str, Any]) -> None:
         """Render concise progress while the file retains the complete JSON event."""
         event = record["event"]
+        agent = record.get("agent")
+        # Sub-agents fan out in parallel, so every line names its owner.
+        scope = f"[{agent}] " if agent else ""
         if event == "run.start":
             print(f"\n▶ Question: {record.get('question', '')}", flush=True)
             print(f"  Trace: {record.get('log_file', '')}", flush=True)
         elif event == "node.transition":
-            print(
-                f"→ {record.get('from_node', '?')} → {record.get('to_node', '?')}",
-                flush=True,
-            )
+            origin = record.get("from_node", "?")
+            if agent:
+                origin = f"{origin}[{agent}]"
+            print(f"→ {origin} → {record.get('to_node', '?')}", flush=True)
+        elif event == "node.start":
+            if agent:
+                print(f"  ▷ [{record.get('node', 'node')}:{agent}] started", flush=True)
         elif event == "state.update":
             node = record.get("node", "state")
+            label = f"{node}:{agent}" if agent else node
             for line in _summarize_state_update(record.get("update")):
-                print(f"  [{node}] {line}", flush=True)
+                print(f"  [{label}] {line}", flush=True)
         elif event == "tool.start":
             inputs = record.get("inputs")
             if inputs in (None, {}):
                 inputs = record.get("input")
             print(
-                f"  🔧 {record.get('tool') or 'tool'}({_short(inputs, 320)})",
+                f"  {scope}🔧 {record.get('tool') or 'tool'}({_short(inputs, 320)})",
                 flush=True,
             )
         elif event == "tool.end":
             print(
-                f"  ✓ {record.get('tool') or 'tool'}: "
+                f"  {scope}✓ {record.get('tool') or 'tool'}: "
                 f"{_summarize_tool_output(record.get('output'))}",
                 flush=True,
             )
         elif event in {"tool.error", "llm.error", "runnable.error", "node.error"}:
             name = record.get("tool") or record.get("node") or event.split(".", 1)[0]
-            print(f"  ✗ {name}: {_short(record.get('error'), 240)}", flush=True)
+            print(f"  {scope}✗ {name}: {_short(record.get('error'), 240)}", flush=True)
         elif event == "run.interrupt":
             payload = record.get("payload")
             questions = payload.get("questions") if isinstance(payload, dict) else payload
@@ -270,7 +304,27 @@ class AgentCallbackHandler(BaseCallbackHandler):
     def __init__(self, trace: TraceLogger) -> None:
         self.trace = trace
         self._tool_names: dict[uuid.UUID, str] = {}
+        self._run_agents: dict[uuid.UUID, str] = {}
         self._tool_lock = threading.Lock()
+
+    def _enter(
+        self,
+        run_id: uuid.UUID,
+        parent_run_id: uuid.UUID | None,
+        metadata: Any,
+    ) -> str | None:
+        """Resolve the owning sub-agent, inheriting it from the parent run."""
+        agent = _agent_from_metadata(metadata)
+        with self._tool_lock:
+            if agent is None and parent_run_id is not None:
+                agent = self._run_agents.get(parent_run_id)
+            if agent:
+                self._run_agents[run_id] = agent
+        return agent
+
+    def _exit(self, run_id: uuid.UUID) -> str | None:
+        with self._tool_lock:
+            return self._run_agents.pop(run_id, None)
 
     def on_chat_model_start(
         self,
@@ -285,6 +339,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
             "llm.start",
             callback_run_id=run_id,
             parent_run_id=parent_run_id,
+            agent=self._enter(run_id, parent_run_id, kwargs.get("metadata")),
             model=serialized,
             messages=messages,
             metadata=kwargs.get("metadata"),
@@ -303,6 +358,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
             "llm.end",
             callback_run_id=run_id,
             parent_run_id=parent_run_id,
+            agent=self._exit(run_id),
             response=response,
         )
 
@@ -318,6 +374,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
             "llm.error",
             callback_run_id=run_id,
             parent_run_id=parent_run_id,
+            agent=self._exit(run_id),
             error=error,
         )
 
@@ -337,6 +394,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
             "tool.start",
             callback_run_id=run_id,
             parent_run_id=parent_run_id,
+            agent=self._enter(run_id, parent_run_id, kwargs.get("metadata")),
             tool=tool_name,
             input=input_str,
             inputs=kwargs.get("inputs"),
@@ -357,6 +415,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
             "tool.end",
             callback_run_id=run_id,
             parent_run_id=parent_run_id,
+            agent=self._exit(run_id),
             tool=tool_name or kwargs.get("name"),
             output=output,
         )
@@ -375,6 +434,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
             "tool.error",
             callback_run_id=run_id,
             parent_run_id=parent_run_id,
+            agent=self._exit(run_id),
             tool=tool_name or kwargs.get("name"),
             error=error,
         )
@@ -392,6 +452,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
             "runnable.start",
             callback_run_id=run_id,
             parent_run_id=parent_run_id,
+            agent=self._enter(run_id, parent_run_id, kwargs.get("metadata")),
             name=kwargs.get("name"),
             serialized=serialized,
             inputs=inputs,
@@ -410,6 +471,7 @@ class AgentCallbackHandler(BaseCallbackHandler):
             "runnable.end",
             callback_run_id=run_id,
             parent_run_id=parent_run_id,
+            agent=self._exit(run_id),
             outputs=outputs,
         )
 
@@ -425,5 +487,6 @@ class AgentCallbackHandler(BaseCallbackHandler):
             "runnable.error",
             callback_run_id=run_id,
             parent_run_id=parent_run_id,
+            agent=self._exit(run_id),
             error=error,
         )
