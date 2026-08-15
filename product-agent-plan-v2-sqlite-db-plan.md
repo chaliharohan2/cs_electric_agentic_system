@@ -2,6 +2,10 @@
 
 Amends `product-agent-plan-v2.md`. **Only the data layer and tool internals change.** Graph topology, the five sub-agents, report schemas, the gate node, the composer revision loop, and all prompts except the two in §7 carry over unchanged.
 
+**Status (2026-08-15):** Runtime `PostgresBackend`, `PostgresSaver`, and the
+parity harness have been removed. Postgres remains the **build source** only
+(`cs_agent/db/refresh` + `scripts/build_sqlite.py`).
+
 **Decisions locked**
 
 | Decision | Choice |

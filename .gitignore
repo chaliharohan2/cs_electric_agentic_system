@@ -223,3 +223,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# SQLite catalogue artifact and LangGraph checkpoint state
+artifacts/*.sqlite
+artifacts/*.sqlite-*
+artifacts/build_report.json
+artifacts/catalog-*.sqlite
+state/
+!artifacts/.gitkeep

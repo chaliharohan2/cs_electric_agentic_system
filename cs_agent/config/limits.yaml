@@ -5,3 +5,11 @@ clarify_rounds: 2
 tool_failure_limit: 3
 max_parallel_agents: 5
 analytics_max_queries: 4
+sqlite_path: artifacts/catalog-latest.sqlite
+checkpoint_path: state/checkpoints.sqlite
+sqlite_pragmas:
+  journal_mode: WAL
+  query_only: 1
+  mmap_size: 268435456
+  cache_size: -64000
+  temp_store: MEMORY

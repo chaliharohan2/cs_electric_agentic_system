@@ -27,7 +27,7 @@ _REFRESH_ORDER = (
 def database_url() -> str:
     value = os.getenv("DATABASE_URL")
     if not value:
-        raise RuntimeError("DATABASE_URL is required for the PostgreSQL backend")
+        raise RuntimeError("DATABASE_URL is required to refresh or inspect the Postgres build source")
     return value
 
 

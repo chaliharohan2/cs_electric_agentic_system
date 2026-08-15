@@ -81,6 +81,9 @@ def composer_sufficiency(state: AgentState) -> dict[str, Any]:
                 content=json.dumps(
                     {
                         "question": state.get("standalone_question"),
+                        "known_params": (state.get("session") or {}).get(
+                            "resolved_params", {}
+                        ),
                         "reports": state.get("reports", {}),
                     },
                     default=str,
@@ -121,7 +124,12 @@ def compose_final(state: AgentState) -> dict[str, Any]:
             HumanMessage(
                 content=(
                     f"Question: {state.get('standalone_question')}\n"
-                    "Compose the final answer from the reports now."
+                    "Known parameters the user provided: "
+                    + json.dumps(
+                        (state.get("session") or {}).get("resolved_params", {}),
+                        default=str,
+                    )
+                    + "\nCompose the final answer from the reports now."
                 )
             ),
         ]

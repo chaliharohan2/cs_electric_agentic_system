@@ -28,7 +28,7 @@ class FixturesBackend:
 
     @staticmethod
     def _matches_text(value: Any, wanted: Any) -> bool:
-        """Delegate to the matcher the Postgres adapter mirrors in SQL."""
+        """Delegate to the shared punctuation-tolerant catalogue matcher."""
         return matches(value, wanted)
 
     def _fixture_skus(self) -> list[dict[str, Any]]:
@@ -96,7 +96,7 @@ class FixturesBackend:
             None,
         )
 
-    # Catalogue API mirroring the production Postgres envelopes,
+    # Catalogue API mirroring the production tool envelopes,
     # built from the compact synthetic source data.
     def resolve_product(self, **kw: Any) -> dict:
         query = str(kw["query"])
