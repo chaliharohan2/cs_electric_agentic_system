@@ -56,7 +56,7 @@ def product_search(
     facets: dict[str, str] | None = None,
     filters: list[Any] | None = None,
     market_segment: str | None = None,
-    price_status: list[str] | None = None,
+    price_status: list[str] | str | None = None,
     has_chunk_type: list[str] | None = None,
     text: str | None = None,
     return_specs: list[str] | None = None,
@@ -66,6 +66,8 @@ def product_search(
     for item in filters or []:
         data = item.model_dump() if hasattr(item, "model_dump") else dict(item)
         normalized.append(data)
+    if isinstance(price_status, str):
+        price_status = [price_status]
     return backend().product_search(
         path=path,
         family=family,

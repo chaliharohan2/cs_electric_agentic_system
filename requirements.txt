@@ -3,12 +3,14 @@ langchain-openai
 langchain-ollama
 langchain-core
 langgraph
-langgraph-checkpoint-postgres
+langgraph-checkpoint-sqlite
 pydantic
 pyyaml
 python-dotenv
 psycopg[binary,pool]
 pgvector
+sqlite-vec
+rapidfuzz
 # GTE v1.5 custom modeling is not compatible with transformers 5.x yet.
 transformers>=4.44,<5
 sentence-transformers

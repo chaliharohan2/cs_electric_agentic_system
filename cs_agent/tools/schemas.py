@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class SpecFilter(BaseModel):
@@ -13,17 +13,41 @@ class SpecFilter(BaseModel):
     value: float | str
 
 
+def _as_str_list(value: Any) -> list[str] | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, str):
+        return [value]
+    return list(value)
+
+
 class ProductSearchArgs(BaseModel):
     path: list[str] | None = None
     family: str | None = None
     facets: dict[str, str] | None = None
     filters: list[SpecFilter] = Field(default_factory=list)
     market_segment: str | None = None
-    price_status: list[str] | None = None
+    price_status: list[str] | None = Field(
+        None,
+        description='Filter by price_status values, e.g. ["listed"]. A single string is accepted.',
+    )
     has_chunk_type: list[str] | None = None
     text: str | None = Field(None, description="Optional free-text name/code match.")
     return_specs: list[str] = Field(default_factory=list)
     limit: int = Field(20, ge=1, le=100)
+
+    @field_validator("price_status", "has_chunk_type", mode="before")
+    @classmethod
+    def _coerce_str_list(cls, value: Any) -> list[str] | None:
+        return _as_str_list(value)
+
+    @field_validator("limit", mode="before")
+    @classmethod
+    def _clamp_limit(cls, value: Any) -> int:
+        try:
+            return max(1, min(int(value), 100))
+        except (TypeError, ValueError):
+            return 20
 
 
 class GetSkuArgs(BaseModel):

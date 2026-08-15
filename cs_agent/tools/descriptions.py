@@ -28,7 +28,11 @@ PRODUCT_SEARCH = (
     + NAME_MATCHING + " Spec IDs also match their labels, so 'breaking capacity' "
     "finds breaking_capacity_ka. Range specs use their min/max bounds. Missing "
     "specifications mean not published, never zero. composite_excluded values are "
-    "unknown, not ruled out. Read widening_hint before concluding no product exists."
+    "unknown, not ruled out. Read widening_hint before concluding no product exists. "
+    "price_status must be a list such as [\"listed\"], not a bare string. Hits include "
+    "price_inr when a single listed figure is quotable, cheapest first. For the cheapest "
+    "or dearest product across a family, prefer analytics_query so the ranking covers "
+    "every SKU, not just the first page of hits."
 )
 
 GET_SKU = (

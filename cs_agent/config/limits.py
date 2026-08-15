@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 import yaml
 from pydantic import BaseModel, Field
@@ -18,6 +19,17 @@ class Limits(BaseModel):
     tool_failure_limit: int = Field(3, ge=1)
     max_parallel_agents: int = Field(5, ge=1, le=5)
     analytics_max_queries: int = Field(4, ge=1)
+    sqlite_path: str = "artifacts/catalog-latest.sqlite"
+    checkpoint_path: str = "state/checkpoints.sqlite"
+    sqlite_pragmas: dict[str, Any] = Field(
+        default_factory=lambda: {
+            "journal_mode": "WAL",
+            "query_only": 1,
+            "mmap_size": 268435456,
+            "cache_size": -64000,
+            "temp_store": "MEMORY",
+        }
+    )
 
 
 _PATH = Path(__file__).with_name("limits.yaml")
@@ -30,6 +42,10 @@ _ENV_NAMES = {
     "max_parallel_agents": "CS_MAX_PARALLEL_AGENTS",
     "analytics_max_queries": "CS_ANALYTICS_MAX_QUERIES",
 }
+_ENV_STRINGS = {
+    "sqlite_path": "CS_SQLITE_PATH",
+    "checkpoint_path": "CS_CHECKPOINT_PATH",
+}
 
 
 @lru_cache(maxsize=1)
@@ -39,6 +55,9 @@ def get_limits() -> Limits:
     for field_name, env_name in _ENV_NAMES.items():
         if raw := os.getenv(env_name):
             values[field_name] = int(raw)
+    for field_name, env_name in _ENV_STRINGS.items():
+        if raw := os.getenv(env_name):
+            values[field_name] = raw
     limits = Limits.model_validate(values)
     if limits.per_agent_tool_budget > limits.global_tool_budget:
         raise ValueError("per_agent_tool_budget cannot exceed global_tool_budget")

@@ -24,6 +24,7 @@ from cs_agent.contracts import (
     DiscoveryReport,
     FamilyBrief,
     Finding,
+    Plan,
     SourceRef,
     SpecSelectionReport,
 )
@@ -32,6 +33,7 @@ from cs_agent.graph.build import (
     _after_composer,
     _after_gate,
     _after_planner,
+    _run_specialist,
     build_graph,
 )
 from cs_agent.graph.nodes.gate import gate
@@ -221,6 +223,9 @@ class FixtureToolTests(unittest.TestCase):
             has_chunk_type=["standards"],
         )
         self.assertEqual(["standards"], args.has_chunk_type)
+        coerced = ProductSearchArgs(price_status="listed", limit=200)
+        self.assertEqual(["listed"], coerced.price_status)
+        self.assertEqual(100, coerced.limit)
         docs = SearchDocumentsArgs(
             query="installation",
             family="WIN2",
@@ -254,6 +259,23 @@ class GraphTests(unittest.TestCase):
         ):
             nodes = set(build_specialist_graph(agent).get_graph().nodes)
             self.assertTrue({"prepare", "agent", "tools", "record", "report"} <= nodes)
+
+    def test_specialist_runtime_error_becomes_partial_report(self) -> None:
+        brief = AgentBrief(
+            agent="discovery",
+            objective="map MCCBs",
+            allowance=4,
+        ).model_dump()
+        with patch(
+            "cs_agent.graph.build.build_specialist_graph",
+            side_effect=RuntimeError("XML syntax error"),
+        ):
+            update = _run_specialist(
+                {"brief": brief, "standalone_question": "What MCBs do you have?"}
+            )
+        report = update["reports"]["discovery"]
+        self.assertEqual("partial", report["status"])
+        self.assertTrue(report["gaps"])
 
     def test_planner_fans_out_send_objects(self) -> None:
         state = {
@@ -363,6 +385,133 @@ class GraphTests(unittest.TestCase):
         self.assertIn("session", state)
         self.assertIn("reports", state)
         self.assertEqual(0, state["revision_round"])
+
+    def test_planner_receives_clarification_answers(self) -> None:
+        module = importlib.import_module("cs_agent.graph.nodes.planner")
+        captured: dict[str, Any] = {}
+
+        def fake_structured(_role, messages, _schema):
+            captured["content"] = messages[1].content
+            return Plan(
+                intent="size protection",
+                dispatch=[
+                    AgentBrief(agent="discovery", objective="map isolators")
+                ],
+                known_params={},
+                open_params=["System Voltage (DC string voltage)"],
+                needs_clarification=True,
+            )
+
+        with patch.object(module, "structured", side_effect=fake_structured):
+            result = module.planner(
+                {
+                    "standalone_question": (
+                        "What's the right protection setup for a rooftop solar "
+                        "feed into my building's main panel?"
+                    ),
+                    "session": {
+                        "resolved_params": {
+                            "clarification": "Rated current 200 A, 4 poles, fixed"
+                        }
+                    },
+                    "plan": {
+                        "open_params": ["System Voltage (DC string voltage)"],
+                        "needs_clarification": True,
+                    },
+                    "clarify_count": 1,
+                    "tool_calls_made": 0,
+                    "turn_tool_calls_start": 0,
+                    "assumptions": [],
+                }
+            )
+        self.assertIn("200 A", captured["content"])
+        self.assertIn("4 poles", captured["content"])
+        self.assertIn("200 A", result["standalone_question"])
+        self.assertEqual(
+            "Rated current 200 A, 4 poles, fixed",
+            result["dispatch"][0]["parameters"]["clarification"],
+        )
+        self.assertIn("user-provided parameters", result["assumptions"][0].lower())
+
+    def test_clarify_folds_answers_into_the_question(self) -> None:
+        module = importlib.import_module("cs_agent.graph.nodes.clarify")
+        fake_model = SimpleNamespace(
+            invoke=lambda _msgs: SimpleNamespace(
+                content="1. What is the DC string voltage? (600)"
+            )
+        )
+        with (
+            patch.object(module, "get_model", return_value=fake_model),
+            patch.object(
+                module, "interrupt", return_value="Rated current 200 A, 4 poles, fixed"
+            ),
+        ):
+            result = module.clarify(
+                {
+                    "plan": {
+                        "open_params": ["System Voltage (DC string voltage)"],
+                        "known_params": {},
+                    },
+                    "standalone_question": (
+                        "What's the right protection setup for a rooftop solar feed?"
+                    ),
+                    "session": {"resolved_params": {}},
+                    "clarify_count": 0,
+                }
+            )
+        self.assertIn("200 A", result["standalone_question"])
+        self.assertEqual(
+            "Rated current 200 A, 4 poles, fixed",
+            result["session"]["resolved_params"]["clarification"],
+        )
+        self.assertEqual(1, result["clarify_count"])
+
+    def test_clarify_skips_params_already_answered(self) -> None:
+        module = importlib.import_module("cs_agent.graph.nodes.clarify")
+        with (
+            patch.object(module, "get_model") as get_model,
+            patch.object(module, "interrupt") as interrupt,
+        ):
+            result = module.clarify(
+                {
+                    "plan": {
+                        "open_params": ["rated_current_a", "poles"],
+                        "known_params": {},
+                    },
+                    "standalone_question": "size a main breaker",
+                    "session": {
+                        "resolved_params": {
+                            "rated_current_a": 200,
+                            "poles": 4,
+                        }
+                    },
+                    "clarify_count": 1,
+                }
+            )
+        get_model.assert_not_called()
+        interrupt.assert_not_called()
+        self.assertFalse(result["plan"]["needs_clarification"])
+        self.assertIn("200", result["standalone_question"])
+
+    def test_specialist_send_includes_resolved_params(self) -> None:
+        state = {
+            "plan": {"needs_clarification": False, "known_params": {}},
+            "dispatch": [
+                AgentBrief(
+                    agent="discovery",
+                    objective="map MCCBs",
+                    allowance=10,
+                ).model_dump(),
+            ],
+            "standalone_question": "solar feed protection",
+            "session": {
+                "resolved_params": {"rated_current_a": 200, "poles": 4}
+            },
+        }
+        sends = _after_planner(state)
+        self.assertEqual(1, len(sends))
+        self.assertEqual(200, sends[0].arg["brief"]["parameters"]["rated_current_a"])
+        self.assertEqual(4, sends[0].arg["brief"]["parameters"]["poles"])
 
 
 class TraceLabellingTests(unittest.TestCase):

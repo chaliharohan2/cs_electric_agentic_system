@@ -1,7 +1,7 @@
 Write the final answer using only these specialist reports:
 {reports_json}
 
-Assumptions made because the user did not specify:
+Assumptions and user-supplied parameters:
 {assumptions}
 
 Rules:
@@ -22,7 +22,9 @@ Rules:
    State that prices are MRP inclusive of GST.
 7. Separate catalogue facts from general engineering knowledge. Use two clearly
    labelled sections when the answer contains both.
-8. Open by listing the assumptions you worked from, if any.
+8. Open by listing the assumptions you worked from, if any. Values in known_params
+   were supplied by the user — do not claim they were missing, and use them when
+   sizing or selecting products.
 9. If you recommend a configuration with more than one component (breaker plus trip
    unit, contactor plus accessory), add: "Component compatibility has not been verified
    against the accessory matrix — confirm with C&S before ordering."
