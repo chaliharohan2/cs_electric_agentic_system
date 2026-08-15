@@ -1,7 +1,7 @@
-"""Opt-in PostgreSQL/GTE integration tests.
+"""Opt-in SQLite/GTE integration tests against the built catalogue artifact.
 
 These tests intentionally do not participate in ``make test``. Run only after
-the 768-dimensional corpus embeddings have been loaded:
+the catalogue has been built with 768-dimensional embeddings:
 
     CS_RUN_VECTOR_TESTS=1 python -m unittest tests.test_vector_retrieval
 """
@@ -15,8 +15,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from cs_agent.backends.postgres import PostgresBackend
-from cs_agent.db.refresh import inspect
+from cs_agent.backends.sqlite import SqliteBackend
 from cs_agent.embeddings.factory import resolve_embedding
 
 
@@ -27,17 +26,17 @@ from cs_agent.embeddings.factory import resolve_embedding
 class VectorRetrievalIntegrationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.backend = PostgresBackend()
+        cls.backend = SqliteBackend()
         cls.family = os.environ["CS_VECTOR_TEST_FAMILY"]
         cls.query = os.getenv("CS_VECTOR_TEST_QUERY", "circuit breaker application")
 
-    def test_gte_profile_and_database_are_768_dimensional(self) -> None:
+    def test_gte_profile_and_catalogue_are_768_dimensional(self) -> None:
         profile = resolve_embedding()
         self.assertEqual("Alibaba-NLP/gte-base-en-v1.5", profile.model)
         self.assertEqual(768, profile.dimension)
-        diagnostics = inspect()
-        self.assertEqual(768, diagnostics["embedding_dimension"])
-        self.assertGreater(diagnostics["embeddings_loaded"], 0)
+        self.assertTrue(self.backend._meta("embeddings_loaded"))
+        self.assertEqual(768, int(self.backend._meta("embedding_dimension")))
+        self.assertTrue(self.backend.vec_available)
 
     def test_vector_result_contract_and_order(self) -> None:
         hits = self.backend.search_documents(

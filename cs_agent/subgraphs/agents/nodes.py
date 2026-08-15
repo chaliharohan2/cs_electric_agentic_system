@@ -7,7 +7,7 @@ import operator
 from pathlib import Path
 from typing import Annotated, Any, TypedDict
 
-from langchain_core.messages import AnyMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, SystemMessage
 from langgraph.graph.message import add_messages
 
 from cs_agent.config.limits import get_limits
@@ -43,6 +43,7 @@ def prepare(state: SpecialistState) -> dict[str, Any]:
             HumanMessage(
                 content=(
                     f"User question: {state.get('question', '')}\n"
+                    f"Known parameters: {json.dumps(brief.parameters or {}, default=str)}\n"
                     f"Your objective: {brief.objective}"
                 )
             )
@@ -71,17 +72,28 @@ def make_agent_node(agent_name: str, tools: list[Any]):
         # rather than into the system prompt. Anything before the first differing
         # token is a KV cache hit, and a counter at the front of the prompt would
         # force the server to re-read the whole accumulated transcript each turn.
-        response = (
-            get_model("agent")
-            .bind_tools(tools)
-            .invoke(
-                [
-                    SystemMessage(content=system),
-                    *state.get("messages", []),
-                    HumanMessage(content=_budget_note(state)),
-                ]
+        try:
+            response = (
+                get_model("agent")
+                .bind_tools(tools)
+                .invoke(
+                    [
+                        SystemMessage(content=system),
+                        *state.get("messages", []),
+                        HumanMessage(content=_budget_note(state)),
+                    ]
+                )
             )
-        )
+        except Exception as exc:
+            # Ollama (and similar) can 500 on a malformed tool-call XML payload.
+            # Stop the tool loop so the sibling specialists and composer still run.
+            response = AIMessage(
+                content=(
+                    f"Model call failed ({type(exc).__name__}: {exc}). "
+                    "Do not call more tools. Produce the report from evidence "
+                    "already gathered."
+                )
+            )
         return {"messages": [response]}
 
     return agent

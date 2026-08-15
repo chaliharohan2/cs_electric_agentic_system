@@ -26,15 +26,17 @@ that catalogue. Typical questions include:
 - What differs between these codes? (comparison)
 - Which standards or IP ratings does C&S publish for this product? (compliance)
 
-**Stack:** Python 3.11, LangChain, LangGraph, PostgreSQL + pgvector, psycopg
-(no Flask/SQLAlchemy layer), OpenAI-compatible LLMs (Anthropic / vLLM) or
-native Ollama, and `sentence-transformers` for query embeddings.
+**Stack:** Python 3.11, LangChain, LangGraph, SQLite catalogue artifact
+(`sku_fact` + `chunk` + sqlite-vec), OpenAI-compatible LLMs (Anthropic / vLLM)
+or native Ollama, and `sentence-transformers` for query embeddings.
 
 **Entry point:**
 
 ```bash
 source /home/rohan/Nyalazone/cs_electric_agent/venv/bin/activate
-python -m cs_agent.run --question "Which WiNbreak1 MCCB is rated 250 A?"
+# build the catalogue once (needs DATABASE_URL + refreshed mv_* views)
+python scripts/build_sqlite.py
+CS_BACKEND=sqlite python -m cs_agent.run --question "Which WiNbreak1 MCCB is rated 250 A?"
 # multi-turn:
 python -m cs_agent.run --thread-id customer-42
 ```
@@ -74,23 +76,33 @@ cs_agent/
     analytics/           SQL analytics sub-agent exposed as one tool
 
   tools/                 Schemas, descriptions, thin wrappers, registries
-  backends/              CatalogBackend: postgres | fixtures
-  db/                    views.sql + setup/refresh/inspect CLI
+  backends/              CatalogBackend: sqlite | fixtures
+  db/                    Postgres mv_* views.sql + setup/refresh (build source)
   embeddings/            Query embedding factory (GTE)
   llm/                   Model factory + structured JSON helper
   prompts/               Markdown prompts for every LLM node / specialist
   data/fixtures/         Synthetic catalogue for offline tests
   validation/            Numeric fidelity helpers (dormant validator)
 
+scripts/
+  build_sqlite.py        Postgres mv_* → artifacts/catalog-*.sqlite
+
+artifacts/               Built catalogue .sqlite (gitignored) + build_report.json
+state/                   LangGraph SqliteSaver checkpoints (gitignored)
+
 tests/
   test_framework.py      Default offline suite (fixtures, no network/DB)
-  test_vector_retrieval.py  Opt-in Postgres/GTE integration tests
+  test_sqlite.py         SQLite backend unit tests on a mini catalog
+  test_vector_retrieval.py  Opt-in SQLite/GTE integration tests
 ```
 
 Supporting docs:
 
 - [`README.md`](README.md) — setup and run commands
-- [`product-agent-plan-v2.md`](product-agent-plan-v2.md) — design source of truth
+- [`SQLITE-CATALOG.md`](SQLITE-CATALOG.md) — SQLite schema, JSON shapes, and build snapshot
+- [`product-agent-plan-v2.md`](product-agent-plan-v2.md) — multi-agent design
+- [`product-agent-plan-v2-sqlite-db-plan.md`](product-agent-plan-v2-sqlite-db-plan.md)
+  — SQLite data-layer migration
 - [`product_chunks_schema_and_samples_v2.md`](product_chunks_schema_and_samples_v2.md)
   — live schema notes for `cs_electric_v2`
 
@@ -127,7 +139,7 @@ User question (CLI)
 └──────────────────────────────────────────────────────────────┘
         │
         ▼
- CatalogBackend ──► Postgres mv_* views + product_chunks
+ CatalogBackend ──► SqliteBackend (artifacts/catalog-latest.sqlite)
                  └─► FixturesBackend (tests)
 ```
 
@@ -154,9 +166,8 @@ This section follows one user question from CLI start to final answer.
 1. Load `.env`.
 2. Build a `TraceLogger` (JSONL file + optional screen summary).
 3. Choose a checkpointer:
-   - `CS_BACKEND=postgres` → `PostgresSaver` on `DATABASE_URL`, keyed by
-     `thread_id`
-   - otherwise → in-memory `MemorySaver`
+   - `CS_BACKEND=sqlite` → `SqliteSaver` on `state/checkpoints.sqlite`
+   - `CS_BACKEND=fixtures` → in-memory `MemorySaver`
 4. Create initial parent state: the new human message, empty/reset reports, a
    session object, clarify/revision counters, and `turn_tool_calls_start`.
 5. Invoke the compiled graph.
@@ -241,9 +252,11 @@ type, indoor/outdoor). Accessory suffixes and finishes are not asked.
 
 1. The clarify node drafts at most three short questions.
 2. LangGraph `interrupt()` pauses the run and surfaces the questions to the CLI.
-3. The user’s answers are appended as a human message and stored in
-   `session.resolved_params` so the same question is not asked again later.
-4. Control returns to the planner.
+3. The user’s answers are appended as a human message, stored in
+   `session.resolved_params`, and folded into `standalone_question` so the
+   planner, specialists, and composer all see them.
+4. Control returns to the planner, which receives `known_params` (not only the
+   original question) and copies them into every dispatch brief.
 
 ### 4.5 Parallel specialist dispatch
 
@@ -374,8 +387,7 @@ session = {
 ### 5.2 Persistence
 
 - `thread_id` selects a LangGraph checkpoint lane.
-- With Postgres backend, `PostgresSaver` persists graph state across process
-  restarts.
+- `SqliteSaver` persists graph state across process restarts.
 - The CLI also passes the previous `session` dict into the next
   `run_question()` so follow-ups work even when starting a fresh invoke with a
   reset reports map.
@@ -385,7 +397,7 @@ session = {
 | Layer | Sees |
 |---|---|
 | Intake | Raw user message + full session JSON |
-| Planner / clarify / specialists / composer | Standalone question (+ briefs / reports as appropriate) |
+| Planner / clarify / specialists / composer | Standalone question, including clarification answers on `session.resolved_params` and dispatch briefs (+ reports as appropriate) |
 | Specialists | Private tool transcripts only for their own run |
 
 So “compare that to X” becomes something like “Compare SKU-A with SKU-X …”
@@ -423,8 +435,9 @@ composer both depend on those shapes.
 ## 7. Tools and how they work
 
 Tools are LangChain structured tools. Thin wrappers in `tools/impl.py` call a
-`CatalogBackend`. Production uses `PostgresBackend` over materialized views;
-tests use `FixturesBackend` with synthetic JSON.
+`CatalogBackend`. Default production path is `SqliteBackend` over the built
+`artifacts/catalog-latest.sqlite` artifact (`sku_fact` + `chunk`). Offline
+tests use `FixturesBackend`.
 
 ### 7.1 Agent ↔ tool matrix
 
@@ -448,9 +461,9 @@ tests use `FixturesBackend` with synthetic JSON.
 **`resolve_product`**
 Three-stage cascade, stop at first hits:
 
-1. Exact match on `mv_code_alias` (normalised spelling)
-2. Trigram fuzzy match on codes (`similarity ≥ 0.35`)
-3. Description / family trigram + full-text over chunk content
+1. Exact match on normalised codes / aliases (case, spaces, hyphens stripped)
+2. Fuzzy match via rapidfuzz `WRatio`
+3. Description / family text match, then FTS over chunk content
 
 Returns ranked candidates, `resolution` mode, and an alias note when the user
 typed a non-canonical spelling. Always use this before SKU-specific tools when
@@ -505,22 +518,21 @@ Returns `peer_group_match` and `axes_source`. Empty cells mean not published.
 
 **`search_documents`**
 Qualitative retrieval only (features, application, installation, standards
-prose). Requires a family or path prefilter. Flow:
+prose). **Requires** a `family`, `path`, or `sku_code` prefilter (enforced in
+code). On SQLite:
 
-1. If any matching rows have embeddings → embed the query with
-   **Alibaba-NLP/gte-base-en-v1.5** (normalized 768-d), rank by pgvector cosine
-   distance, dedupe identical content by md5, attach brochure refs from
-   `mv_source`, return `mode: "vector"`.
-2. If zero vector hits (or no embeddings present) → one retry on `content_tsv`
-   full-text, return `mode: "lexical"`.
+1. If embeddings are loaded and sqlite-vec is available → embed the query with
+   **Alibaba-NLP/gte-base-en-v1.5** (normalized 768-d), rank survivors with
+   `vec_distance_cosine`, dedupe by `content_hash`, return `mode: "vector"`.
+2. If zero vector hits, embeddings are absent, or sqlite-vec cannot load →
+   FTS5 lexical fallback, `mode: "lexical"`.
 
-Never use this for numeric rating lookup. Corpus embedding **ingestion** is
-external to this repo; query embedding happens at tool-call time.
+Never use it for numeric rating lookup.
 
 **`analytics_query`**
 Delegates multi-step SQL analysis to a private analytics subgraph
 (`prepare → analyst ⇄ execute_analytics_sql → summarize`). The analyst may run
-several read-only SELECTs against the v2 views (capped by
+several read-only SELECTs against `sku_fact` / `chunk` (SQLite dialect; capped by
 `analytics_max_queries`) and returns a factual summary with numeric evidence —
 no recommendations. Used when ranking/aggregating many SKUs is awkward with
 the structured tools alone.
@@ -554,7 +566,7 @@ Live scale after setup: about **9,115** products and **79,297** chunks.
 ### 8.2 Why materialized views
 
 Querying nested JSON repeatedly is slow and error-prone. `cs_agent/db/views.sql`
-projects eight views:
+projects eight views used as the **build source** for the SQLite artifact:
 
 | View | Role |
 |---|---|
@@ -562,10 +574,36 @@ projects eight views:
 | `mv_code_alias` | sku / canonical / alias resolution surface |
 | `mv_fact` | Long typed facts with range + composite support |
 | `mv_price` | Price observations + context mismatch detector |
-| `mv_source` | Typed citation refs (brochure_md, pricelist_pdf, product_page) |
-| `mv_spec_registry` | Per-family spec vocabulary and observed bounds |
-| `mv_facet` | Decoded ordering-code axes keyed by family |
-| `mv_chunk_index` | Chunk presence / headings without scanning 79k rows |
+| `mv_source` | Typed citation refs (brochure `.md`, product page, pricelist PDF+page) |
+| `mv_spec_registry` | Per-family spec vocabulary + observed bounds |
+| `mv_facet` | Ordering-code facet axes per family |
+| `mv_chunk_index` | Cheap “does this SKU have chunk_type X?” lookups |
+
+Refresh order matters (`mv_sku` first). Use
+`python -m cs_agent.db.refresh setup|refresh|inspect`.
+
+### 8.3 Runtime SQLite artifact
+
+`scripts/build_sqlite.py` flattens the views into one read-only file.
+Column-level detail and the current build snapshot are in
+[`SQLITE-CATALOG.md`](SQLITE-CATALOG.md).
+
+| Table | Grain |
+|---|---|
+| `sku_fact` | One row per (SKU, fact); SKU metadata repeated; sentinel rows for factless SKUs |
+| `chunk` | One row per brochure chunk; embedding as float32 BLOB; FTS5 `chunk_fts` |
+| `build_meta` | Build timestamp, counts, embedding dim, audit flags |
+
+Path depth is compiled from live pre-flight (**4** levels today):
+`division`, `product_group`, `product_subgroup`, `product_range`, with `'N/A'`
+padding. Always filter families on `family`, never on a level column.
+
+Default runtime: `CS_BACKEND=sqlite` → `SqliteBackend` + `SqliteSaver`
+(`state/checkpoints.sqlite`). If `sqlite-vec` fails to load, `search_documents`
+uses FTS5 lexical search on the same SQLite file.
+
+Factless SKUs are listed in `artifacts/build_report.json` with a warning; the
+build exits 0 after emitting sentinel rows.
 
 Helper `in_use.safe_num` converts only clean numeric strings so one dirty cell
 cannot abort a whole refresh.
@@ -589,7 +627,7 @@ make inspect    # products/chunks/embeddings/view counts + embedding dimension
 Setup migrates an **empty** embedding column to `vector(768)` and refuses if
 populated embeddings already exist at a different dimension.
 
-### 8.3 Catalogue semantics the agents must respect
+### 8.4 Catalogue semantics the agents must respect
 
 - **`sku_code`** is the only product identifier returned to users.
 - The same product may appear under alternate spellings (`also_published_as`,
@@ -674,7 +712,7 @@ source /home/rohan/Nyalazone/cs_electric_agent/venv/bin/activate
 | Command | Meaning |
 |---|---|
 | `make test` | Fixtures-only unit suite (`tests.test_framework`) — no DB, no HF download |
-| `make test-vector` | Opt-in vector suite; needs Postgres + loaded 768-d embeddings + `CS_VECTOR_TEST_FAMILY` |
+| `make test-vector` | Opt-in vector suite; needs the built SQLite catalogue + loaded 768-d embeddings + `CS_VECTOR_TEST_FAMILY` |
 | `make setup-db` / `make refresh` / `make inspect` | Catalogue projection lifecycle |
 | `python -m cs_agent.run …` | Interactive or one-shot answering |
 

@@ -7,29 +7,38 @@ from contextlib import contextmanager
 import os
 import sys
 import uuid
+from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.checkpoint.postgres import PostgresSaver
+from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
 
+from cs_agent.config.limits import get_limits
 from cs_agent.graph import build_graph
 from cs_agent.observability import AgentCallbackHandler, TraceLogger
 
 
 @contextmanager
 def _checkpointer():
-    if os.getenv("CS_BACKEND", "fixtures").lower() != "postgres":
+    backend = os.getenv("CS_BACKEND", "sqlite").lower()
+    if backend == "fixtures":
         yield MemorySaver()
         return
-    database_url = os.getenv("DATABASE_URL")
-    if not database_url:
-        raise RuntimeError("DATABASE_URL is required when CS_BACKEND=postgres")
-    with PostgresSaver.from_conn_string(database_url) as saver:
-        saver.setup()
-        yield saver
+    if backend == "sqlite":
+        limits = get_limits()
+        checkpoint_path = os.getenv("CS_CHECKPOINT_PATH") or limits.checkpoint_path
+        path = Path(checkpoint_path)
+        if not path.is_absolute():
+            path = Path(__file__).resolve().parents[1] / path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with SqliteSaver.from_conn_string(str(path)) as saver:
+            saver.setup()
+            yield saver
+        return
+    raise ValueError("CS_BACKEND must be 'sqlite' or 'fixtures'")
 
 
 def _initial_state(

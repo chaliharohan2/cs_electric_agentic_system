@@ -10,6 +10,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
 
 from cs_agent.config.limits import get_limits
+from cs_agent.contracts import REPORT_SCHEMAS
 from cs_agent.graph.nodes import (
     clarify,
     compose_final,
@@ -31,24 +32,42 @@ def _after_planner(state: AgentState):
     ):
         return "clarify"
     question = state.get("standalone_question", "")
-    return [
-        Send("specialist", {"brief": brief, "standalone_question": question})
-        for brief in state.get("dispatch", [])
-    ]
+    resolved = (state.get("session") or {}).get("resolved_params") or {}
+    known = {**resolved, **(plan.get("known_params") or {})}
+    sends = []
+    for brief in state.get("dispatch", []):
+        merged = {**brief, "parameters": {**known, **(brief.get("parameters") or {})}}
+        sends.append(
+            Send("specialist", {"brief": merged, "standalone_question": question})
+        )
+    return sends
 
 
 def _run_specialist(state: AgentState) -> dict[str, Any]:
     brief = state["brief"]
     agent_name = brief["agent"]
-    result = build_specialist_graph(agent_name).invoke(
-        {
-            "brief": brief,
-            "question": state.get("standalone_question", ""),
-            "messages": [],
+    try:
+        result = build_specialist_graph(agent_name).invoke(
+            {
+                "brief": brief,
+                "question": state.get("standalone_question", ""),
+                "messages": [],
+                "evidence": [],
+            },
+            config=agent_scoped_config(agent_name),
+        )
+    except Exception as exc:
+        report = REPORT_SCHEMAS[agent_name](
+            agent=agent_name,
+            status="partial",
+            summary=f"Specialist stopped after a runtime error: {exc}",
+            gaps=[f"{type(exc).__name__}: {exc}"],
+        ).model_dump()
+        return {
+            "reports": {agent_name: report},
             "evidence": [],
-        },
-        config=agent_scoped_config(agent_name),
-    )
+            "tool_calls_made": 0,
+        }
     report = result["report"]
     return {
         "reports": {agent_name: report},

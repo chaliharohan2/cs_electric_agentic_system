@@ -15,4 +15,4 @@ test:
 	CS_BACKEND=fixtures $(PYTHON) -m unittest tests.test_framework
 
 test-vector:
-	CS_RUN_VECTOR_TESTS=1 CS_BACKEND=postgres $(PYTHON) -m unittest tests.test_vector_retrieval
+	CS_RUN_VECTOR_TESTS=1 CS_BACKEND=sqlite $(PYTHON) -m unittest tests.test_vector_retrieval

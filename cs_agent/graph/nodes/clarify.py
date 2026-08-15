@@ -9,6 +9,7 @@ from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.types import interrupt
 
+from cs_agent.graph.nodes.planner import enrich_question_with_params
 from cs_agent.graph.state import AgentState
 from cs_agent.llm import get_model
 
@@ -28,9 +29,34 @@ def _content_text(content: object) -> str:
     return str(content)
 
 
+def _param_already_known(param: str, known: dict[str, Any]) -> bool:
+    needle = param.lower().replace("_", " ")
+    for key, value in known.items():
+        blob = f"{key} {value}".lower().replace("_", " ")
+        if needle in blob or str(key).lower().replace("_", " ") in needle:
+            return True
+    return False
+
+
 def clarify(state: AgentState) -> dict[str, Any]:
     plan = state.get("plan") or {}
-    open_params = plan.get("open_params", [])
+    session = state.get("session") or {}
+    known = {
+        **(plan.get("known_params") or {}),
+        **(session.get("resolved_params") or {}),
+    }
+    open_params = [
+        param
+        for param in (plan.get("open_params") or [])
+        if not _param_already_known(param, known)
+    ]
+    question = state.get("standalone_question") or ""
+    if not open_params:
+        return {
+            "plan": {**plan, "needs_clarification": False},
+            "clarify_count": state.get("clarify_count", 0) + 1,
+            "standalone_question": enrich_question_with_params(question, known),
+        }
     draft = get_model("clarify").invoke(
         [
             SystemMessage(content=PROMPT),
@@ -39,7 +65,9 @@ def clarify(state: AgentState) -> dict[str, Any]:
                     "Open parameters to clarify:\n"
                     + json.dumps(open_params)
                     + "\nKnown parameters:\n"
-                    + json.dumps(plan.get("known_params", {}))
+                    + json.dumps(known, default=str)
+                    + "\nUser question:\n"
+                    + question
                 )
             ),
         ]
@@ -63,7 +91,7 @@ def clarify(state: AgentState) -> dict[str, Any]:
     else:
         rendered = str(answer)
         resolved = {"clarification": rendered}
-    session = state.get("session") or {}
+    merged = {**known, **resolved}
     return {
         "messages": [
             HumanMessage(
@@ -71,11 +99,9 @@ def clarify(state: AgentState) -> dict[str, Any]:
             )
         ],
         "clarify_count": state.get("clarify_count", 0) + 1,
+        "standalone_question": enrich_question_with_params(question, merged),
         "session": {
             **session,
-            "resolved_params": {
-                **session.get("resolved_params", {}),
-                **resolved,
-            },
+            "resolved_params": merged,
         },
     }
