@@ -11,8 +11,11 @@ refresh:
 inspect:
 	$(PYTHON) -m cs_agent.db.refresh inspect
 
+# The framework suite forces the fixtures backend; the SQLite suites read the
+# built artifact, so they run in a second pass with the real backend.
 test:
 	CS_BACKEND=fixtures $(PYTHON) -m unittest tests.test_framework
+	CS_BACKEND=sqlite $(PYTHON) -m unittest tests.test_sqlite tests.test_vector_retrieval
 
 test-vector:
-	CS_RUN_VECTOR_TESTS=1 CS_BACKEND=sqlite $(PYTHON) -m unittest tests.test_vector_retrieval
+	CS_BACKEND=sqlite $(PYTHON) -m unittest tests.test_vector_retrieval

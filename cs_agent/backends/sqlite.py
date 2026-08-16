@@ -51,6 +51,19 @@ def _loads(value: Any, default: Any = None) -> Any:
     return value
 
 
+def _clip(text: Any, limit: int) -> Any:
+    """Trim brochure prose to a readable head, marking what was dropped.
+
+    Chunks run to 11,700 characters, and a handful of them fills a local
+    model's context window. The opening of a chunk carries the claim; the tail
+    is usually a continuation table the agent can fetch deliberately with
+    get_sku if it turns out to matter.
+    """
+    if not isinstance(text, str) or len(text) <= limit:
+        return text
+    return f"{text[:limit].rstrip()}… [truncated {len(text) - limit} characters]"
+
+
 def _normalize_code(value: str) -> str:
     return re.sub(r"[^a-z0-9]", "", value.lower())
 
@@ -432,12 +445,19 @@ class SqliteBackend:
             return {}
         return {row["path_text"]: dict(row) for row in rows}
 
-    def _facets_under(self, where: str, params: list[Any]) -> list[dict[str, Any]]:
+    def _facets_under(
+        self, where: str, params: list[Any]
+    ) -> tuple[list[dict[str, Any]], int]:
         """Decoded ordering-code axes for every SKU under a path prefix.
 
         Counted over the whole branch rather than a sample: the count is what
         tells the agent an axis value exists, so an undercount reads as "C&S
         does not make that variant".
+
+        Returns the highest-coverage rows and the total number found. The root
+        of the catalogue yields 1,377 of them — around 28k tokens, useless to
+        read and enough to crowd out the rest of the prompt — so the caller
+        caps what it shows while still reporting how many exist.
         """
         rows = self._connect().execute(
             f"SELECT decoded FROM sku_fact WHERE {where} AND {_SKU_GRAIN}",
@@ -463,12 +483,24 @@ class SqliteBackend:
                 )
                 axis_counts[key] = axis_counts.get(key, 0) + 1
                 meanings[key] = meaning
-        return [
+        facets = [
             {"axis": key[0], "code": key[1], "meaning": meanings[key], "sku_count": count}
             for key, count in sorted(
                 axis_counts.items(), key=lambda item: (item[0][0], -item[1], item[0][1])
             )
         ]
+        total = len(facets)
+        # Rank by coverage for the cut, then restore axis grouping so the kept
+        # rows still read as axes rather than a shuffled list. The cut is by
+        # position, not by key: one (axis, code) pair can carry several decoded
+        # meanings, and matching on the pair would let a cap of 60 return 80.
+        cap = get_limits().max_facet_rows
+        if total > cap:
+            keep = sorted(facets, key=lambda item: -item["sku_count"])[:cap]
+            facets = sorted(
+                keep, key=lambda item: (item["axis"], -item["sku_count"], item["code"])
+            )
+        return facets, total
 
     def taxonomy_browse(self, **kw: Any) -> dict:
         path = [str(part) for part in (kw.get("path") or [])][: len(LEVEL_COLUMNS)]
@@ -543,7 +575,16 @@ class SqliteBackend:
                 "child categories. Use product_search with this family for its SKUs."
             )
         if kw.get("include_facets"):
-            result["facets"] = self._facets_under(branch_where, branch_params)
+            facets, total = self._facets_under(branch_where, branch_params)
+            result["facets"] = facets
+            result["facet_axis_value_count"] = total
+            if total > len(facets):
+                result["facets_truncated"] = (
+                    f"Showing the {len(facets)} most common of {total} ordering-code "
+                    "axis values under this path. Browse into a child category for "
+                    "the full set of that branch; absence from this list does not "
+                    "mean the variant does not exist."
+                )
         return result
 
     def product_search(self, **kw: Any) -> dict:
@@ -845,10 +886,12 @@ class SqliteBackend:
                     """,
                     (resolved,),
                 ).fetchall()
+            chunk_limit = get_limits().max_chunk_chars
             result["chunks"] = [
                 {
                     **dict(c),
                     "chunk_id": str(c["chunk_id"]),
+                    "text": _clip(c["text"], chunk_limit),
                     "headings": _loads(c["headings"], []),
                 }
                 for c in chunks
@@ -918,20 +961,31 @@ class SqliteBackend:
                 "related_codes": related,
                 "peers": [],
             }
+        peer_count = connection.execute(
+            f"SELECT count(*) FROM sku_fact WHERE peer_group = ? AND {_SKU_GRAIN}",
+            (anchor["peer_group"],),
+        ).fetchone()[0]
+        # Peer groups reach 1,183 members, and each carries a decoded ordering
+        # code, so returning them all costs ~61k tokens — more than the whole
+        # context window of the local models. A page is enough to see how the
+        # group varies; product_search is the tool for finding a specific one.
+        page = get_limits().max_peer_rows
         peers = connection.execute(
             f"""
             SELECT sku_code, family, decoded, price_status
             FROM sku_fact
             WHERE peer_group = ? AND {_SKU_GRAIN}
             ORDER BY sku_code
+            LIMIT ?
             """,
-            (anchor["peer_group"],),
+            (anchor["peer_group"], page),
         ).fetchall()
-        return {
+        result = {
             "sku_code": resolved,
             "peer_group": anchor["peer_group"],
             "comparable_on": comparable,
             "related_codes": related,
+            "peer_count": peer_count,
             "peers": [
                 {
                     "sku_code": p["sku_code"],
@@ -942,6 +996,15 @@ class SqliteBackend:
                 for p in peers
             ],
         }
+        if peer_count > len(result["peers"]):
+            result["truncated"] = (
+                f"Showing {len(result['peers'])} of {peer_count} peers, ordered by "
+                "ordering code. The group is larger than this sample: use "
+                "product_search with the family and a specific filter to reach a "
+                "peer that is not listed, and never state the group has only "
+                f"{len(result['peers'])} members."
+            )
+        return result
 
     def compare_skus(
         self, sku_codes: list[str], spec_ids: list[str] | None = None
@@ -1030,6 +1093,7 @@ class SqliteBackend:
 
     def _search_documents_sqlite(self, kw: dict[str, Any]) -> list[dict]:
         limit = max(1, min(int(kw.get("k", 6)), 20))
+        text_limit = get_limits().max_chunk_chars
         family = kw.get("family")
         sku_code = kw.get("sku_code")
         path = list(kw.get("path") or [])
@@ -1095,7 +1159,7 @@ class SqliteBackend:
                 deduped.append(
                     {
                         "chunk_id": str(row["chunk_id"]),
-                        "text": row["text"],
+                        "text": _clip(row["text"], text_limit),
                         "chunk_type": row["chunk_type"],
                         "headings": _loads(row["headings"], []),
                         "sku_code": row["sku_code"],
@@ -1153,7 +1217,7 @@ class SqliteBackend:
             deduped.append(
                 {
                     "chunk_id": str(row["chunk_id"]),
-                    "text": row["text"],
+                    "text": _clip(row["text"], text_limit),
                     "chunk_type": row["chunk_type"],
                     "headings": _loads(row["headings"], []),
                     "sku_code": row["sku_code"],

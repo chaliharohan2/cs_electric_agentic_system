@@ -134,9 +134,15 @@ def _summarize_state_update(update: Any) -> list[str]:
     if isinstance(plan, dict):
         parts = [f"intent={plan.get('intent', '?')}"]
         if plan.get("dispatch"):
+            by_stage: dict[int, list[str]] = {}
+            for brief in plan["dispatch"]:
+                by_stage.setdefault(int(brief.get("stage", 1) or 1), []).append(
+                    brief.get("agent", "?")
+                )
             parts.append(
-                "agents=" + ", ".join(
-                    brief.get("agent", "?") for brief in plan["dispatch"]
+                "agents="
+                + " -> ".join(
+                    ", ".join(by_stage[stage]) for stage in sorted(by_stage)
                 )
             )
         if plan.get("open_params"):
@@ -291,6 +297,29 @@ class TraceLogger:
                 f"{_summarize_tool_output(record.get('output'))}",
                 flush=True,
             )
+        elif event in {
+            "llm.context_overflow",
+            "llm.context_pressure",
+            "llm.prompt_truncated",
+        }:
+            # Silent truncation is the failure this project can least afford to
+            # miss, so it prints even though other llm.* events are suppressed.
+            symbol = "⚠" if event == "llm.context_pressure" else "‼"
+            node = record.get("node") or "model"
+            if event == "llm.prompt_truncated":
+                detail = (
+                    f"prompt truncated by Ollama: evaluated "
+                    f"{record.get('prompt_eval_count')} of {record.get('num_ctx')} "
+                    "context tokens"
+                )
+            else:
+                detail = (
+                    f"~{record.get('estimated_prompt_tokens')} prompt tokens vs "
+                    f"{record.get('usable_prompt_tokens')} usable "
+                    f"(num_ctx {record.get('num_ctx')}); tools "
+                    f"~{record.get('estimated_tool_schema_tokens')}"
+                )
+            print(f"  {scope}{symbol} [{node}] {detail}", flush=True)
         elif event in {"tool.error", "llm.error", "runnable.error", "node.error"}:
             name = record.get("tool") or record.get("node") or event.split(".", 1)[0]
             print(f"  {scope}✗ {name}: {_short(record.get('error'), 240)}", flush=True)
@@ -312,6 +341,26 @@ class TraceLogger:
         with self._lock:
             if not self._stream.closed:
                 self._stream.close()
+
+
+_ACTIVE_TRACE: TraceLogger | None = None
+
+
+def set_active_trace(trace: TraceLogger | None) -> None:
+    """Register the trace that code below LangGraph should report through.
+
+    The model factory never sees a RunnableConfig, so it has no callback to
+    write on, and this project configures no logging handlers — a
+    ``logger.warning`` there would go nowhere. One process runs one trace at a
+    time, so a module-level handle is enough to keep its warnings in the file
+    the user actually reads.
+    """
+    global _ACTIVE_TRACE
+    _ACTIVE_TRACE = trace
+
+
+def active_trace() -> TraceLogger | None:
+    return _ACTIVE_TRACE
 
 
 class AgentCallbackHandler(BaseCallbackHandler):

@@ -18,7 +18,11 @@ from langgraph.types import Command
 
 from cs_agent.config.limits import get_limits
 from cs_agent.graph import build_graph
-from cs_agent.observability import AgentCallbackHandler, TraceLogger
+from cs_agent.observability import (
+    AgentCallbackHandler,
+    TraceLogger,
+    set_active_trace,
+)
 
 
 @contextmanager
@@ -56,6 +60,7 @@ def _initial_state(
         "standalone_question": question,
         "plan": None,
         "dispatch": [],
+        "stage_index": 0,
         "reports": {"__reset__": {}},
         "evidence": [],
         "clarify_count": 0,
@@ -63,7 +68,7 @@ def _initial_state(
         "turn_tool_calls_start": 0,
         "tool_failures": 0,
         "revision_round": 0,
-        "gate_retries": 0,
+        "gate_retries": {},
         "gate_result": None,
         "sufficiency": None,
         "assumptions": [],
@@ -88,6 +93,9 @@ def run_question(
 ) -> dict[str, Any]:
     owns_trace = trace is None
     trace = trace or TraceLogger()
+    # The model factory reports context overflow from below LangGraph, where no
+    # callback reaches; give it this turn's trace to write on.
+    set_active_trace(trace)
     callback = AgentCallbackHandler(trace)
     thread_id = thread_id or str(uuid.uuid4())
     initial_state = _initial_state(question, session=session)
@@ -135,6 +143,7 @@ def run_question(
         raise
     finally:
         if owns_trace:
+            set_active_trace(None)
             trace.close()
 
 

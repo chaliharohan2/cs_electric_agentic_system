@@ -9,9 +9,12 @@ from typing import Any, Literal
 
 import yaml
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import BaseMessage
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
+
+from cs_agent.llm.context_guard import check_request, check_response
 
 
 class EndpointConfig(BaseModel):
@@ -97,7 +100,42 @@ def ollama_host(base_url: str) -> str:
     return host
 
 
-def _build_ollama(ep: EndpointConfig) -> ChatOllama:
+class ContextAwareChatOllama(ChatOllama):
+    """ChatOllama that reports prompts too large for its context window.
+
+    ``_chat_params`` is the hook because it assembles the exact body sent to
+    the server — converted messages *and* bound tool schemas — so the estimate
+    covers what the model will actually be charged for, not just the messages
+    the caller passed in.
+    """
+
+    cs_node: str = ""
+
+    def _chat_params(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        params = super()._chat_params(messages, stop, **kwargs)
+        check_request(self.cs_node, params)
+        return params
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):  # type: ignore[no-untyped-def]
+        result = super()._generate(messages, stop, run_manager, **kwargs)
+        if result.generations:
+            # Rebuilt from the model's own configuration rather than stashed on
+            # the instance: specialists in a stage share one cached model, so an
+            # attribute set in _chat_params could belong to a sibling's request.
+            check_response(
+                self.cs_node,
+                {"model": self.model, "options": {"num_ctx": self.num_ctx}},
+                result.generations[0].generation_info,
+            )
+        return result
+
+
+def _build_ollama(ep: EndpointConfig, node: str) -> ChatOllama:
     kwargs: dict[str, Any] = {
         "model": ep.model,
         "base_url": ollama_host(ep.base_url),
@@ -107,6 +145,7 @@ def _build_ollama(ep: EndpointConfig) -> ChatOllama:
         "num_predict": ep.max_tokens,
         "num_ctx": ep.num_ctx,
         "client_kwargs": {"timeout": ep.timeout},
+        "cs_node": node,
     }
     if ep.temperature is not None:
         kwargs["temperature"] = ep.temperature
@@ -114,7 +153,7 @@ def _build_ollama(ep: EndpointConfig) -> ChatOllama:
         kwargs["reasoning"] = ep.thinking
     if ep.keep_alive is not None:
         kwargs["keep_alive"] = ep.keep_alive
-    return ChatOllama(**kwargs)
+    return ContextAwareChatOllama(**kwargs)
 
 
 def _build_openai(ep: EndpointConfig) -> ChatOpenAI:
@@ -137,7 +176,7 @@ def _build_openai(ep: EndpointConfig) -> ChatOpenAI:
 def get_model(node: str) -> BaseChatModel:
     ep = resolve_endpoint(node)
     if ep.provider == "ollama":
-        return _build_ollama(ep)
+        return _build_ollama(ep, node)
     return _build_openai(ep)
 
 

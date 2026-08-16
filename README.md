@@ -70,12 +70,16 @@ used (`mode: "lexical"`).
 
 ## Workflow
 
-`intake` resolves follow-ups, the planner dispatches one to five private specialists
-in parallel, a deterministic gate checks each report, and the composer performs a
-structured sufficiency pass before writing the answer. Missing evidence triggers only
-the named specialist, up to the configured revision cap. Runtime caps live in
-`cs_agent/config/limits.yaml` and can be overridden with `CS_GLOBAL_TOOL_BUDGET`,
-`CS_PER_AGENT_TOOL_BUDGET`, `CS_COMPOSER_REVISIONS`, and related variables.
+`intake` resolves follow-ups, then the planner picks the private specialists the
+question needs and orders them into stages. A stage starts only once the one before it
+has finished, and receives a digest of its findings, so `discovery` hands families to
+`spec_selection` instead of both retrieving them. Agents share a stage only when
+neither needs the other's output. A deterministic gate checks each stage's reports
+before the next begins, and the composer performs a structured sufficiency pass before
+writing the answer. Missing evidence triggers only the named specialist, up to the
+configured revision cap. Runtime caps live in `cs_agent/config/limits.yaml` and can be
+overridden with `CS_GLOBAL_TOOL_BUDGET`, `CS_PER_AGENT_TOOL_BUDGET`, `CS_MAX_STAGES`,
+`CS_COMPOSER_REVISIONS`, and related variables.
 
 ## Execution tracing
 
@@ -90,12 +94,16 @@ CS_LOG_TO_SCREEN=true
 ## Tests
 
 ```bash
-python -m unittest tests.test_framework tests.test_sqlite
+make test
 ```
 
-Vector integration tests are intentionally excluded. After 768-dimensional corpus
-vectors are loaded, run them explicitly with:
+That runs every suite: the fixtures-only framework tests, then the SQLite and
+vector suites against the built catalogue. Vector retrieval is a shipped code
+path, so it is not opt-in — the tests default to a family with enough embedded
+chunks to exercise both the vector and lexical paths.
 
 ```bash
-CS_VECTOR_TEST_FAMILY="..." make test-vector
+make test-vector                        # the vector suite alone
+CS_VECTOR_TEST_FAMILY="..." make test   # after a rebuild reshapes the catalogue
+CS_SKIP_VECTOR_TESTS=1 make test        # only when working without an artifact
 ```

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 AgentName = Literal[
     "discovery",
@@ -34,6 +34,7 @@ class Finding(BaseModel):
 class AgentBrief(BaseModel):
     agent: AgentName
     objective: str
+    stage: int = Field(1, ge=1)
     scope: list[str] = Field(default_factory=list)
     parameters: dict[str, Any] = Field(default_factory=dict)
     must_return: list[str] = Field(default_factory=list)
@@ -48,6 +49,31 @@ class Plan(BaseModel):
     open_params: list[str] = Field(default_factory=list)
     needs_clarification: bool = False
     strategy: str = ""
+
+    @model_validator(mode="after")
+    def _normalise_stages(self) -> "Plan":
+        """Order the dispatch into contiguous stages with one brief per agent.
+
+        A model asked to sequence agents readily emits sparse stage numbers
+        (1 and 3) or lists an agent twice. Either would leave the runtime
+        waiting on a stage that never runs, so renumber rather than reject:
+        the ordering the planner intended survives, the gaps do not.
+        """
+        seen: set[str] = set()
+        unique: list[AgentBrief] = []
+        for brief in sorted(self.dispatch, key=lambda item: item.stage):
+            if brief.agent in seen:
+                continue
+            seen.add(brief.agent)
+            unique.append(brief)
+        ranks = {
+            stage: rank
+            for rank, stage in enumerate(sorted({b.stage for b in unique}), start=1)
+        }
+        for brief in unique:
+            brief.stage = ranks[brief.stage]
+        self.dispatch = unique
+        return self
 
 
 class KeySpec(BaseModel):

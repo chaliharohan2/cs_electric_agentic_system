@@ -1,9 +1,13 @@
-"""Opt-in SQLite/GTE integration tests against the built catalogue artifact.
+"""SQLite/GTE integration tests against the built catalogue artifact.
 
-These tests intentionally do not participate in ``make test``. Run only after
-the catalogue has been built with 768-dimensional embeddings:
+These run as part of ``make test``. They need the catalogue built with
+768-dimensional embeddings loaded, which is the normal state of the artifact.
+Set ``CS_SKIP_VECTOR_TESTS=1`` to opt out when working without one.
 
-    CS_RUN_VECTOR_TESTS=1 python -m unittest tests.test_vector_retrieval
+The test family defaults to a range with plenty of embedded ``features`` and
+``application`` chunks and a populated ``installation`` set, so the vector and
+lexical paths both have something to retrieve. Override with
+``CS_VECTOR_TEST_FAMILY`` after a rebuild changes the catalogue's shape.
 """
 
 from __future__ import annotations
@@ -18,16 +22,18 @@ load_dotenv()
 from cs_agent.backends.sqlite import SqliteBackend
 from cs_agent.embeddings.factory import resolve_embedding
 
+DEFAULT_TEST_FAMILY = "MCCB – Winbreak1"
 
-@unittest.skipUnless(
-    os.getenv("CS_RUN_VECTOR_TESTS") == "1",
-    "vector integration tests are explicitly disabled",
+
+@unittest.skipIf(
+    os.getenv("CS_SKIP_VECTOR_TESTS") == "1",
+    "vector integration tests explicitly skipped via CS_SKIP_VECTOR_TESTS",
 )
 class VectorRetrievalIntegrationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.backend = SqliteBackend()
-        cls.family = os.environ["CS_VECTOR_TEST_FAMILY"]
+        cls.family = os.getenv("CS_VECTOR_TEST_FAMILY") or DEFAULT_TEST_FAMILY
         cls.query = os.getenv("CS_VECTOR_TEST_QUERY", "circuit breaker application")
 
     def test_gte_profile_and_catalogue_are_768_dimensional(self) -> None:

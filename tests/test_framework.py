@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 import os
 import unittest
 import uuid
@@ -35,8 +36,14 @@ from cs_agent.graph.build import (
     _after_planner,
     _run_specialist,
     build_graph,
+    next_stage,
+    stages_in,
 )
+from cs_agent.graph.digest import digest_report, upstream_digest
 from cs_agent.graph.nodes.gate import gate
+from cs_agent.llm import context_guard
+from cs_agent.llm.context_guard import check_request, check_response
+from cs_agent.subgraphs.analytics import nodes as analytics_nodes
 from cs_agent.graph.state import merge_reports
 from cs_agent.llm.factory import clear_model_cache, resolve_endpoint
 from cs_agent.observability import (
@@ -126,13 +133,34 @@ class ContractAndGateTests(unittest.TestCase):
         )
         result = gate(
             {
-                "dispatch": [{"agent": "discovery"}],
+                "dispatch": [{"agent": "discovery", "stage": 1}],
                 "reports": {"discovery": report.model_dump()},
-                "gate_retries": 0,
+                "stage_index": 1,
+                "gate_retries": {},
             }
         )
         self.assertFalse(result["gate_result"]["ok"])
-        self.assertEqual(1, result["gate_retries"])
+        self.assertEqual({"1": 1}, result["gate_retries"])
+
+    def test_gate_ignores_stages_that_have_not_run_yet(self) -> None:
+        report = DiscoveryReport(
+            **self.base("discovery"),
+            families=[FamilyBrief(name="MCCB")],
+            representative_skus=["SKU-1"],
+        )
+        result = gate(
+            {
+                "dispatch": [
+                    {"agent": "discovery", "stage": 1},
+                    {"agent": "spec_selection", "stage": 2},
+                ],
+                "reports": {"discovery": report.model_dump()},
+                "stage_index": 1,
+                "gate_retries": {},
+            }
+        )
+        self.assertTrue(result["gate_result"]["ok"])
+        self.assertNotIn("gate_retries", result)
 
     def test_gate_requires_sku_source_for_specification(self) -> None:
         report = ComplianceReport(
@@ -151,9 +179,10 @@ class ContractAndGateTests(unittest.TestCase):
         )
         result = gate(
             {
-                "dispatch": [{"agent": "compliance"}],
+                "dispatch": [{"agent": "compliance", "stage": 1}],
                 "reports": {"compliance": report.model_dump()},
-                "gate_retries": 0,
+                "stage_index": 1,
+                "gate_retries": {},
             }
         )
         self.assertFalse(result["gate_result"]["ok"])
@@ -164,6 +193,207 @@ class ContractAndGateTests(unittest.TestCase):
         })
         self.assertEqual({"discovery", "comparison"}, set(merged))
         self.assertEqual({}, merge_reports(merged, {"__reset__": {}}))
+
+
+class StagedPlanTests(unittest.TestCase):
+    """The planner orders agents; the runtime must be able to trust that order."""
+
+    def _plan(self, *briefs: AgentBrief) -> Plan:
+        return Plan(intent="x", dispatch=list(briefs))
+
+    def test_sparse_stage_numbers_are_renumbered_contiguously(self) -> None:
+        plan = self._plan(
+            AgentBrief(agent="discovery", objective="map", stage=1),
+            AgentBrief(agent="spec_selection", objective="shortlist", stage=7),
+        )
+        self.assertEqual([1, 2], [brief.stage for brief in plan.dispatch])
+
+    def test_a_repeated_agent_keeps_only_its_earliest_stage(self) -> None:
+        plan = self._plan(
+            AgentBrief(agent="discovery", objective="map", stage=2),
+            AgentBrief(agent="discovery", objective="map again", stage=1),
+        )
+        self.assertEqual(1, len(plan.dispatch))
+        self.assertEqual("map again", plan.dispatch[0].objective)
+
+    def test_agents_sharing_a_stage_stay_parallel(self) -> None:
+        plan = self._plan(
+            AgentBrief(agent="discovery", objective="map", stage=1),
+            AgentBrief(agent="compliance", objective="standards", stage=1),
+        )
+        dispatch = [brief.model_dump() for brief in plan.dispatch]
+        self.assertEqual([1], stages_in(dispatch))
+        self.assertIsNone(next_stage(dispatch, 1))
+
+    def test_planner_clamps_stages_to_the_configured_maximum(self) -> None:
+        module = importlib.import_module("cs_agent.graph.nodes.planner")
+        plan = self._plan(
+            AgentBrief(agent="discovery", objective="a", stage=1),
+            AgentBrief(agent="spec_selection", objective="b", stage=2),
+            AgentBrief(agent="comparison", objective="c", stage=3),
+            AgentBrief(agent="compliance", objective="d", stage=4),
+        )
+        with patch.object(module, "structured", return_value=plan):
+            result = module.planner(
+                {"standalone_question": "q", "session": {}, "assumptions": []}
+            )
+        stages = [brief["stage"] for brief in result["dispatch"]]
+        self.assertLessEqual(max(stages), get_limits().max_stages)
+        self.assertEqual(4, len(stages))
+
+    def test_digest_keeps_identifiers_and_drops_the_bulk(self) -> None:
+        report = DiscoveryReport(
+            agent="discovery",
+            status="complete",
+            summary="Wintrip covers 16-630 A",
+            families=[FamilyBrief(name="MCCB – Wintrip", sku_count=42, url="u")],
+            representative_skus=["WT-100"],
+            sources=[SourceRef(sku_code="WT-100", brochure_md="b.md")],
+            findings=[Finding(statement="noise")],
+        ).model_dump()
+        digest = digest_report(report)
+        self.assertEqual(["WT-100"], digest["representative_skus"])
+        self.assertEqual("MCCB – Wintrip", digest["families"][0]["name"])
+        self.assertNotIn("findings", digest)
+        self.assertNotIn("sources", digest)
+
+    def test_upstream_digest_covers_only_earlier_stages(self) -> None:
+        dispatch = [
+            AgentBrief(agent="discovery", objective="a", stage=1).model_dump(),
+            AgentBrief(agent="spec_selection", objective="b", stage=2).model_dump(),
+        ]
+        reports = {
+            "discovery": {"status": "complete", "summary": "d"},
+            "spec_selection": {"status": "complete", "summary": "s"},
+        }
+        self.assertEqual(
+            ["discovery"], list(upstream_digest(reports, dispatch, 2))
+        )
+        self.assertEqual({}, upstream_digest(reports, dispatch, 1))
+
+
+class ContextGuardTests(unittest.TestCase):
+    """Ollama truncates an oversized prompt silently; that must be visible."""
+
+    def setUp(self) -> None:
+        self.events: list[tuple[str, dict[str, Any]]] = []
+        recorder = SimpleNamespace(
+            event=lambda name, **details: self.events.append((name, details))
+        )
+        patcher = patch.object(context_guard, "active_trace", return_value=recorder)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    @staticmethod
+    def _params(prompt_chars: int, num_ctx: int = 80000, num_predict: int = 20000):
+        return {
+            "model": "qwen3.6:27b",
+            "messages": [{"role": "system", "content": "x" * prompt_chars}],
+            "tools": [],
+            "options": {"num_ctx": num_ctx, "num_predict": num_predict},
+        }
+
+    def test_a_comfortable_prompt_is_silent(self) -> None:
+        self.assertIsNone(check_request("agent", self._params(10_000)))
+        self.assertEqual([], self.events)
+
+    def test_an_oversized_prompt_reports_the_overflow(self) -> None:
+        # 300k chars / 3.5 ≈ 85k tokens against 60k usable (80k − 20k reserved).
+        report = check_request("agent", self._params(300_000))
+        self.assertEqual("llm.context_overflow", self.events[0][0])
+        self.assertGreater(report["overflow_tokens"], 0)
+        self.assertEqual(60_000, report["usable_prompt_tokens"])
+
+    def test_a_near_full_prompt_warns_before_it_overflows(self) -> None:
+        check_request("agent", self._params(190_000))
+        self.assertEqual("llm.context_pressure", self.events[0][0])
+
+    def test_tool_schemas_count_toward_the_window(self) -> None:
+        params = self._params(1_000)
+        # Schemas alone: 100 × 2,000 chars ≈ 57k tokens against 60k usable, with
+        # only 1,000 chars of messages. Counting messages only would miss it.
+        params["tools"] = [
+            {"name": f"t{i}", "description": "d" * 2_000} for i in range(100)
+        ]
+        report = check_request("agent", params)
+        self.assertIsNotNone(report)
+        self.assertGreater(report["estimated_tool_schema_tokens"], 50_000)
+        self.assertLess(report["estimated_message_tokens"], 1_000)
+
+    def test_an_endpoint_without_num_ctx_is_not_policed(self) -> None:
+        params = self._params(500_000)
+        params["options"] = {}
+        self.assertIsNone(check_request("agent", params))
+        self.assertEqual([], self.events)
+
+    def test_a_full_window_of_evaluated_tokens_confirms_truncation(self) -> None:
+        check_response("agent", self._params(10), {"prompt_eval_count": 80_000})
+        self.assertEqual("llm.prompt_truncated", self.events[0][0])
+
+    def test_a_cache_shortened_prompt_count_is_not_reported(self) -> None:
+        """Prefix-cache hits are not re-evaluated, so a low count proves nothing."""
+        check_response("agent", self._params(10), {"prompt_eval_count": 1_200})
+        self.assertEqual([], self.events)
+
+
+class AnalyticsRegistryTests(unittest.TestCase):
+    """The spec registry used to inject ~108k tokens into every analytics call."""
+
+    @staticmethod
+    def _rows(count: int, *, canonical_from: int = 10_000) -> list[dict[str, Any]]:
+        return [
+            {
+                "family": f"fam{index % 7}",
+                "spec_id": f"spec_{index}",
+                "spec_label": f"Spec {index}",
+                "unit": "A",
+                "value_kind": "scalar",
+                "is_canonical_spec": int(index >= canonical_from),
+                "sku_count": index,
+                "composite_count": 0,
+                "observed_min": 1,
+                "observed_max": 2,
+            }
+            for index in range(count)
+        ]
+
+    def _prepare(self, rows, state):
+        fake = SimpleNamespace(list_canonical_specs=lambda **kw: rows)
+        with patch.object(analytics_nodes, "backend", return_value=fake):
+            return analytics_nodes.prepare(state)
+
+    def test_a_large_registry_is_cut_to_the_character_budget(self) -> None:
+        result = self._prepare(self._rows(2_000), {})
+        rendered = json.dumps(result["spec_registry"])
+        self.assertLessEqual(len(rendered), get_limits().analytics_registry_chars * 1.1)
+        self.assertLess(len(result["spec_registry"]), 2_000)
+        self.assertIn("SELECT DISTINCT spec_id", result["registry_note"])
+
+    def test_canonical_specs_survive_the_cut(self) -> None:
+        rows = self._rows(2_000, canonical_from=1_999)
+        result = self._prepare(rows, {})
+        kept = {row["spec_id"] for row in result["spec_registry"]}
+        # spec_1999 has canonical status; without the ordering rule its low
+        # position would drop it even though it is the comparable one.
+        self.assertIn("spec_1999", kept)
+
+    def test_a_small_registry_is_passed_through_whole(self) -> None:
+        result = self._prepare(self._rows(5), {})
+        self.assertEqual(5, len(result["spec_registry"]))
+        self.assertNotIn("truncated", result["registry_note"])
+
+    def test_a_family_scopes_the_backend_lookup(self) -> None:
+        seen: dict[str, Any] = {}
+
+        def list_specs(**kw):
+            seen.update(kw)
+            return self._rows(3)
+
+        fake = SimpleNamespace(list_canonical_specs=list_specs)
+        with patch.object(analytics_nodes, "backend", return_value=fake):
+            result = analytics_nodes.prepare({"family": "MCCB"})
+        self.assertEqual({"family": "MCCB"}, seen)
+        self.assertIn("MCCB", result["registry_note"])
 
 
 class FixtureToolTests(unittest.TestCase):
@@ -277,26 +507,77 @@ class GraphTests(unittest.TestCase):
         self.assertEqual("partial", report["status"])
         self.assertTrue(report["gaps"])
 
-    def test_planner_fans_out_send_objects(self) -> None:
+    def test_planner_dispatches_only_the_first_stage(self) -> None:
         state = {
             "plan": {"needs_clarification": False},
             "dispatch": [
                 AgentBrief(
-                    agent="discovery",
-                    objective="map MCCBs",
-                    allowance=10,
+                    agent="discovery", objective="map MCCBs", stage=1
                 ).model_dump(),
                 AgentBrief(
-                    agent="spec_selection",
-                    objective="filter MCCBs",
-                    allowance=10,
+                    agent="spec_selection", objective="filter MCCBs", stage=2
                 ).model_dump(),
             ],
             "standalone_question": "show MCCBs",
+            "tool_calls_made": 0,
+            "turn_tool_calls_start": 0,
         }
         sends = _after_planner(state)
-        self.assertEqual(2, len(sends))
-        self.assertTrue(all(send.node == "specialist" for send in sends))
+        self.assertEqual(1, len(sends))
+        self.assertEqual("specialist", sends[0].node)
+        self.assertEqual("discovery", sends[0].arg["brief"]["agent"])
+        # The whole per-agent budget, not a share split with a stage that has
+        # not started; stage two is sized from what stage one leaves behind.
+        self.assertEqual(
+            get_limits().per_agent_tool_budget, sends[0].arg["brief"]["allowance"]
+        )
+
+    def test_gate_starts_the_next_stage_with_upstream_findings(self) -> None:
+        discovery = DiscoveryReport(
+            agent="discovery",
+            status="complete",
+            summary="Two MCCB families",
+            families=[FamilyBrief(name="MCCB – Wintrip", sku_count=42)],
+            representative_skus=["WT-100"],
+        ).model_dump()
+        state = {
+            "gate_result": {"ok": True, "failures": []},
+            "gate_retries": {},
+            "stage_index": 1,
+            "reports": {"discovery": discovery},
+            "dispatch": [
+                AgentBrief(agent="discovery", objective="map", stage=1).model_dump(),
+                AgentBrief(
+                    agent="spec_selection", objective="shortlist", stage=2
+                ).model_dump(),
+            ],
+            "standalone_question": "best MCB for a leather factory",
+            "tool_calls_made": 6,
+            "turn_tool_calls_start": 0,
+        }
+        sends = _after_gate(state)
+        self.assertEqual(1, len(sends))
+        self.assertEqual("spec_selection", sends[0].arg["brief"]["agent"])
+        upstream = sends[0].arg["upstream"]
+        self.assertIn("discovery", upstream)
+        self.assertEqual(["WT-100"], upstream["discovery"]["representative_skus"])
+
+    def test_gate_composes_after_the_last_stage(self) -> None:
+        state = {
+            "gate_result": {"ok": True, "failures": []},
+            "gate_retries": {},
+            "stage_index": 2,
+            "dispatch": [
+                AgentBrief(agent="discovery", objective="map", stage=1).model_dump(),
+                AgentBrief(
+                    agent="spec_selection", objective="shortlist", stage=2
+                ).model_dump(),
+            ],
+            "standalone_question": "q",
+            "tool_calls_made": 6,
+            "turn_tool_calls_start": 0,
+        }
+        self.assertEqual("composer", _after_gate(state))
 
     def test_gate_retry_is_targeted(self) -> None:
         state = {
@@ -306,11 +587,10 @@ class GraphTests(unittest.TestCase):
                     {"agent": "discovery", "violations": ["needs SKU"]}
                 ],
             },
-            "gate_retries": 1,
+            "gate_retries": {"1": 1},
+            "stage_index": 1,
             "dispatch": [
-                AgentBrief(
-                    agent="discovery", objective="map", allowance=10
-                ).model_dump()
+                AgentBrief(agent="discovery", objective="map", stage=1).model_dump()
             ],
             "standalone_question": "map",
             "tool_calls_made": 0,
@@ -319,6 +599,30 @@ class GraphTests(unittest.TestCase):
         sends = _after_gate(state)
         self.assertEqual(1, len(sends))
         self.assertIn("needs SKU", sends[0].arg["brief"]["revision_note"])
+        self.assertEqual(1, sends[0].arg["brief"]["stage"])
+
+    def test_exhausted_retries_do_not_block_the_next_stage(self) -> None:
+        state = {
+            "gate_result": {
+                "ok": False,
+                "failures": [{"agent": "discovery", "violations": ["needs SKU"]}],
+            },
+            "gate_retries": {"1": 2},
+            "stage_index": 1,
+            "reports": {},
+            "dispatch": [
+                AgentBrief(agent="discovery", objective="map", stage=1).model_dump(),
+                AgentBrief(
+                    agent="spec_selection", objective="shortlist", stage=2
+                ).model_dump(),
+            ],
+            "standalone_question": "q",
+            "tool_calls_made": 0,
+            "turn_tool_calls_start": 0,
+        }
+        sends = _after_gate(state)
+        self.assertEqual(1, len(sends))
+        self.assertEqual("spec_selection", sends[0].arg["brief"]["agent"])
 
     def test_composer_revision_is_targeted(self) -> None:
         state = {
@@ -333,9 +637,10 @@ class GraphTests(unittest.TestCase):
             },
             "dispatch": [
                 AgentBrief(
-                    agent="compliance", objective="check IEC", allowance=10
+                    agent="compliance", objective="check IEC", stage=1
                 ).model_dump()
             ],
+            "stage_index": 1,
             "standalone_question": "IEC?",
             "tool_calls_made": 0,
             "turn_tool_calls_start": 0,
@@ -500,13 +805,14 @@ class GraphTests(unittest.TestCase):
                 AgentBrief(
                     agent="discovery",
                     objective="map MCCBs",
-                    allowance=10,
                 ).model_dump(),
             ],
             "standalone_question": "solar feed protection",
             "session": {
                 "resolved_params": {"rated_current_a": 200, "poles": 4}
             },
+            "tool_calls_made": 0,
+            "turn_tool_calls_start": 0,
         }
         sends = _after_planner(state)
         self.assertEqual(1, len(sends))
@@ -563,11 +869,25 @@ class DatabaseDefinitionTests(unittest.TestCase):
         self.assertIn("vector(768)", sql)
         self.assertIn("content_tsv", sql)
 
-    def test_vector_tests_are_not_in_default_make_target(self) -> None:
+    def test_default_make_target_runs_every_suite(self) -> None:
+        """Vector retrieval is a shipped code path, so it is not opt-in.
+
+        The embeddings are built into the artifact now; a silent skip would let
+        a regression in vector search reach a live run unnoticed.
+        """
         makefile = (ROOT / "Makefile").read_text()
-        test_target = makefile.split("test:", 1)[1].split("\ntest-vector:", 1)[0]
-        self.assertIn("tests.test_framework", test_target)
-        self.assertNotIn("test_vector_retrieval", test_target)
+        test_target = makefile.split("\ntest:", 1)[1].split("\ntest-vector:", 1)[0]
+        for suite in (
+            "tests.test_framework",
+            "tests.test_sqlite",
+            "tests.test_vector_retrieval",
+        ):
+            self.assertIn(suite, test_target)
+
+    def test_vector_suite_runs_unless_explicitly_skipped(self) -> None:
+        source = (ROOT / "tests" / "test_vector_retrieval.py").read_text()
+        self.assertIn("CS_SKIP_VECTOR_TESTS", source)
+        self.assertNotIn("skipUnless", source)
 
 
 if __name__ == "__main__":

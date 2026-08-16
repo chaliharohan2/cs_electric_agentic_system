@@ -14,6 +14,7 @@ from unittest.mock import patch
 from cs_agent.backends import get_backend
 from cs_agent.backends.path_levels import LEVEL_COLUMNS, NA, path_to_levels
 from cs_agent.backends.sqlite import SqliteBackend
+from cs_agent.config.limits import get_limits
 
 
 def _build_mini_catalog(path: Path) -> None:
@@ -474,6 +475,77 @@ class SqliteBackendTests(unittest.TestCase):
             path=["Low Voltage", "Breakers", "MCCB"], include_facets=True
         )
         self.assertIn("facets", leaf)
+
+
+class ContextBudgetTests(unittest.TestCase):
+    """A tool result must fit a local model's context window.
+
+    Each cap here guards a payload measured on the real catalogue at more than
+    a whole 80k window: peer groups reach 1,183 members and the root facet
+    roll-up 1,377 axis values.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls._tmpdir = tempfile.TemporaryDirectory()
+        cls.db_path = Path(cls._tmpdir.name) / "mini.sqlite"
+        _build_mini_catalog(cls.db_path)
+        # The shared fixture decodes to {}, so give this copy two ordering-code
+        # axes; facet capping is meaningless with nothing to cap.
+        with sqlite3.connect(cls.db_path) as conn:
+            for sku, decoded in (
+                ("CG24025WNR", {"poles": {"code": "4", "meaning": "4 pole"}}),
+                ("WX100", {"poles": {"code": "3", "meaning": "3 pole"}}),
+            ):
+                conn.execute(
+                    "UPDATE sku_fact SET decoded = ? WHERE sku_code = ?",
+                    (json.dumps(decoded), sku),
+                )
+        cls.backend = SqliteBackend(cls.db_path)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls._tmpdir.cleanup()
+
+    def test_facets_are_capped_and_report_the_true_total(self) -> None:
+        with patch.object(get_limits(), "max_facet_rows", 1):
+            result = self.backend.taxonomy_browse(path=[], include_facets=True)
+        self.assertEqual(1, len(result["facets"]))
+        self.assertEqual(2, result["facet_axis_value_count"])
+        self.assertIn(
+            "does not mean the variant does not exist", result["facets_truncated"]
+        )
+
+    def test_uncapped_facets_carry_no_truncation_note(self) -> None:
+        result = self.backend.taxonomy_browse(path=[], include_facets=True)
+        self.assertEqual(2, len(result["facets"]))
+        self.assertEqual(2, result["facet_axis_value_count"])
+        self.assertNotIn("facets_truncated", result)
+
+    def test_peer_group_pages_but_reports_the_full_count(self) -> None:
+        with patch.object(get_limits(), "max_peer_rows", 1):
+            result = self.backend.get_peer_group("CG24025WNR")
+        self.assertEqual(1, len(result["peers"]))
+        self.assertEqual(2, result["peer_count"])
+        self.assertIn("Showing 1 of 2 peers", result["truncated"])
+
+    def test_a_complete_peer_group_carries_no_truncation_note(self) -> None:
+        result = self.backend.get_peer_group("CG24025WNR")
+        self.assertEqual(result["peer_count"], len(result["peers"]))
+        self.assertNotIn("truncated", result)
+
+    def test_long_chunk_text_is_clipped_with_a_marker(self) -> None:
+        with patch.object(get_limits(), "max_chunk_chars", 20):
+            clipped = self.backend.get_sku("CG24025WNR", ["chunks"])
+        text = clipped["chunks"][0]["text"]
+        self.assertTrue(text.startswith("installation"))
+        self.assertIn("truncated 10 characters]", text)
+
+    def test_short_chunk_text_is_left_alone(self) -> None:
+        result = self.backend.get_sku("CG24025WNR", ["chunks"])
+        self.assertEqual(
+            "installation guidance for MCCB", result["chunks"][0]["text"]
+        )
 
 
 class BackendSelectorTests(unittest.TestCase):

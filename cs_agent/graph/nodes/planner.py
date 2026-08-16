@@ -46,7 +46,9 @@ def planner(state: AgentState) -> dict[str, Any]:
     plan_model = structured(
         "planner",
         [
-            SystemMessage(content=PROMPT),
+            SystemMessage(
+                content=PROMPT.replace("{max_stages}", str(limits.max_stages))
+            ),
             HumanMessage(
                 content=json.dumps(
                     {
@@ -62,14 +64,12 @@ def planner(state: AgentState) -> dict[str, Any]:
         ],
         Plan,
     )
-    used_this_turn = (
-        state.get("tool_calls_made", 0) - state.get("turn_tool_calls_start", 0)
-    )
-    remaining = max(0, limits.global_tool_budget - used_this_turn)
-    count = max(1, len(plan_model.dispatch))
-    allowance = min(limits.per_agent_tool_budget, remaining // count)
+    # Collapse anything past the stage cap onto the last stage rather than
+    # dropping it: an over-long plan should run flatter, not lose an agent.
+    # Allowance is left at zero — the runtime sizes it per stage at dispatch,
+    # once it knows what the earlier stages actually spent.
     for brief in plan_model.dispatch:
-        brief.allowance = allowance
+        brief.stage = min(brief.stage, limits.max_stages)
         brief.parameters = {**known, **(brief.parameters or {})}
     plan = plan_model.model_dump()
     plan["known_params"] = {**known, **(plan.get("known_params") or {})}

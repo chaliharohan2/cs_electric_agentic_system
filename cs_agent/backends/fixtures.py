@@ -295,11 +295,14 @@ class FixturesBackend:
              "price_status": item["price_status"]}
             for item in self._fixture_skus() if item["peer_group"] == sku["peer_group"]
         ]
+        # peer_count mirrors the SQLite backend, which pages large groups; the
+        # fixture set is small enough that the page is always the whole group.
         return {
             "sku_code": sku["sku_code"],
             "peer_group": sku["peer_group"],
             "comparable_on": sku["comparable_on"],
             "related_codes": sku["related_codes"],
+            "peer_count": len(peers),
             "peers": peers,
         }
 

@@ -18,7 +18,15 @@ class Limits(BaseModel):
     clarify_rounds: int = Field(2, ge=0)
     tool_failure_limit: int = Field(3, ge=1)
     max_parallel_agents: int = Field(5, ge=1, le=5)
+    max_stages: int = Field(3, ge=1, le=5)
     analytics_max_queries: int = Field(4, ge=1)
+    # Tool-result caps. Every one of these guards a payload that was measured
+    # large enough on the real catalogue to fill an 80k context window on its
+    # own; see ARCHITECTURE.md "Tool result size".
+    max_peer_rows: int = Field(25, ge=1)
+    max_chunk_chars: int = Field(1500, ge=200)
+    max_facet_rows: int = Field(60, ge=1)
+    analytics_registry_chars: int = Field(24000, ge=2000)
     sqlite_path: str = "artifacts/catalog-latest.sqlite"
     checkpoint_path: str = "state/checkpoints.sqlite"
     sqlite_pragmas: dict[str, Any] = Field(
@@ -40,7 +48,12 @@ _ENV_NAMES = {
     "clarify_rounds": "CS_CLARIFY_ROUNDS",
     "tool_failure_limit": "CS_TOOL_FAILURE_LIMIT",
     "max_parallel_agents": "CS_MAX_PARALLEL_AGENTS",
+    "max_stages": "CS_MAX_STAGES",
     "analytics_max_queries": "CS_ANALYTICS_MAX_QUERIES",
+    "max_peer_rows": "CS_MAX_PEER_ROWS",
+    "max_chunk_chars": "CS_MAX_CHUNK_CHARS",
+    "max_facet_rows": "CS_MAX_FACET_ROWS",
+    "analytics_registry_chars": "CS_ANALYTICS_REGISTRY_CHARS",
 }
 _ENV_STRINGS = {
     "sqlite_path": "CS_SQLITE_PATH",

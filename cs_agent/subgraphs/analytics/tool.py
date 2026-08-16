@@ -25,16 +25,20 @@ def _max_queries() -> int:
 def analytics_query(
     question: str,
     output_shape: str = "tabular result",
+    family: str | None = None,
 ) -> dict[str, Any]:
     request = (
         f"Delegated question: {question}\n"
         f"Requested output shape: {output_shape or 'factual summary'}"
     )
+    if family:
+        request += f"\nProduct family in scope: {family}"
     state = _graph().invoke(
         {
             "messages": [HumanMessage(content=request)],
             "question": question,
             "output_shape": output_shape,
+            "family": family,
             "query_count": 0,
             "query_failures": 0,
             "max_queries": _max_queries(),

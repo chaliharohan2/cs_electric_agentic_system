@@ -24,6 +24,7 @@ class SpecialistState(TypedDict, total=False):
     messages: Annotated[list[AnyMessage], add_messages]
     question: str
     brief: dict[str, Any]
+    upstream: dict[str, dict[str, Any]]
     agent_name: str
     allowance: int
     evidence: Annotated[list[dict[str, Any]], operator.add]
@@ -34,20 +35,27 @@ class SpecialistState(TypedDict, total=False):
 
 def prepare(state: SpecialistState) -> dict[str, Any]:
     brief = AgentBrief.model_validate(state["brief"])
+    opening = (
+        f"User question: {state.get('question', '')}\n"
+        f"Known parameters: {json.dumps(brief.parameters or {}, default=str)}\n"
+        f"Your objective: {brief.objective}"
+    )
+    # Earlier stages arrive as digests rather than as instructions, so they go
+    # on the opening turn beside the question the agent is working from.
+    if upstream := state.get("upstream"):
+        opening += (
+            "\n\nAlready established by earlier stages — build on this rather "
+            "than retrieving it again:\n"
+            + json.dumps(upstream, indent=2, default=str)
+        )
+    if brief.revision_note:
+        opening += f"\n\nRevision requested: {brief.revision_note}"
     return {
         "agent_name": brief.agent,
         "allowance": brief.allowance,
         "tool_calls_used": 0,
         "tool_failures": 0,
-        "messages": [
-            HumanMessage(
-                content=(
-                    f"User question: {state.get('question', '')}\n"
-                    f"Known parameters: {json.dumps(brief.parameters or {}, default=str)}\n"
-                    f"Your objective: {brief.objective}"
-                )
-            )
-        ],
+        "messages": [HumanMessage(content=opening)],
     }
 
 
