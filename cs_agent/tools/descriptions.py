@@ -17,7 +17,10 @@ LIST_CANONICAL_SPECS = (
 TAXONOMY_BROWSE = (
     "Walk the 2–4 level C&S catalogue path one level at a time, returning published "
     "descriptions, URLs, leaf status and SKU counts. _no_category entries are separated "
-    "as uncategorised pricelist sections. Browsing alone is not a product answer."
+    "as uncategorised pricelist sections. include_facets adds ordering-code axis values "
+    "for the whole branch; near the root that list is capped to the most common ones, "
+    "so read facets_truncated and browse deeper rather than concluding a variant does "
+    "not exist. Browsing alone is not a product answer."
 )
 
 PRODUCT_SEARCH = (
@@ -53,7 +56,9 @@ COMPARE_SKUS = (
 SEARCH_DOCUMENTS = (
     "Semantic search over qualitative catalogue text, filterable by path, family, SKU, "
     "and chunk_type. Never use it for numeric ratings. Always pass family or path. "
-    "Falls back to lexical search and reports its mode."
+    "Falls back to lexical search and reports its mode. Long passages are returned "
+    "head-first and marked truncated; retrieve the whole passage with get_sku chunks "
+    "when the part you need was cut."
 )
 
 RESOLVE_PRODUCT = (
@@ -71,7 +76,10 @@ GET_PRICE_DETAIL = (
 
 GET_PEER_GROUP = (
     "Return a SKU's catalogue peer set, comparable_on axes, related codes, and decoded "
-    "differences. Use for shortlists and like-for-like comparison."
+    "differences. Use for shortlists and like-for-like comparison. peer_count is the "
+    "true size of the group; peers is a page of it. When a truncated note is present "
+    "the group is larger than the list, so never say it has only the SKUs shown — "
+    "reach a specific peer with product_search instead."
 )
 
 ANALYTICS_QUERY = (
@@ -79,6 +87,8 @@ ANALYTICS_QUERY = (
     "multi-step aggregates, joins, subqueries, distributions, rankings, and pivots "
     "over many products. The analytics sub-agent can run several SQL queries and "
     "returns a factual summary with supporting numeric evidence, but no conclusions "
-    "or recommendations. Call it once with the complete analytical question. For "
-    "straightforward comparison of 2–10 named SKUs use compare_skus."
+    "or recommendations. Call it once with the complete analytical question. Pass "
+    "family whenever the question sits inside one product area: it scopes the "
+    "specification vocabulary the SQL writer is given, which makes the query more "
+    "accurate. For straightforward comparison of 2–10 named SKUs use compare_skus."
 )

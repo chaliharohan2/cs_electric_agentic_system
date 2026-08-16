@@ -6,6 +6,12 @@ tool_failure_limit: 3
 max_parallel_agents: 5
 max_stages: 3
 analytics_max_queries: 4
+
+# Tool-result caps: keep one call from filling the model's context window.
+max_peer_rows: 25
+max_chunk_chars: 1500
+max_facet_rows: 60
+analytics_registry_chars: 24000
 sqlite_path: artifacts/catalog-latest.sqlite
 checkpoint_path: state/checkpoints.sqlite
 sqlite_pragmas:

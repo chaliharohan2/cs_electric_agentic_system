@@ -13,6 +13,7 @@ from langchain_core.tools import StructuredTool
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
 
+from cs_agent.config.limits import get_limits
 from cs_agent.llm import get_model, structured
 from cs_agent.tool_errors import (
     TOOL_FAILURE_LIMIT,
@@ -33,7 +34,9 @@ class AnalyticsState(TypedDict, total=False):
     messages: Annotated[list[AnyMessage], add_messages]
     question: str
     output_shape: str
+    family: str | None
     spec_registry: list[dict[str, Any]]
+    registry_note: str
     answer: dict[str, Any]
     query_count: int
     max_queries: int
@@ -66,9 +69,61 @@ class AnalyticsReport(BaseModel):
     error: str | None = None
 
 
+def _registry_rows(rows: list[dict[str, Any]], budget: int) -> list[dict[str, Any]]:
+    """Keep the most useful specs that fit a character budget.
+
+    Canonical specs come first because they are the ones comparable across
+    families, then the widest-coverage specs, because a spec held by three SKUs
+    is rarely what a catalogue-wide question is about.
+    """
+    ordered = sorted(
+        rows,
+        key=lambda row: (
+            not row.get("is_canonical_spec"),
+            -(row.get("sku_count") or 0),
+            row.get("spec_id") or "",
+        ),
+    )
+    kept: list[dict[str, Any]] = []
+    used = 0
+    for row in ordered:
+        size = len(json.dumps(row, default=str))
+        if used + size > budget and kept:
+            break
+        kept.append(row)
+        used += size
+    return kept
+
+
 def prepare(state: AnalyticsState) -> dict[str, Any]:
+    """Load only the slice of the spec registry this question can use.
+
+    The unscoped registry is one row per (family, spec_id) — 1,712 rows and
+    roughly 108k tokens on the current catalogue, which alone overruns the
+    80k window both Ollama profiles run. The analyst has SQL, so it can always
+    discover what it is missing; what it needs injected is a starting
+    vocabulary, not the whole thing.
+    """
+    limits = get_limits()
+    family = state.get("family")
+    rows = backend().list_canonical_specs(**({"family": family} if family else {}))
+    total = len(rows)
+    kept = _registry_rows(rows, limits.analytics_registry_chars)
+    if family:
+        scope = f"specs recorded for families matching {family!r}"
+    else:
+        scope = "specs across the whole catalogue"
+    note = f"Showing {len(kept)} of {total} {scope}."
+    if len(kept) < total:
+        note += (
+            " The list is truncated to the most widely used specs. It is a"
+            " starting vocabulary, not the full set: query"
+            " SELECT DISTINCT spec_id, spec_label, unit, value_kind FROM sku_fact"
+            " WHERE ... to find any spec that is not listed here."
+        )
     return {
-        "spec_registry": backend().list_canonical_specs(),
+        "spec_registry": kept,
+        "registry_note": note,
         "query_count": state.get("query_count", 0),
         "query_failures": state.get("query_failures", 0),
     }
@@ -107,7 +162,8 @@ def _budget_note(state: AnalyticsState) -> str:
 
 def analyst(state: AnalyticsState) -> dict[str, list[AnyMessage]]:
     system = WRITE_SQL_PROMPT.format(
-        spec_registry=json.dumps(state.get("spec_registry", []), indent=2)
+        spec_registry=json.dumps(state.get("spec_registry", []), indent=2),
+        registry_note=state.get("registry_note", ""),
     )
     # Counters trail the history so the prompt prefix stays byte-identical across
     # turns; see the note in cs_agent/subgraphs/agents/nodes.py.

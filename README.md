@@ -94,12 +94,16 @@ CS_LOG_TO_SCREEN=true
 ## Tests
 
 ```bash
-python -m unittest tests.test_framework tests.test_sqlite
+make test
 ```
 
-Vector integration tests are intentionally excluded. After 768-dimensional corpus
-vectors are loaded, run them explicitly with:
+That runs every suite: the fixtures-only framework tests, then the SQLite and
+vector suites against the built catalogue. Vector retrieval is a shipped code
+path, so it is not opt-in — the tests default to a family with enough embedded
+chunks to exercise both the vector and lexical paths.
 
 ```bash
-CS_VECTOR_TEST_FAMILY="..." make test-vector
+make test-vector                        # the vector suite alone
+CS_VECTOR_TEST_FAMILY="..." make test   # after a rebuild reshapes the catalogue
+CS_SKIP_VECTOR_TESTS=1 make test        # only when working without an artifact
 ```

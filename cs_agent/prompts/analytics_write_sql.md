@@ -45,7 +45,7 @@ RULES
   headed by another code, so count those separately rather than dropping them.
 - Identify products by sku_code. Never return product_id or row_id.
 
-Specs in scope:
+Specs in scope. {registry_note}
 {spec_registry}
 
 Output only the SQL. No explanation, no fences.

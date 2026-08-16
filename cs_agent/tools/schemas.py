@@ -109,3 +109,13 @@ class AnalyticsQueryArgs(BaseModel):
             "including any desired groups, metrics, or comparison grain."
         ),
     )
+    family: str | None = Field(
+        default=None,
+        description=(
+            "Family or product-line name the analysis stays inside, matched as "
+            "a substring. Supply it whenever the question is about one area: it "
+            "narrows the specification vocabulary given to the SQL writer from "
+            "the whole catalogue to that family, which makes the query more "
+            "accurate. Omit only for genuinely catalogue-wide questions."
+        ),
+    )

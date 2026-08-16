@@ -279,6 +279,10 @@ Defaults (from `limits.yaml`, overridable with `CS_*`):
 | Composer revision rounds | 2 |
 | Tool failures / specialist | 3 |
 | Analytics SQL queries / call | 4 |
+| Peer rows / `get_peer_group` | 25 |
+| Chars / chunk of brochure text | 1500 |
+| Facet rows / `taxonomy_browse` | 60 |
+| Chars / analytics spec registry | 24000 |
 
 If clarification is needed and the clarify cap is not exhausted, routing goes
 to clarify; otherwise the planner forces progress and records assumptions.
@@ -604,7 +608,57 @@ several read-only SELECTs against `sku_fact` / `chunk` (SQLite dialect; capped b
 no recommendations. Used when ranking/aggregating many SKUs is awkward with
 the structured tools alone.
 
-### 7.3 Tool failure behaviour
+`prepare` seeds the SQL writer with a specification vocabulary. That registry is
+one row per `(family, spec_id)` — 1,712 rows, ~108k tokens — so it is scoped
+before injection: to the caller's `family` when one is supplied, then cut to
+`analytics_registry_chars` keeping canonical specs first and the widest-coverage
+specs after. The prompt states how many rows of how many are shown and how to
+find the rest, because the analyst has SQL and can discover any spec it needs.
+
+### 7.3 Tool result size
+
+Every tool result becomes prompt tokens on the next turn, and the local
+profiles run `num_ctx: 80000`. Measured on the 2026-08-16 catalogue, four
+payloads could each fill that window on their own:
+
+| Payload | Before | After | Cap |
+|---|---:|---:|---|
+| Analytics spec registry (per call) | ~107,700 tok | ~6,000 tok | `analytics_registry_chars` |
+| `get_peer_group` (1,183-member group) | ~61,300 tok | ~2,400 tok | `max_peer_rows` |
+| `taxonomy_browse` at root with facets | ~28,300 tok | ~2,300 tok | `max_facet_rows` |
+| `search_documents` k=5 | ~9,300 tok | ~2,400 tok | `max_chunk_chars` |
+| `get_sku` with chunks and peers | ~76,400 tok | ~13,500 tok | the three above |
+
+Every cap is a **page, not a filter**. Each truncated result carries the true
+total (`peer_count`, `facet_axis_value_count`) and a note naming the tool that
+reaches what was left out, so a capped list is never read as an exhaustive one —
+"C&S does not make that variant" must never be an artefact of a cap.
+
+### 7.4 Context-window overflow
+
+Ollama does not reject a prompt larger than `num_ctx`; it drops the overflow and
+answers anyway, and what it drops is the head — system prompt, brief, tool
+schemas. The model then invents tool names and ignores the report contract, and
+the run reads as a model-quality problem rather than a truncated prompt.
+
+`llm/context_guard.py` makes it visible, hooking `ChatOllama._chat_params` so it
+measures the assembled request body (converted messages **and** bound tool
+schemas), and emits to the trace:
+
+| Event | Meaning |
+|---|---|
+| `llm.context_pressure` | Estimated prompt is within 85% of the usable window |
+| `llm.context_overflow` | Estimated prompt exceeds `num_ctx − num_predict` |
+| `llm.prompt_truncated` | Ollama reported `prompt_eval_count` at the window size — confirmed, not estimated |
+
+The estimate divides characters by `CS_CHARS_PER_TOKEN` (default 3.5, below the
+usual English figure because catalogue JSON tokenizes worse than prose; for a
+warning, over-estimating is the safe direction). These three events print to the
+terminal even though other `llm.*` events are suppressed. A *low*
+`prompt_eval_count` proves nothing — prefix-cache hits are not re-evaluated —
+which is why the pre-flight estimate exists alongside it.
+
+### 7.5 Tool failure behaviour
 
 Raised exceptions and backend `{error: …}` payloads both count as failures.
 The model sees a JSON error with an optional hint (for example, wrong filter
@@ -779,13 +833,17 @@ source /home/rohan/Nyalazone/cs_electric_agent/venv/bin/activate
 
 | Command | Meaning |
 |---|---|
-| `make test` | Fixtures-only unit suite (`tests.test_framework`) — no DB, no HF download |
-| `make test-vector` | Opt-in vector suite; needs the built SQLite catalogue + loaded 768-d embeddings + `CS_VECTOR_TEST_FAMILY` |
+| `make test` | Every suite: fixtures-only framework tests, then the SQLite and vector suites against the built catalogue |
+| `make test-vector` | The vector suite alone; needs the built catalogue with 768-d embeddings loaded |
 | `make setup-db` / `make refresh` / `make inspect` | Catalogue projection lifecycle |
 | `python -m cs_agent.run …` | Interactive or one-shot answering |
 
-`tests/test_vector_retrieval.py` is deliberately excluded from `make test` and
-gated by `CS_RUN_VECTOR_TESTS=1`.
+`tests/test_vector_retrieval.py` runs as part of `make test`. Vector retrieval
+is a shipped code path and the embeddings are built into the artifact, so a
+silent skip would let a regression reach a live run. It defaults to a family
+with plenty of embedded `features`, `application` and `installation` chunks;
+override with `CS_VECTOR_TEST_FAMILY` if a rebuild changes the catalogue's
+shape, and set `CS_SKIP_VECTOR_TESTS=1` only when working without an artifact.
 
 ---
 
