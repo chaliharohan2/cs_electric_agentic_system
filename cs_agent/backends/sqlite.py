@@ -410,67 +410,119 @@ class SqliteBackend:
             rows = [row for row in rows if row.get("is_canonical_spec")]
         return rows
 
-    def taxonomy_browse(self, **kw: Any) -> dict:
-        path = list(kw.get("path") or [])
-        depth = len(path)
-        if depth >= len(LEVEL_COLUMNS):
-            return {
-                "path": path,
-                "children": [],
-                "uncategorised": {
-                    "children": [],
-                    "note": (
-                        "These are pricelist section names, not published C&S categories."
-                    ),
-                },
-            }
-        child_col = LEVEL_COLUMNS[depth]
-        clauses = [f"{LEVEL_COLUMNS[i]} = ?" for i in range(depth)]
-        params: list[Any] = list(path)
-        clauses.append(f"{child_col} <> ?")
-        params.append(NA)
-        if segment := kw.get("market_segment"):
-            clauses.append("market_segments_text LIKE ?")
-            params.append(f"%{segment}%")
-        where = " AND ".join(clauses)
-        connection = self._connect()
-        rows = connection.execute(
-            f"""
-            SELECT {child_col} AS name,
-                   count(DISTINCT sku_code) AS sku_count,
-                   CASE WHEN sum(CASE WHEN path_depth = ? THEN 1 ELSE 0 END) = count(*)
-                        THEN 1 ELSE 0 END AS is_leaf
-            FROM sku_fact
-            WHERE {where}
-            GROUP BY {child_col}
-            ORDER BY name
-            """,
-            [depth + 1, *params],
+    @lru_cache(maxsize=1)
+    def _taxonomy_levels(self) -> dict[str, dict[str, Any]]:
+        """Published page metadata per taxonomy node, keyed on its path text.
+
+        Absent from artifacts built before the taxonomy_level table existed, so
+        a missing table degrades to no descriptions rather than failing browse.
+        """
+        try:
+            rows = self._connect().execute(
+                """
+                SELECT path_text, name, level, url, description, is_leaf, page_type
+                FROM taxonomy_level
+                """
+            ).fetchall()
+        except sqlite3.Error:
+            logger.warning(
+                "taxonomy_level table missing; rebuild the catalogue to get "
+                "published category descriptions and URLs"
+            )
+            return {}
+        return {row["path_text"]: dict(row) for row in rows}
+
+    def _facets_under(self, where: str, params: list[Any]) -> list[dict[str, Any]]:
+        """Decoded ordering-code axes for every SKU under a path prefix.
+
+        Counted over the whole branch rather than a sample: the count is what
+        tells the agent an axis value exists, so an undercount reads as "C&S
+        does not make that variant".
+        """
+        rows = self._connect().execute(
+            f"SELECT decoded FROM sku_fact WHERE {where} AND {_SKU_GRAIN}",
+            params,
         ).fetchall()
-        children = []
-        uncategorised = []
+        axis_counts: dict[tuple[str, str, str], int] = {}
+        meanings: dict[tuple[str, str, str], Any] = {}
         for row in rows:
-            item = {
-                "name": row["name"],
-                "sku_count": row["sku_count"],
-                "is_leaf": bool(row["is_leaf"]),
-                "description": None,
-                "url": None,
-            }
-            if row["name"] == "_no_category" or (
-                depth == 0 and row["name"] == "_no_category"
-            ):
-                uncategorised.append(item)
-            elif path[:1] == ["_no_category"] or row["name"] == "_no_category":
-                uncategorised.append(item)
-            else:
-                children.append(item)
-        # Move any child literally named _no_category
-        normal = [c for c in children if c["name"] != "_no_category"]
-        uncategorised.extend(c for c in children if c["name"] == "_no_category")
+            decoded = _loads(row["decoded"], {}) or {}
+            if not isinstance(decoded, dict):
+                continue
+            for axis, spec in decoded.items():
+                if not isinstance(spec, dict):
+                    continue
+                meaning = spec.get("meaning")
+                # An axis meaning may be a scalar or an object such as
+                # {"ka": 50, "volts": 415}. Group on a stable rendering, but
+                # return the value itself so the model reads JSON, not a repr.
+                key = (
+                    axis,
+                    str(spec.get("code") or ""),
+                    json.dumps(meaning, sort_keys=True, default=str),
+                )
+                axis_counts[key] = axis_counts.get(key, 0) + 1
+                meanings[key] = meaning
+        return [
+            {"axis": key[0], "code": key[1], "meaning": meanings[key], "sku_count": count}
+            for key, count in sorted(
+                axis_counts.items(), key=lambda item: (item[0][0], -item[1], item[0][1])
+            )
+        ]
+
+    def taxonomy_browse(self, **kw: Any) -> dict:
+        path = [str(part) for part in (kw.get("path") or [])][: len(LEVEL_COLUMNS)]
+        depth = len(path)
+        connection = self._connect()
+
+        # Every SKU sitting under the requested path. Shared by the child listing
+        # and the facet roll-up so both describe the same branch.
+        branch_clauses = [f"{LEVEL_COLUMNS[index]} = ?" for index in range(depth)]
+        branch_params: list[Any] = list(path)
+        if segment := kw.get("market_segment"):
+            branch_clauses.append("market_segments_text LIKE ?")
+            branch_params.append(f"%{segment}%")
+        branch_where = " AND ".join(branch_clauses) if branch_clauses else "1=1"
+
+        children: list[dict[str, Any]] = []
+        uncategorised: list[dict[str, Any]] = []
+        at_deepest_level = depth >= len(LEVEL_COLUMNS)
+        if not at_deepest_level:
+            child_col = LEVEL_COLUMNS[depth]
+            rows = connection.execute(
+                f"""
+                SELECT {child_col} AS name,
+                       count(DISTINCT sku_code) AS sku_count,
+                       CASE WHEN sum(CASE WHEN path_depth = ? THEN 1 ELSE 0 END)
+                                 = count(*)
+                            THEN 1 ELSE 0 END AS is_leaf
+                FROM sku_fact
+                WHERE {branch_where} AND {child_col} <> ?
+                GROUP BY {child_col}
+                ORDER BY name
+                """,
+                [depth + 1, *branch_params, NA],
+            ).fetchall()
+            published = self._taxonomy_levels()
+            for row in rows:
+                page = published.get(" > ".join([*path, row["name"]])) or {}
+                item = {
+                    "name": row["name"],
+                    "sku_count": row["sku_count"],
+                    "is_leaf": bool(row["is_leaf"]),
+                    "description": page.get("description"),
+                    "url": page.get("url"),
+                }
+                # A branch is uncategorised when it is the _no_category holding
+                # folder or sits anywhere beneath it.
+                if row["name"] == "_no_category" or path[:1] == ["_no_category"]:
+                    uncategorised.append(item)
+                else:
+                    children.append(item)
+
         result: dict[str, Any] = {
             "path": path,
-            "children": normal,
+            "children": children,
             "uncategorised": {
                 "children": uncategorised,
                 "note": (
@@ -478,32 +530,20 @@ class SqliteBackend:
                 ),
             },
         }
-        if kw.get("include_facets") and path:
-            family = path[-1]
-            facets = connection.execute(
-                f"""
-                SELECT sku_code, decoded FROM sku_fact
-                WHERE family = ? AND {_SKU_GRAIN}
-                LIMIT 200
-                """,
-                (family,),
-            ).fetchall()
-            axis_counts: dict[tuple[str, str, str], int] = {}
-            for row in facets:
-                decoded = _loads(row["decoded"], {}) or {}
-                if not isinstance(decoded, dict):
-                    continue
-                for axis, spec in decoded.items():
-                    if not isinstance(spec, dict):
-                        continue
-                    code = str(spec.get("code") or "")
-                    meaning = str(spec.get("meaning") or "")
-                    key = (axis, code, meaning)
-                    axis_counts[key] = axis_counts.get(key, 0) + 1
-            result["facets"] = [
-                {"axis": a, "code": c, "meaning": m, "sku_count": n}
-                for (a, c, m), n in sorted(axis_counts.items())
-            ]
+        if path and (node := self._taxonomy_levels().get(" > ".join(path))):
+            result["node"] = {
+                "name": node["name"],
+                "description": node["description"],
+                "url": node["url"],
+                "page_type": node["page_type"],
+            }
+        if at_deepest_level:
+            result["note"] = (
+                f"{' > '.join(path)} is the deepest catalogue level, so it has no "
+                "child categories. Use product_search with this family for its SKUs."
+            )
+        if kw.get("include_facets"):
+            result["facets"] = self._facets_under(branch_where, branch_params)
         return result
 
     def product_search(self, **kw: Any) -> dict:
@@ -829,20 +869,31 @@ class SqliteBackend:
                 continue
             row = connection.execute(
                 f"""
-                SELECT sku_code, price_status, price_quotable, price_observations
+                SELECT sku_code, price_status, price_quotable, price_inr,
+                       price_sibling_code, price_observations
                 FROM sku_fact WHERE sku_code = ? AND {_SKU_GRAIN}
                 """,
                 (resolved,),
             ).fetchone()
             observations = _loads(row["price_observations"], []) or []
-            prices.append(
-                {
-                    "sku_code": resolved,
-                    "price_status": row["price_status"],
-                    "observations": observations,
-                    "quotable": bool(row["price_quotable"]),
-                }
-            )
+            price: dict[str, Any] = {
+                "sku_code": resolved,
+                "price_status": row["price_status"],
+                "price_inr": row["price_inr"],
+                "observations": observations,
+                "quotable": bool(row["price_quotable"]),
+            }
+            # The figure is publishable, but it was read from a pricelist table
+            # headed by another product's code, so a sibling's price may have
+            # been bound to it. Quote it only with this stated.
+            if sibling := row["price_sibling_code"]:
+                price["price_sibling_code"] = sibling
+                price["caveat"] = (
+                    f"This price was read from a pricelist table headed by "
+                    f"{sibling}, a different ordering code. Report the figure "
+                    "with that caveat and advise confirming it with C&S."
+                )
+            prices.append(price)
         return {"prices": prices}
 
     def get_peer_group(self, sku_code: str) -> dict:

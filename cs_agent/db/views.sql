@@ -6,6 +6,14 @@ LANGUAGE sql IMMUTABLE AS $$
   SELECT CASE WHEN t ~ '^-?[0-9]+(\.[0-9]+)?$' THEN t::double precision END
 $$;
 
+-- Ordering codes are printed with inconsistent case, spacing, and hyphenation
+-- (CG24025W / CG 24 025 W / cg-24025-w). Fold them the same way the runtime
+-- resolver does in cs_agent/backends/sqlite.py::_normalize_code.
+CREATE OR REPLACE FUNCTION in_use.norm_code(t text) RETURNS text
+LANGUAGE sql IMMUTABLE AS $$
+  SELECT lower(regexp_replace(COALESCE(t, ''), '[^A-Za-z0-9]', '', 'g'))
+$$;
+
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -140,6 +148,10 @@ CREATE INDEX mv_code_alias_code_idx ON in_use.mv_code_alias (code);
 CREATE INDEX mv_code_alias_code_trgm_idx
   ON in_use.mv_code_alias USING gin (code gin_trgm_ops);
 CREATE INDEX mv_code_alias_product_id_idx ON in_use.mv_code_alias (product_id);
+-- Drives mv_price's pricelist-header lookup; without it that becomes a scan of
+-- every alias for every price observation.
+CREATE INDEX mv_code_alias_norm_code_idx
+  ON in_use.mv_code_alias (in_use.norm_code(code));
 
 CREATE MATERIALIZED VIEW in_use.mv_fact AS
 SELECT
@@ -185,30 +197,70 @@ CREATE INDEX mv_fact_sku_code_idx ON in_use.mv_fact (sku_code);
 CREATE INDEX mv_fact_family_spec_idx ON in_use.mv_fact (family, spec_id);
 CREATE INDEX mv_fact_value_kind_idx ON in_use.mv_fact (value_kind);
 
+-- `context` is the pricelist TABLE header, not the SKU's own row:
+-- "<first cell> | [HSN Code: NNNN] | <section title>". Only 60 of 10,477
+-- observations mention their own code, so "does the header name me" answers
+-- "am I the first row of this table" — useless as a quotability test, and it
+-- previously left exactly one SKU in 9,115 quotable.
+--
+-- What the header does reveal is the multi-column price-binding defect: when
+-- its first cell is the ordering code of a DIFFERENT product, this figure was
+-- read from a table keyed on that sibling and may not belong to this SKU.
+-- That is surfaced as context_sibling_code for disclosure, and no longer
+-- suppresses the price.
 CREATE MATERIALIZED VIEW in_use.mv_price AS
+WITH observation AS (
+  SELECT
+    s.product_id,
+    s.sku_code,
+    s.canonical_code,
+    s.price_status,
+    in_use.safe_num(o->>'price')::numeric AS price,
+    o->>'price_list' AS price_list,
+    o->>'source_pdf' AS source_pdf,
+    in_use.safe_num(o->>'source_page')::int AS source_page,
+    o->>'effective_date' AS effective_date,
+    o->>'price_status' AS observation_status,
+    o->>'context' AS context,
+    o->>'column' AS price_column,
+    in_use.norm_code(split_part(o->>'context', '|', 1)) AS context_head
+  FROM in_use.mv_sku s
+  CROSS JOIN LATERAL jsonb_array_elements(
+    CASE
+      WHEN jsonb_typeof(s.price_observations) = 'array' THEN s.price_observations
+      ELSE '[]'::jsonb
+    END
+  ) AS o
+)
 SELECT
-  s.product_id,
-  s.sku_code,
-  s.canonical_code,
-  s.price_status,
-  in_use.safe_num(o->>'price')::numeric AS price,
-  o->>'price_list' AS price_list,
-  o->>'source_pdf' AS source_pdf,
-  in_use.safe_num(o->>'source_page')::int AS source_page,
-  o->>'effective_date' AS effective_date,
-  o->>'price_status' AS observation_status,
-  o->>'context' AS context,
+  ob.product_id,
+  ob.sku_code,
+  ob.canonical_code,
+  ob.price_status,
+  ob.price,
+  ob.price_list,
+  ob.source_pdf,
+  ob.source_page,
+  ob.effective_date,
+  ob.observation_status,
+  ob.context,
+  ob.price_column,
   (
-    o->>'context' ILIKE '%' || s.sku_code || '%'
-    OR o->>'context' ILIKE '%' || s.canonical_code || '%'
-  ) AS context_names_own_code
-FROM in_use.mv_sku s
-CROSS JOIN LATERAL jsonb_array_elements(
+    ob.context ILIKE '%' || ob.sku_code || '%'
+    OR ob.context ILIKE '%' || ob.canonical_code || '%'
+  ) AS context_names_own_code,
   CASE
-    WHEN jsonb_typeof(s.price_observations) = 'array' THEN s.price_observations
-    ELSE '[]'::jsonb
-  END
-) AS o;
+    WHEN ob.context_head <> '' AND NOT COALESCE(head.names_self, false)
+    THEN head.other_code
+  END AS context_sibling_code
+FROM observation ob
+LEFT JOIN LATERAL (
+  SELECT
+    bool_or(a.product_id = ob.product_id) AS names_self,
+    min(a.code) FILTER (WHERE a.product_id <> ob.product_id) AS other_code
+  FROM in_use.mv_code_alias a
+  WHERE in_use.norm_code(a.code) = ob.context_head
+) AS head ON true;
 
 CREATE INDEX mv_price_product_id_idx ON in_use.mv_price (product_id);
 CREATE INDEX mv_price_sku_code_idx ON in_use.mv_price (sku_code);

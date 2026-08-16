@@ -42,6 +42,7 @@ def _build_mini_catalog(path: Path) -> None:
           price_source_page INTEGER,
           price_effective_date TEXT,
           price_context_ok INTEGER,
+          price_sibling_code TEXT,
           price_observations TEXT,
           peer_group TEXT,
           comparable_on TEXT,
@@ -98,8 +99,29 @@ def _build_mini_catalog(path: Path) -> None:
           content, content='chunk', content_rowid='chunk_id',
           tokenize='porter unicode61'
         );
+        CREATE TABLE taxonomy_level (
+          path_text TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          level INTEGER NOT NULL,
+          url TEXT,
+          description TEXT,
+          is_leaf INTEGER,
+          page_type TEXT
+        );
         CREATE TABLE build_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
         """
+    )
+    conn.executemany(
+        """
+        INSERT INTO taxonomy_level
+          (path_text, name, level, url, description, is_leaf, page_type)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        [
+            ("Low Voltage", "Low Voltage", 1, "https://x/lv", "LV switchgear", 0, "category.md"),
+            ("Low Voltage > Breakers", "Breakers", 2, "https://x/br", "Circuit breakers", 0, "category.md"),
+            ("Low Voltage > Breakers > MCCB", "MCCB", 3, "https://x/mccb", "Up to 55kA", 1, "product.md"),
+        ],
     )
 
     def levels(path: list[str]) -> dict[str, str]:
@@ -340,6 +362,11 @@ def _build_mini_catalog(path: Path) -> None:
         [la[c] for c in LEVEL_COLUMNS] + [" > ".join(path_a), emb],
     )
     conn.execute("INSERT INTO chunk_fts(chunk_fts) VALUES('rebuild')")
+    # A published price read from a pricelist table headed by another code:
+    # still quotable, but it must carry the disclosure.
+    conn.execute(
+        "UPDATE sku_fact SET price_sibling_code = 'CG24030WNR' WHERE sku_code = 'CG24025WNR'"
+    )
     meta = {
         "embeddings_loaded": False,
         "embedding_dimension": 3,
@@ -410,6 +437,43 @@ class SqliteBackendTests(unittest.TestCase):
         result = self.backend.compare_skus(["CG24025WNR", "WX100"], None)
         self.assertTrue(result["peer_group_match"])
         self.assertIn("rated_current", result["axes"])
+
+    def test_sibling_priced_sku_stays_quotable_but_carries_the_caveat(self) -> None:
+        """A pricelist header naming another code discloses, it does not suppress.
+
+        Gating quotability on the header left 1 of 9,115 SKUs quotable, because
+        the header names the table rather than the row.
+        """
+        price = self.backend.get_price_detail(["CG24025WNR"])["prices"][0]
+        self.assertTrue(price["quotable"])
+        self.assertEqual("CG24030WNR", price["price_sibling_code"])
+        self.assertIn("CG24030WNR", price["caveat"])
+
+    def test_price_without_sibling_code_has_no_caveat(self) -> None:
+        price = self.backend.get_price_detail(["WX100"])["prices"][0]
+        self.assertNotIn("price_sibling_code", price)
+        self.assertNotIn("caveat", price)
+
+    def test_taxonomy_browse_publishes_description_and_url(self) -> None:
+        result = self.backend.taxonomy_browse(path=["Low Voltage"])
+        child = next(c for c in result["children"] if c["name"] == "Breakers")
+        self.assertEqual("Circuit breakers", child["description"])
+        self.assertEqual("https://x/br", child["url"])
+        self.assertEqual("LV switchgear", result["node"]["description"])
+
+    def test_taxonomy_browse_returns_facets_at_every_depth(self) -> None:
+        """include_facets used to no-op once the path reached the deepest level."""
+        deepest = self.backend.taxonomy_browse(
+            path=["Low Voltage", "Breakers", "MCCB", "Sub"], include_facets=True
+        )
+        self.assertEqual([], deepest["children"])
+        self.assertIn("facets", deepest)
+        self.assertIn("deepest catalogue level", deepest["note"])
+
+        leaf = self.backend.taxonomy_browse(
+            path=["Low Voltage", "Breakers", "MCCB"], include_facets=True
+        )
+        self.assertIn("facets", leaf)
 
 
 class BackendSelectorTests(unittest.TestCase):

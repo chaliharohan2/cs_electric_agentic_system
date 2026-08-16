@@ -10,7 +10,7 @@ Tables:
 Key columns:
   sku_code, canonical_code, family, division, product_group, product_subgroup,
   product_range, path_depth, path_text, is_no_category,
-  price_status, price_quotable, price_inr, price_context_ok,
+  price_status, price_quotable, price_inr, price_context_ok, price_sibling_code,
   spec_id, spec_label, unit, value_num, value_min, value_max, value_display,
   value_kind, is_canonical_spec, source_of_truth, fact_sentence
 
@@ -40,7 +40,9 @@ RULES
 - 'N/A' in a level column means the branch has no such level. Exclude it explicitly
   rather than treating it as a category.
 - Never aggregate price where price_status = 'multiple_variants'. Exclude 'por' from
-  numeric ranking and count those separately.
+  numeric ranking and count those separately. Rank on price_inr only where
+  price_quotable = 1; a non-null price_sibling_code marks a figure read from a table
+  headed by another code, so count those separately rather than dropping them.
 - Identify products by sku_code. Never return product_id or row_id.
 
 Specs in scope:
