@@ -352,7 +352,8 @@ It does **not** call tools. Citation policy is report-driven:
 - pricelist → PDF + page when present
 - code grammar → say the value was derived from the ordering code
 - prices respect all seven `price_status` values; never quote
-  `multiple_variants` or a context-mismatched observation
+  `multiple_variants`, and disclose `price_sibling_code` alongside any figure
+  carrying it
 
 After drafting, the composer **updates session memory** for the next turn:
 
@@ -471,10 +472,13 @@ the user typed a code.
 
 **`taxonomy_browse`**
 Walk the 2–4 level catalogue `path` one level at a time. Returns children with
-SKU counts, leaf flags, and published description/URL from `levels[]`.
-`_no_category` children are returned in a separate **uncategorised** block
-(pricelist section names, not published categories). Optional facets at leaf
-level come from `mv_facet`. Browsing alone is never a product answer.
+SKU counts, leaf flags, and the published description/URL for each child, plus a
+`node` block describing the level you are standing on — both read from the
+`taxonomy_level` table built from `taxonomy.levels[]`. `_no_category` children
+are returned in a separate **uncategorised** block (pricelist section names, not
+published categories). `include_facets` rolls up decoded ordering-code axes over
+every SKU in the branch, **at any depth** — including the deepest level, where
+there are no children left to list. Browsing alone is never a product answer.
 
 **`list_canonical_specs`**
 Family-level vocabulary from `mv_spec_registry`: spec IDs, units, value kinds,
@@ -502,10 +506,12 @@ missing/confidence, optional chunks (by `chunk_type`), price, and peers.
 `extraction.missing` means “not published by C&S,” never zero.
 
 **`get_price_detail`**
-Provenance-aware pricing from `mv_price`. Surfaces every observation plus
-`price_status` and `quotable`. Quoting is false for `multiple_variants` or when
-every observation’s context names a different code
-(`context_names_own_code=false`). Prices are MRP inclusive of GST.
+Provenance-aware pricing. Surfaces every observation plus `price_status` and
+`quotable`. Quoting is false only for `multiple_variants` and for SKUs with no
+figure at all. When the pricelist table header names a different ordering code,
+the response carries `price_sibling_code` and a `caveat`: the figure is reported
+**with** that disclosure rather than withheld, because the header names the
+table, not the row. Prices are MRP inclusive of GST.
 
 **`get_peer_group`**
 Returns the catalogue peer set, `comparable_on` axes, related codes, and peer
@@ -573,7 +579,7 @@ projects eight views used as the **build source** for the SQLite artifact:
 | `mv_sku` | One row per product: path, aliases, peers, extraction, price observations |
 | `mv_code_alias` | sku / canonical / alias resolution surface |
 | `mv_fact` | Long typed facts with range + composite support |
-| `mv_price` | Price observations + context mismatch detector |
+| `mv_price` | Price observations + pricelist-header sibling-code detector |
 | `mv_source` | Typed citation refs (brochure `.md`, product page, pricelist PDF+page) |
 | `mv_spec_registry` | Per-family spec vocabulary + observed bounds |
 | `mv_facet` | Ordering-code facet axes per family |
@@ -591,6 +597,7 @@ Column-level detail and the current build snapshot are in
 | Table | Grain |
 |---|---|
 | `sku_fact` | One row per (SKU, fact); SKU metadata repeated; sentinel rows for factless SKUs |
+| `taxonomy_level` | One row per catalogue node; published description, URL, leaf flag |
 | `chunk` | One row per brochure chunk; embedding as float32 BLOB; FTS5 `chunk_fts` |
 | `build_meta` | Build timestamp, counts, embedding dim, audit flags |
 

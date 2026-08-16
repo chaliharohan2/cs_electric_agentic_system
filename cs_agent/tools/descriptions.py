@@ -29,10 +29,11 @@ PRODUCT_SEARCH = (
     "finds breaking_capacity_ka. Range specs use their min/max bounds. Missing "
     "specifications mean not published, never zero. composite_excluded values are "
     "unknown, not ruled out. Read widening_hint before concluding no product exists. "
-    "price_status must be a list such as [\"listed\"], not a bare string. Hits include "
-    "price_inr when a single listed figure is quotable, cheapest first. For the cheapest "
-    "or dearest product across a family, prefer analytics_query so the ranking covers "
-    "every SKU, not just the first page of hits."
+    "price_status must be a list such as [\"listed\"], not a bare string. Hits carry "
+    "price_inr with a price_quotable flag, cheapest quotable first; a figure whose "
+    "price_quotable is false must not be quoted, so call get_price_detail before "
+    "stating any price. For the cheapest or dearest product across a family, prefer "
+    "analytics_query so the ranking covers every SKU, not just the first page of hits."
 )
 
 GET_SKU = (
@@ -61,8 +62,11 @@ RESOLVE_PRODUCT = (
 )
 
 GET_PRICE_DETAIL = (
-    "Retrieve provenance-aware pricing for up to 10 SKUs. Respect price_status; never "
-    "quote multiple_variants or observations whose context names another code."
+    "Retrieve provenance-aware pricing for up to 10 SKUs. Respect price_status: never "
+    "quote a multiple_variants figure, and report por as price on request. quotable "
+    "says whether a figure may be given at all. A price_sibling_code means the figure "
+    "was read from a pricelist table headed by that other ordering code — report it "
+    "together with the caveat, not as an unqualified price."
 )
 
 GET_PEER_GROUP = (

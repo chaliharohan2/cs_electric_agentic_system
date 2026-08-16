@@ -24,14 +24,18 @@ SQLite file (`state/checkpoints.sqlite`) and are not described here.
 Rebuild:
 
 ```bash
+python -m cs_agent.db.refresh setup     # after changing views.sql (~17 min)
 python -m cs_agent.db.refresh refresh   # after product_chunks reloads
-python scripts/build_sqlite.py
+python scripts/build_sqlite.py          # ~7 min
 ```
+
+Changing a view definition needs `setup`, not `refresh` — `refresh` only
+recomputes rows against the definitions already installed.
 
 Source is live Postgres `cs_electric_v2`: materialized views `in_use.mv_*`
 plus `in_use.product_chunks`. The views already resolve polymorphic fact
-sources, pricelist regexes, and price-context matching. The build script
-flattens those results into three application tables.
+sources, pricelist regexes, and pricelist-header code matching. The build script
+flattens those results into four application tables.
 
 ---
 
@@ -74,6 +78,7 @@ sentinels (every SKU has at least one fact).
 
 ```text
 sku_fact          structured catalogue (wide, denormalised)
+taxonomy_level    published page metadata per catalogue node
 chunk             brochure / pricelist text + embedding BLOB
 chunk_fts         FTS5 virtual table over chunk.content
 build_meta        key/value build diagnostics
@@ -122,18 +127,28 @@ pre-flight fixed depth at 4.
 | Column | Type | Notes |
 |---|---|---|
 | `price_status` | TEXT | One of seven statuses (see §5.1) |
-| `price_quotable` | INTEGER | `1` only when status is not `multiple_variants`, observations exist, **and** at least one observation has `context_names_own_code = true` |
-| `price_inr` | REAL | Best listed observation’s figure; may still be present when not quotable |
+| `price_quotable` | INTEGER | `1` when status is not `multiple_variants` **and** at least one observation carries a figure |
+| `price_inr` | REAL | Best observation’s figure; may still be present when not quotable |
 | `price_list` | TEXT | e.g. `LV`, `RETAIL` |
 | `price_source_pdf` | TEXT | Pricelist filename for the chosen observation |
 | `price_source_page` | INTEGER | Page of that observation |
 | `price_effective_date` | TEXT | ISO date, e.g. `2026-06-01` |
-| `price_context_ok` | INTEGER | `1` if any observation’s context names this SKU |
+| `price_context_ok` | INTEGER | `1` if any observation’s header text happens to name this SKU. Informational only — it does **not** gate quoting |
+| `price_sibling_code` | TEXT | Set when the pricelist table header names a **different** ordering code. The figure may have been bound from that sibling; quote it only with the caveat |
 | `price_observations` | TEXT JSON | Full observation array (see §4) |
 
 Prices are MRP inclusive of GST. `price_inr` is a convenience column; quoting
-rules always go through `price_status` + `price_quotable` + each observation’s
-`context_names_own_code`.
+rules go through `price_status` + `price_quotable`, and `price_sibling_code`
+adds a mandatory disclosure when present.
+
+**Why quotability ignores the header.** `price_observations[].context` is the
+pricelist *table* header (`<first cell> | [HSN Code: …] | <section title>`), not
+the SKU’s own row. Only 7 of 10,477 observations mention their own code, so the
+former rule — quote only when the header names you — left **one** SKU in 9,115
+quotable and the agent could never state a price. The header still earns its
+keep as a defect signal: when its first cell is another product’s ordering code,
+that is the multi-column price-binding defect (plan v2 §9), recorded as
+`price_sibling_code` and disclosed rather than suppressed.
 
 #### Relationships and decode
 
@@ -209,7 +224,30 @@ predicate. Count those rows as *unknown*, not as ruled out.
 | `ix_sf_price` | `(price_status)` |
 | `ix_sf_canonical` | `(canonical_code)` |
 
-### 3.2 `chunk`
+### 3.2 `taxonomy_level`
+
+The catalogue’s own published page metadata for each node of the hierarchy —
+73 rows in the current build, one per distinct path prefix.
+
+| Column | Type | Notes |
+|---|---|---|
+| `path_text` | TEXT PK | `"A > B > C"` — the node’s full path prefix, the browse lookup key |
+| `name` | TEXT NOT NULL | The node’s own name (the last path element) |
+| `level` | INTEGER NOT NULL | 1-based depth |
+| `url` | TEXT | Published category / product page URL |
+| `description` | TEXT | The node’s own `description`, falling back to the parent’s `contents[].note` about it |
+| `is_leaf` | INTEGER | `1` when the published page marks it a leaf |
+| `page_type` | TEXT | e.g. `category.md`, `product.md` |
+
+Keyed on the path rather than the name because names are not guaranteed unique
+across branches. `taxonomy_browse` joins it to fill each child’s `description`
+and `url`, and returns the standing node’s own metadata under `node`.
+
+A node’s own `description` is usually null while its parent’s one-line note
+about it is not, so the build merges the two: 64 of 73 nodes end up described,
+all 73 carry a URL.
+
+### 3.3 `chunk`
 
 One row per brochure/pricelist chunk that has an active `product_id` and
 `sku_code`. Grain in practice is one row per `(product_id, chunk_type)`.
@@ -251,7 +289,7 @@ load, or the vector query returns nothing.
 | `ix_ch_hash` | `(content_hash)` |
 | `ix_ch_levels` | `(division, product_group, product_subgroup)` |
 
-### 3.3 `chunk_fts`
+### 3.4 `chunk_fts`
 
 ```sql
 CREATE VIRTUAL TABLE chunk_fts USING fts5(
@@ -264,7 +302,7 @@ External-content FTS5: the text lives in `chunk.content`; `chunk_fts.rowid`
 equals `chunk.chunk_id`. Rebuilt at the end of each catalogue build
 (`INSERT INTO chunk_fts(chunk_fts) VALUES ('rebuild')`).
 
-### 3.4 `build_meta`
+### 3.5 `build_meta`
 
 Key/value TEXT pairs written at the end of the build. Also stored as a single
 `full_json` blob.
@@ -279,6 +317,9 @@ Key/value TEXT pairs written at the end of the build. Also stored as a single
 | `max_observed_path_depth` | Pre-flight max from Postgres |
 | `mv_counts` | `{mv_sku, mv_fact, product_chunks_active}` |
 | `sku_fact_rows` / `distinct_skus` / `chunk_rows` | Row counts |
+| `taxonomy_level_rows` | Nodes in `taxonomy_level` |
+| `taxonomy_levels_with_url` / `taxonomy_levels_with_description` | Coverage of published page metadata |
+| `taxonomy_descriptions_from_parent` | Descriptions filled from the parent’s `contents[].note` |
 | `embedding_model` | Profile name, e.g. `gte_base_en_v1_5` |
 | `embedding_dimension` | `768` |
 | `embeddings_loaded` | True if any chunk has a non-NULL embedding |
@@ -286,7 +327,8 @@ Key/value TEXT pairs written at the end of the build. Also stored as a single
 | `factless_sku_count` | Sentinel count |
 | `no_category_count` | SKUs under `_no_category` |
 | `alias_collision_count` | One printed code mapping to two products |
-| `context_mismatch_count` | SKUs whose every price observation names another code |
+| `quotable_sku_count` | SKUs whose price may be stated |
+| `price_sibling_code_count` | SKUs whose pricelist table header names another code |
 | `composite_count` | Fact rows with `value_kind = 'composite'` |
 
 ---
@@ -316,12 +358,17 @@ Examples from the current build (illustrative, not exhaustive).
   "effective_date": "2026-06-01",
   "observation_status": "listed",
   "context": "CSDBPHSCDD12 | [HSN Code: 8537] | 7 Segment Distribution Board",
-  "context_names_own_code": false
+  "price_column": "MRP (`)",
+  "context_names_own_code": false,
+  "context_sibling_code": "CSDBPHSCDD12"
 }]
 ```
 
-When `context_names_own_code` is false, the figure was read from a row that
-names a **different** code. Do not quote it as this SKU’s price.
+`context` is the pricelist **table header**, not this SKU’s row, so
+`context_names_own_code` is false for almost every observation and means very
+little on its own. `context_sibling_code` is the load-bearing one: it is set
+when that header’s first cell is another product’s ordering code, which marks
+the multi-column binding defect. Quote the figure, and say where it came from.
 
 **`pricelist_refs`:** `[{"pdf": "…pdf", "page": 136}, …]`
 
@@ -338,10 +385,10 @@ names a **different** code. Do not quote it as this SKU’s price.
 
 | Status | Meaning | Quote a number? |
 |---|---|---|
-| `listed` | Published 2026 MRP | Only if `price_quotable = 1` |
+| `listed` | Published 2026 MRP | Yes when `price_quotable = 1`; add the caveat if `price_sibling_code` is set |
 | `por` | Price on request | No |
 | `multiple_variants` | One pricelist row covers several variants at different prices | **Never** |
-| `brochure_price_only` | Figure from a brochure; may predate the current list | Treat as stale |
+| `brochure_price_only` | Figure from a brochure; may predate the current list | Yes, flagged as possibly stale |
 | `not_listed` | Known to the catalogue, no current list price | No |
 | `not_in_pricelist` | Absent from the current pricelist extract | No |
 | `not_offered` | Explicitly not offered | No |
@@ -412,11 +459,11 @@ same as `_no_category`; they simply have no published taxonomy path.
 | Tool | Tables | Notes |
 |---|---|---|
 | `resolve_product` | `sku_fact` (+ FTS on `chunk` for text fallback) | Exact normalised code, then rapidfuzz `WRatio`, then description/family |
-| `taxonomy_browse` | `sku_fact` SKU-grain | Walks level columns one step at a time |
+| `taxonomy_browse` | `sku_fact` SKU-grain + `taxonomy_level` | Walks level columns one step at a time; joins published description/URL per node, and rolls up decoded facet axes over the whole branch at any depth |
 | `list_canonical_specs` | `sku_fact` | Aggregates `spec_id` / units / kinds per family |
 | `product_search` | `sku_fact` SKU-grain, then fact rows | Path, family, facets, segment, price status, `chunk_types` JSON, spec predicates |
 | `get_sku` | `sku_fact` + optional `chunk` | Full facts, decode, sources, price, peers |
-| `get_price_detail` | `sku_fact` SKU-grain | Surfaces `price_observations` and `quotable` |
+| `get_price_detail` | `sku_fact` SKU-grain | Surfaces `price_observations`, `quotable`, and a `caveat` when `price_sibling_code` is set |
 | `get_peer_group` | `sku_fact` | `peer_group` + `comparable_on` + `decoded` |
 | `compare_skus` | `sku_fact` | Pivot on shared axes |
 | `search_documents` | `chunk` / `chunk_fts` | Filtered vector or lexical |
@@ -431,8 +478,8 @@ Runtime connections: one read-only URI connection per thread
 
 ## 8. Current build snapshot
 
-Taken from `artifacts/catalog-2026-08-14.sqlite` (`built_at`
-`2026-08-14T11:19:12Z`, source `localhost:5432/cs_electric_v2`). Refresh this
+Taken from `artifacts/catalog-2026-08-16.sqlite` (`built_at`
+`2026-08-16T12:25:52Z`, source `localhost:5432/cs_electric_v2`). Refresh this
 section after each rebuild (or copy counts from `build_meta` /
 `build_report.json`).
 
@@ -446,11 +493,13 @@ section after each rebuild (or copy counts from `build_meta` /
 | Chunks | 79,297 |
 | Embeddings | 79,297 × 768-d; 0 NULL |
 | Distinct `content_hash` | 79,297 (no duplicate bodies) |
+| `taxonomy_level` nodes | 73 (73 with URL · 64 with a description) |
 | Sentinel / factless SKUs | 0 |
 | `_no_category` SKUs | 0 |
 | Alias collisions | 0 |
 | Composite facts | 14,419 |
-| Price context mismatches | 6,074 SKUs |
+| Quotable prices | 3,406 SKUs |
+| Pricelist header names another code | 645 SKUs (412 of them quotable) |
 | File size | ~1.9 GB |
 
 **Path depth (SKU grain):** 388 depth 0 · 1,510 depth 2 · 6,025 depth 3 ·
@@ -466,9 +515,11 @@ catalogue · 6,129 code_grammar.
 1,362 not_listed · 1,129 por · 1,007 not_in_pricelist · 22 brochure_price_only
 · 2 not_offered.
 
-`price_quotable = 1` is rare in this extract (most `listed` observations have
-`context_names_own_code = false`). `price_inr` may still be filled; the agent
-must not treat that as a quotable MRP.
+`price_quotable = 1` for **3,406** SKUs — every `listed` one plus the 22
+`brochure_price_only`. Of those, **412** also carry a `price_sibling_code` and
+must be quoted with the disclosure. `price_inr` is filled on some unquotable
+SKUs too (notably `multiple_variants`); the presence of a figure is never on its
+own a licence to quote it.
 
 **`chunk_type` counts:** price 9,115 · specs 9,115 · identity 8,748 ·
 ordering 7,174 · features 5,323 · accessories 5,063 · product_range 4,552 ·
@@ -570,7 +621,8 @@ Written to `artifacts/build_report.json` and summarised in `build_meta`.
 | SKUs with zero facts | Warn, emit sentinel, exit 0 |
 | Alias collisions | Warn + list |
 | `value_kind = 'composite'` | Warn + count per family |
-| Price `context_names_own_code = false` | Warn + list SKUs |
+| Quotable prices | Info + count |
+| Pricelist header naming another code | Warn + list `{sku_code, sibling_code, price_status}` |
 | SKUs under `_no_category` | Warn + count |
 | Chunks with NULL embedding | Warn; lexical-only until loaded |
 

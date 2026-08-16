@@ -18,8 +18,12 @@ Rules:
 4. Report conditional ratings with their condition. If evidence has no condition,
    write "condition not specified in source" rather than assuming one.
 5. A spec listed in extraction.missing is "not published by C&S", never zero.
-6. Respect all seven price statuses. Never quote multiple_variants or a context mismatch.
-   State that prices are MRP inclusive of GST.
+6. Respect all seven price statuses. Never quote a multiple_variants figure: say the
+   pricelist row covers several variants so no single price applies. Report por as
+   price on request and point to the nearest C&S branch office. When a price carries
+   price_sibling_code, quote the figure and add one short sentence saying it was read
+   from a pricelist table headed by that other ordering code and should be confirmed
+   with C&S. State that prices are MRP inclusive of GST.
 7. Separate catalogue facts from general engineering knowledge. Use two clearly
    labelled sections when the answer contains both.
 8. Open by listing the assumptions you worked from, if any. Values in known_params

@@ -165,6 +165,7 @@ def _create_schema(conn: sqlite3.Connection) -> None:
         DROP TABLE IF EXISTS build_meta;
         DROP TABLE IF EXISTS chunk_fts;
         DROP TABLE IF EXISTS chunk;
+        DROP TABLE IF EXISTS taxonomy_level;
         DROP TABLE IF EXISTS sku_fact;
 
         CREATE TABLE sku_fact (
@@ -188,6 +189,7 @@ def _create_schema(conn: sqlite3.Connection) -> None:
           price_source_page     INTEGER,
           price_effective_date  TEXT,
           price_context_ok      INTEGER,
+          price_sibling_code    TEXT,
           price_observations    TEXT,
           peer_group            TEXT,
           comparable_on         TEXT,
@@ -226,6 +228,16 @@ def _create_schema(conn: sqlite3.Connection) -> None:
           fact_sentence         TEXT
         );
 
+        CREATE TABLE taxonomy_level (
+          path_text        TEXT PRIMARY KEY,
+          name             TEXT NOT NULL,
+          level            INTEGER NOT NULL,
+          url              TEXT,
+          description      TEXT,
+          is_leaf          INTEGER,
+          page_type        TEXT
+        );
+
         CREATE TABLE chunk (
           chunk_id         INTEGER PRIMARY KEY,
           product_id       INTEGER,
@@ -248,36 +260,41 @@ def _create_schema(conn: sqlite3.Connection) -> None:
 def _summarize_price(
     price_status: str | None, observations: list[dict[str, Any]]
 ) -> dict[str, Any]:
+    """Collapse a SKU's price observations into the quotability summary.
+
+    Quotability turns on the published status and the presence of a figure.
+    It deliberately does NOT turn on the pricelist header text: that header
+    names the table, not the row, so testing it suppressed all but one price
+    in the catalogue (see the comment on mv_price in cs_agent/db/views.sql).
+
+    A header naming a *different* ordering code is still recorded, on the SKU
+    as price_sibling_code and on each observation, because it marks the
+    multi-column binding defect where a code can inherit a sibling's price.
+    """
+    priced = [o for o in observations if o.get("price") is not None]
+    quotable = price_status != "multiple_variants" and bool(priced)
     context_ok_any = any(bool(o.get("context_names_own_code")) for o in observations)
-    quotable = (
-        price_status != "multiple_variants"
-        and bool(observations)
-        and context_ok_any
+    sibling_codes = [
+        str(o["context_sibling_code"])
+        for o in observations
+        if o.get("context_sibling_code")
+    ]
+
+    # Prefer an observation whose own header names this SKU; those are rare, so
+    # fall back to the first figure rather than reporting no price at all.
+    best = next(
+        (o for o in priced if o.get("context_names_own_code")),
+        priced[0] if priced else None,
     )
-    best = None
-    for obs in observations:
-        if obs.get("price") is None:
-            continue
-        if price_status == "listed" and not obs.get("context_names_own_code"):
-            continue
-        if best is None:
-            best = obs
-            continue
-        if obs.get("context_names_own_code") and not best.get("context_names_own_code"):
-            best = obs
-    if best is None and observations:
-        for obs in observations:
-            if obs.get("price") is not None:
-                best = obs
-                break
     return {
         "price_quotable": int(bool(quotable)),
-        "price_inr": float(best["price"]) if best and best.get("price") is not None else None,
+        "price_inr": float(best["price"]) if best else None,
         "price_list": best.get("price_list") if best else None,
         "price_source_pdf": best.get("source_pdf") if best else None,
         "price_source_page": best.get("source_page") if best else None,
         "price_effective_date": best.get("effective_date") if best else None,
         "price_context_ok": int(bool(context_ok_any)) if observations else None,
+        "price_sibling_code": sibling_codes[0] if sibling_codes else None,
         "price_observations": _json_dump(
             [
                 {
@@ -288,7 +305,9 @@ def _summarize_price(
                     "effective_date": o.get("effective_date"),
                     "observation_status": o.get("observation_status"),
                     "context": o.get("context"),
+                    "price_column": o.get("price_column"),
                     "context_names_own_code": bool(o.get("context_names_own_code")),
+                    "context_sibling_code": o.get("context_sibling_code"),
                 }
                 for o in observations
             ]
@@ -308,7 +327,8 @@ def _load_side_tables(pg) -> tuple[
         cur.execute(
             """
             SELECT product_id, price, price_list, source_pdf, source_page,
-                   effective_date, observation_status, context, context_names_own_code
+                   effective_date, observation_status, context, price_column,
+                   context_names_own_code, context_sibling_code
             FROM in_use.mv_price
             ORDER BY product_id, source_pdf, source_page
             """
@@ -420,6 +440,7 @@ SKU_FACT_COLUMNS = [
     "price_source_page",
     "price_effective_date",
     "price_context_ok",
+    "price_sibling_code",
     "price_observations",
     "peer_group",
     "comparable_on",
@@ -525,7 +546,8 @@ def _insert_sku_facts(conn: sqlite3.Connection, pg, side) -> dict[str, Any]:
 
     factless: list[dict[str, str]] = []
     composite_by_family: dict[str, int] = defaultdict(int)
-    context_mismatch_skus: list[str] = []
+    sibling_price_skus: list[dict[str, str]] = []
+    quotable_count = 0
     no_category_count = 0
     batch: list[tuple[Any, ...]] = []
     row_count = 0
@@ -539,8 +561,16 @@ def _insert_sku_facts(conn: sqlite3.Connection, pg, side) -> dict[str, Any]:
     for pid, base in bases.items():
         if base["is_no_category"]:
             no_category_count += 1
-        if base.get("price_context_ok") == 0:
-            context_mismatch_skus.append(base["sku_code"])
+        if base.get("price_quotable"):
+            quotable_count += 1
+        if base.get("price_sibling_code"):
+            sibling_price_skus.append(
+                {
+                    "sku_code": base["sku_code"],
+                    "sibling_code": base["price_sibling_code"],
+                    "price_status": base.get("price_status") or "",
+                }
+            )
         facts = facts_by_product.get(pid, [])
         if not facts:
             factless.append(
@@ -608,8 +638,125 @@ def _insert_sku_facts(conn: sqlite3.Connection, pg, side) -> dict[str, Any]:
         "factless_skus": factless,
         "alias_collisions": alias_collisions,
         "composite_by_family": dict(composite_by_family),
-        "context_mismatch_skus": sorted(set(context_mismatch_skus)),
+        "sibling_price_skus": sorted(sibling_price_skus, key=lambda r: r["sku_code"]),
+        "quotable_skus": quotable_count,
         "no_category_count": no_category_count,
+    }
+
+
+def _insert_taxonomy_levels(conn: sqlite3.Connection, pg) -> dict[str, Any]:
+    """Publish the catalogue's own description and URL for each taxonomy node.
+
+    `taxonomy.levels[]` runs parallel to `taxonomy.path`, one entry per level,
+    carrying the published page URL, description, leaf flag, and a `contents[]`
+    list of children with a one-line note each. A node's own `description` is
+    usually null while its parent's note about it is not, so the two are merged.
+
+    Keyed on the full path prefix rather than the name: names are not
+    guaranteed unique across branches, and the browse tool looks nodes up by
+    the path it is standing on.
+    """
+    with pg.cursor() as cur:
+        cur.execute(
+            """
+            SELECT DISTINCT
+              array_to_string(ARRAY(
+                SELECT part FROM jsonb_array_elements_text(taxonomy->'path')
+                     WITH ORDINALITY AS t(part, ord)
+                WHERE ord <= (l->>'level')::int
+              ), ' > ')                       AS path_text,
+              l->>'name'                      AS name,
+              (l->>'level')::int              AS level,
+              l->>'url'                       AS url,
+              NULLIF(l->>'description', '')   AS description,
+              (l->>'is_leaf')::boolean        AS is_leaf,
+              l->>'page_type'                 AS page_type
+            FROM in_use.product_chunks
+            CROSS JOIN LATERAL jsonb_array_elements(
+              CASE WHEN jsonb_typeof(taxonomy->'levels') = 'array'
+                   THEN taxonomy->'levels' ELSE '[]'::jsonb END
+            ) AS l
+            WHERE is_active
+              AND jsonb_typeof(taxonomy->'path') = 'array'
+              AND l->>'name' IS NOT NULL
+              AND (l->>'level') ~ '^[0-9]+$'
+            """
+        )
+        levels = [dict(row) for row in cur.fetchall()]
+
+        # A parent's contents[] carries the blurb for each of its children.
+        cur.execute(
+            """
+            SELECT DISTINCT
+              array_to_string(ARRAY(
+                SELECT part FROM jsonb_array_elements_text(taxonomy->'path')
+                     WITH ORDINALITY AS t(part, ord)
+                WHERE ord <= (l->>'level')::int
+              ), ' > ')                      AS parent_path,
+              c->>'name'                     AS child_name,
+              NULLIF(c->>'note', '')         AS note
+            FROM in_use.product_chunks
+            CROSS JOIN LATERAL jsonb_array_elements(
+              CASE WHEN jsonb_typeof(taxonomy->'levels') = 'array'
+                   THEN taxonomy->'levels' ELSE '[]'::jsonb END
+            ) AS l
+            CROSS JOIN LATERAL jsonb_array_elements(
+              CASE WHEN jsonb_typeof(l->'contents') = 'array'
+                   THEN l->'contents' ELSE '[]'::jsonb END
+            ) AS c
+            WHERE is_active
+              AND jsonb_typeof(taxonomy->'path') = 'array'
+              AND (l->>'level') ~ '^[0-9]+$'
+              AND c->>'name' IS NOT NULL
+            """
+        )
+        notes = {
+            f"{row['parent_path']} > {row['child_name']}": row["note"]
+            for row in cur.fetchall()
+            if row["note"]
+        }
+
+    rows: dict[str, tuple[Any, ...]] = {}
+    described_by_parent = 0
+    for level in levels:
+        path_text = level["path_text"]
+        if not path_text:
+            continue
+        description = level["description"]
+        if not description and (note := notes.get(path_text)):
+            description = note
+            described_by_parent += 1
+        # DISTINCT can yield the same node twice when one source spells a field
+        # and another leaves it null; keep the row that says the most.
+        existing = rows.get(path_text)
+        candidate = (
+            path_text,
+            level["name"],
+            int(level["level"]),
+            level["url"],
+            description,
+            None if level["is_leaf"] is None else int(bool(level["is_leaf"])),
+            level["page_type"],
+        )
+        if existing is None or sum(x is not None for x in candidate) > sum(
+            x is not None for x in existing
+        ):
+            rows[path_text] = candidate
+
+    conn.executemany(
+        """
+        INSERT INTO taxonomy_level
+          (path_text, name, level, url, description, is_leaf, page_type)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        list(rows.values()),
+    )
+    conn.commit()
+    return {
+        "taxonomy_level_rows": len(rows),
+        "taxonomy_levels_with_url": sum(1 for r in rows.values() if r[3]),
+        "taxonomy_levels_with_description": sum(1 for r in rows.values() if r[4]),
+        "taxonomy_descriptions_from_parent": described_by_parent,
     }
 
 
@@ -765,6 +912,7 @@ def _write_meta(
     preflight: dict[str, Any],
     sku_stats: dict[str, Any],
     chunk_stats: dict[str, Any],
+    taxonomy_stats: dict[str, Any],
     embedding_model: str,
 ) -> None:
     meta = {
@@ -782,6 +930,7 @@ def _write_meta(
         "sku_fact_rows": sku_stats["sku_fact_rows"],
         "distinct_skus": sku_stats["distinct_skus"],
         "chunk_rows": chunk_stats["chunk_rows"],
+        **taxonomy_stats,
         "embedding_model": embedding_model,
         "embedding_dimension": chunk_stats.get("embedding_dim"),
         "embeddings_loaded": bool(chunk_stats.get("embeddings_loaded")),
@@ -789,7 +938,8 @@ def _write_meta(
         "factless_sku_count": len(sku_stats["factless_skus"]),
         "no_category_count": sku_stats["no_category_count"],
         "alias_collision_count": len(sku_stats["alias_collisions"]),
-        "context_mismatch_count": len(sku_stats["context_mismatch_skus"]),
+        "quotable_sku_count": sku_stats["quotable_skus"],
+        "price_sibling_code_count": len(sku_stats["sibling_price_skus"]),
         "composite_count": sum(sku_stats["composite_by_family"].values()),
     }
     conn.execute(
@@ -853,10 +1003,14 @@ def build(output: Path, database_url: str, embedding_model: str) -> int:
                     "Alias collisions: %s codes map to multiple products",
                     len(sku_stats["alias_collisions"]),
                 )
-            if sku_stats["context_mismatch_skus"]:
+            logger.info(
+                "Quotable prices: %s SKUs", sku_stats["quotable_skus"]
+            )
+            if sku_stats["sibling_price_skus"]:
                 logger.warning(
-                    "Price context mismatches: %s SKUs",
-                    len(sku_stats["context_mismatch_skus"]),
+                    "Pricelist header names a different code for %s SKUs "
+                    "(multi-column binding risk; disclosed as price_sibling_code)",
+                    len(sku_stats["sibling_price_skus"]),
                 )
             if sku_stats["no_category_count"]:
                 logger.warning("SKUs under _no_category: %s", sku_stats["no_category_count"])
@@ -866,6 +1020,10 @@ def build(output: Path, database_url: str, embedding_model: str) -> int:
                     sum(sku_stats["composite_by_family"].values()),
                     len(sku_stats["composite_by_family"]),
                 )
+
+            logger.info("Writing taxonomy levels")
+            taxonomy_stats = _insert_taxonomy_levels(conn, pg)
+            logger.info("Taxonomy levels: %s", taxonomy_stats)
 
             logger.info("Writing chunks")
             chunk_stats = _insert_chunks(conn, pg, brochure_by_product)
@@ -882,6 +1040,7 @@ def build(output: Path, database_url: str, embedding_model: str) -> int:
                 preflight=preflight,
                 sku_stats=sku_stats,
                 chunk_stats=chunk_stats,
+                taxonomy_stats=taxonomy_stats,
                 embedding_model=embedding_model,
             )
             logger.info("ANALYZE + VACUUM")
@@ -898,10 +1057,12 @@ def build(output: Path, database_url: str, embedding_model: str) -> int:
         "sku_fact_rows": sku_stats["sku_fact_rows"],
         "distinct_skus": sku_stats["distinct_skus"],
         "chunk_rows": chunk_stats["chunk_rows"],
+        **taxonomy_stats,
         "factless_skus": sku_stats["factless_skus"],
         "alias_collisions": sku_stats["alias_collisions"],
         "composite_by_family": sku_stats["composite_by_family"],
-        "context_mismatch_skus": sku_stats["context_mismatch_skus"],
+        "quotable_skus": sku_stats["quotable_skus"],
+        "sibling_price_skus": sku_stats["sibling_price_skus"],
         "no_category_count": sku_stats["no_category_count"],
         "null_embeddings": chunk_stats["null_embeddings"],
         "embeddings_loaded": chunk_stats["embeddings_loaded"],
