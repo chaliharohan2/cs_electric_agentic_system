@@ -200,8 +200,24 @@ def _summarize_state_update(update: Any) -> list[str]:
     return lines or ["updated: " + ", ".join(update.keys())]
 
 
+# Paths already truncated by this process. A trace covers one process, not one
+# question: an interactive session builds a fresh TraceLogger per turn, so
+# truncating on every construction would discard the earlier turns of the same
+# conversation. Truncate the first time a path is opened, append afterwards.
+_TRUNCATED_PATHS: set[Path] = set()
+_TRUNCATE_LOCK = threading.Lock()
+
+
+def _open_trace_stream(path: Path):
+    """Open ``path`` for writing, truncating only on this process's first use."""
+    with _TRUNCATE_LOCK:
+        mode = "a" if path in _TRUNCATED_PATHS else "w"
+        _TRUNCATED_PATHS.add(path)
+    return path.open(mode, encoding="utf-8")
+
+
 class TraceLogger:
-    """Append trace events to JSONL and optionally mirror them to stdout."""
+    """Write trace events to JSONL and optionally mirror them to stdout."""
 
     def __init__(
         self,
@@ -221,7 +237,7 @@ class TraceLogger:
             else print_to_screen
         )
         self.file_path.parent.mkdir(parents=True, exist_ok=True)
-        self._stream = self.file_path.open("a", encoding="utf-8")
+        self._stream = _open_trace_stream(self.file_path)
         self._lock = threading.Lock()
 
     def event(self, event: str, **details: Any) -> None:
