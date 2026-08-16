@@ -62,8 +62,16 @@ def _violations(agent: str, raw: dict[str, Any]) -> list[str]:
 
 
 def gate(state: AgentState) -> dict[str, Any]:
+    """Check the stage that just finished, not the whole plan.
+
+    Later stages have not run yet, so gating every brief would fail them all
+    and burn the retry budget on work that was never dispatched.
+    """
+    stage = int(state.get("stage_index", 1) or 1)
     failures = []
     for brief in state.get("dispatch", []):
+        if int(brief.get("stage", 1) or 1) != stage:
+            continue
         agent = brief["agent"]
         report = state.get("reports", {}).get(agent)
         violations = (
@@ -76,5 +84,7 @@ def gate(state: AgentState) -> dict[str, Any]:
     result = GateResult(ok=not failures, failures=failures)
     update: dict[str, Any] = {"gate_result": result.model_dump()}
     if failures:
-        update["gate_retries"] = state.get("gate_retries", 0) + 1
+        retries = dict(state.get("gate_retries") or {})
+        retries[str(stage)] = retries.get(str(stage), 0) + 1
+        update["gate_retries"] = retries
     return update

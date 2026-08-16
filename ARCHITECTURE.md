@@ -62,9 +62,10 @@ cs_agent/
   graph/
     build.py             Parent LangGraph topology and routing
     state.py             Shared parent state + reducers
+    digest.py            Compact a finished report for the next stage
     nodes/
       intake.py          Follow-up rewrite into a standalone question
-      planner.py         Dispatch 1–5 specialist briefs
+      planner.py         Choose the specialists and order them into stages
       clarify.py         Human interrupt for missing load-bearing params
       gate.py            Deterministic report-contract checks
       composer.py        Sufficiency check + final answer
@@ -110,8 +111,8 @@ Supporting docs:
 
 ## 3. High-level shape
 
-The v1 design was one tool-using agent. V2 is a **planner that dispatches
-specialists in parallel**, then a **gate** and a **two-phase composer**:
+The v1 design was one tool-using agent. V2 is a **planner that orders
+specialists into stages**, then a **gate** and a **two-phase composer**:
 
 ```text
 User question (CLI)
@@ -122,16 +123,17 @@ User question (CLI)
 │                                                              │
 │  intake → planner ⇄ clarify                                  │
 │              │                                               │
-│              ├─ Send → discovery specialist (private tools)  │
-│              ├─ Send → spec_selection …                      │
-│              ├─ Send → solution_advisory …                   │
-│              ├─ Send → comparison …                          │
-│              └─ Send → compliance …                          │
-│                        │                                     │
-│                        ▼                                     │
-│                      gate ──(retry failed only)──► specialists│
-│                        │                                     │
-│                        ▼                                     │
+│              ▼                                               │
+│      ┌─► stage N: Send → one specialist per brief            │
+│      │            (parallel only within the stage)           │
+│      │              │                                        │
+│      │              ▼                                        │
+│      │            gate ──(retry this stage's failures)──┐    │
+│      │              │                                   │    │
+│      └──────────────┤◄──────────────────────────────────┘    │
+│      (stage N+1,    │                                        │
+│       with stage N's│ no stages left                         │
+│       digest)       ▼                                        │
 │               composer sufficiency                           │
 │                   │                                          │
 │                   ├─ targeted revision ──► specialists       │
@@ -149,11 +151,21 @@ Important design rules:
    stays inside each private subgraph so parallel Anthropic tool_use /
    tool_result pairs cannot interleave.
 2. **Parallel writes use reducers.** Reports merge by agent name; evidence and
-   tool-call counts add.
-3. **Budgets are allocated before fan-out.** Mid-flight shared counters are not
-   reliable under parallel `Send()`, so each specialist gets an allowance up
-   front.
-4. **The composer writes from specialist reports**, not from raw evidence dumps.
+   tool-call counts add; `stage_index` takes the last write, which is safe
+   because every branch in a stage writes the same number.
+3. **Specialists are ordered, not simultaneous.** Agents depend on each other —
+   discovery finds the families spec_selection filters — so the planner assigns
+   each brief a stage, and a stage starts only when the one before it has
+   finished. Agents share a stage only when neither needs the other's output.
+4. **A later stage receives digests, not full reports.** `graph/digest.py`
+   reduces each finished report to the identifiers a downstream agent can act
+   on, so the pipeline passes findings forward without re-retrieving them and
+   without copying whole reports into every prompt.
+5. **Budgets are allocated per stage, at dispatch.** Mid-flight shared counters
+   are not reliable under parallel `Send()`, so a stage's agents get a fixed
+   allowance up front — but that allowance is sized from what earlier stages
+   actually spent, so an unused budget carries forward.
+6. **The composer writes from specialist reports**, not from raw evidence dumps.
 
 ---
 
@@ -195,7 +207,8 @@ Everything after intake works only from `standalone_question`.
 
 ### 4.3 Planner
 
-**Purpose:** triage the question and dispatch work — not answer it.
+**Purpose:** triage the question, then decide **which** specialists run and **in
+what order** — not answer it.
 
 The planner returns a structured `Plan`:
 
@@ -207,27 +220,52 @@ The planner returns a structured `Plan`:
 Each brief names an agent (`discovery`, `spec_selection`,
 `solution_advisory`, `comparison`, `compliance`) and carries:
 
+- `stage` — 1-based execution stage; agents sharing a stage run in parallel
 - `objective` — one sentence of what that specialist must establish
 - `scope` — paths, families, or SKUs to stay inside
 - `parameters` — numeric / categorical constraints already known
 - `must_return` — concrete report contents required
-- `allowance` — filled by the runtime, not the model
+- `allowance` — filled by the runtime at dispatch, not by the model
 
-**Dispatch heuristics baked into the prompt:**
+**Agent roles**, as the prompt states them:
 
-- Send every specialist whose report the answer needs; never unused agents.
-- Product area + numeric requirement → discovery **and** spec_selection.
-- Advisory almost always also gets spec_selection so recommendations land on
-  real SKUs.
-- Compliance is additive (“100 A MCCB that meets IEC …” → selection +
-  compliance).
+| Agent | Entry question | Produces |
+|---|---|---|
+| `discovery` | “What do you have in MCCBs?” — or a vague ask, entered through the application segment (home, panel, plant, substation) | Families with descriptions, URLs, SKU counts, representative codes |
+| `spec_selection` | “A 400 A 4-pole changeover” | The missing criticals, then a ranked shortlist of ordering codes |
+| `solution_advisory` | “Protection scheme for an 11 kV feeder”, “AMF for 2×500 kVA gensets” | A multi-category scheme: one resolved slot per function |
+| `comparison` | “Winbreak or Winbreak 2?” | A difference table over named products or a peer set |
+| `compliance` | IS/IEC conformity, CPRI type tests, certifications, catalogue and manual requests | Standards claims, or `not_established` with what was searched |
 
-**Budget allocation** happens after the model returns:
+**Ordering rules baked into the prompt:**
+
+- Dispatch the fewest agents that can answer; one is normal, two common, three
+  only when the question genuinely has three parts.
+- `discovery` precedes `spec_selection` unless the question already names the
+  product area — in which case discovery is not dispatched at all.
+- `comparison` and `compliance` need ordering codes, so they follow whichever
+  agent produces them, unless the user supplied the codes.
+- `solution_advisory` **leads**: it decides which functions a scheme needs, so
+  any `spec_selection` or `compliance` work follows it. It is never a commentary
+  layer over a single-product answer.
+- Never dispatch an agent to review or confirm another's work, and never
+  dispatch two agents that would run the same searches.
+
+`Plan` validation renumbers stages to a contiguous `1..N` and keeps one brief
+per agent, so a model that emits stages `1` and `3`, or lists an agent twice,
+still yields a runnable pipeline. The planner node then clamps any stage above
+`max_stages` onto the last stage — an over-long plan runs flatter rather than
+losing an agent.
+
+**Budget allocation** happens per stage, at dispatch:
 
 ```text
 remaining = global_tool_budget − tools already used this turn
-allowance = min(per_agent_tool_budget, remaining // n_dispatched)
+allowance = min(per_agent_tool_budget, remaining // n_in_this_stage)
 ```
+
+Because it is recomputed when each stage starts, a cheap first stage leaves its
+unspent budget to the stages behind it.
 
 Defaults (from `limits.yaml`, overridable with `CS_*`):
 
@@ -235,8 +273,9 @@ Defaults (from `limits.yaml`, overridable with `CS_*`):
 |---|---|
 | Global tool budget / turn | 100 |
 | Per-agent tool budget | 20 |
+| Stages per plan | 3 |
 | Clarify rounds | 2 |
-| Gate retries | 1 (hard-coded routing) |
+| Gate retries | 1 per stage (hard-coded routing) |
 | Composer revision rounds | 2 |
 | Tool failures / specialist | 3 |
 | Analytics SQL queries / call | 4 |
@@ -258,15 +297,27 @@ type, indoor/outdoor). Accessory suffixes and finishes are not asked.
 4. Control returns to the planner, which receives `known_params` (not only the
    original question) and copies them into every dispatch brief.
 
-### 4.5 Parallel specialist dispatch
+### 4.5 Staged specialist dispatch
 
 When clarification is not needed, the planner route emits one LangGraph
-`Send("specialist", …)` per brief. Those runs execute **in parallel**.
+`Send("specialist", …)` per brief **in the first stage only**. Agents in that
+stage run in parallel; later stages wait. After the gate accepts a stage,
+`_after_gate` emits the next stage's `Send`s, so the pipeline advances one
+stage per `specialist → gate` cycle until no stages remain.
 
-Each `Send` payload contains only:
+Each `Send` payload contains:
 
-- the brief (including allowance and any revision note)
+- the brief (stage, allowance, merged parameters, any revision note)
 - the standalone question
+- `upstream` — the digested reports of every earlier stage
+
+`upstream` is what makes ordering worth the latency. `graph/digest.py` reduces
+each finished report to the identifiers a downstream agent can act on —
+families, representative and candidate SKUs, advisory slots, compared codes,
+standards claims, gaps — and drops findings, sources and prose. `prepare` puts
+it on the specialist's opening turn under “Already established by earlier
+stages”, and `agent_common.md` instructs the agent to build on it rather than
+retrieve it again.
 
 The specialist node invokes a **private compiled subgraph** for that role
 (factory under `subgraphs/agents/`). When the subgraph finishes, the parent
@@ -275,6 +326,7 @@ receives:
 - `reports[agent_name] = structured report`
 - appended `evidence` rows tagged with the agent
 - `tool_calls_made += tool_calls_used`
+- `stage_index = the stage that just ran`
 
 ### 4.6 Inside one specialist
 
@@ -302,8 +354,10 @@ Then the report node always runs.
 
 ### 4.7 Gate (deterministic, no LLM)
 
-After all current specialist branches finish, the gate validates each
-dispatched report against a structural contract:
+After a stage's specialist branches finish, the gate validates **that stage's**
+reports against a structural contract. It ignores briefs belonging to later
+stages: those have not run, so gating them would fail every one of them and
+spend the retry budget on work never dispatched.
 
 | Agent | Must satisfy |
 |---|---|
@@ -315,11 +369,14 @@ dispatched report against a structural contract:
 | all agents | any `Finding` of kind `specification` must cite a `SourceRef.sku_code` |
 
 On failure, the gate may **re-Send only the failing agents once**, appending the
-violations as a `revision_note` on their briefs. This is what keeps weaker
-local models from “browsing forever and never looking up a SKU.”
+violations as a `revision_note` on their briefs. Retries are counted per stage
+in `gate_retries`, so a stage that struggled does not consume the retry another
+stage may need. This is what keeps weaker local models from “browsing forever
+and never looking up a SKU.”
 
-If contracts pass (or the retry budget is spent), routing continues to the
-composer.
+If contracts pass — or the stage's retry is spent — routing moves to the next
+stage, and to the composer once none remain. An unfixable stage does not stall
+the pipeline: the next stage still runs, and sees the partial report.
 
 ### 4.8 Composer — phase 1: sufficiency
 
@@ -415,15 +472,19 @@ budget **for this turn only**.
 ## 6. The five specialists
 
 All share `agent_common.md` (identifiers, value kinds, composite exclusions,
-price caveats, taxonomy rules). Role bodies add method and report shape.
+price caveats, taxonomy rules, and the instruction to build on upstream findings
+rather than re-retrieve them). Role bodies add method, boundary, and report
+shape — each says what it does **and** what it must leave to another stage,
+because an agent that quietly widens its scope is what made the old parallel
+fan-out duplicate work.
 
-| Specialist | Job | Typical tools |
-|---|---|---|
-| **discovery** | Map what C&S sells in an area; return families + representative SKUs | taxonomy_browse, product_search, get_peer_group, search_documents |
-| **spec_selection** | Ranked shortlist meeting numeric/spec filters | list_canonical_specs, product_search, get_sku, get_price_detail, analytics_query |
-| **solution_advisory** | Engineering reasoning + catalogue mapping, claims kept separate | taxonomy_browse, product_search, search_documents, get_sku |
-| **comparison** | Side-by-side table; prefer catalogue `comparable_on` when peers match | resolve_product, get_peer_group, compare_skus, get_price_detail |
-| **compliance** | Published standards / tests / IP / certifications only | list_canonical_specs (topic search), get_sku, search_documents (`standards`) |
+| Specialist | Job | Leaves to others | Typical tools |
+|---|---|---|---|
+| **discovery** | Map what C&S sells in an area; segment-led entry when the ask is vague; return families + representative SKUs | Filtering to a requirement, ranking, comparing, recommending | taxonomy_browse, product_search, get_peer_group, search_documents |
+| **spec_selection** | Name the criticals still missing, then a ranked shortlist meeting them | Finding the families (upstream), designing a wider scheme | list_canonical_specs, product_search, get_sku, get_price_detail, analytics_query |
+| **solution_advisory** | Decide the functions a scheme needs and resolve each to a family/SKU | Exhaustive rating filters inside one category | taxonomy_browse, product_search, search_documents, get_sku |
+| **comparison** | Side-by-side table; prefer catalogue `comparable_on` when peers match | Finding the codes (upstream), picking a winner | resolve_product, get_peer_group, compare_skus, get_price_detail |
+| **compliance** | Published standards / type tests / certifications / manuals only | Selecting or ranking products, inferring conformity from class | list_canonical_specs (topic search), get_sku, search_documents (`standards`) |
 
 Shared tools bound to every specialist: `resolve_product`, `product_search`,
 `get_sku`.
@@ -732,16 +793,19 @@ gated by `CS_RUN_VECTOR_TESTS=1`.
 
 1. User asks a follow-up about “that MCCB” on an existing thread.
 2. Intake rewrites it to an explicit SKU/family question using session focus.
-3. Planner dispatches discovery + spec_selection (and maybe compliance).
-4. Specialists privately call structured tools, record evidence, and emit typed
-   reports with sources and gaps.
-5. Gate bounces any report that browsed families but never produced SKUs or
-   reasons; one targeted retry is allowed.
-6. Composer checks sufficiency; if a standards claim is still missing it
+3. Planner orders the work: discovery at stage 1, spec_selection at stage 2, and
+   compliance alongside spec_selection only if the question asks for standards.
+4. Stage 1 runs. Discovery privately calls structured tools, records evidence,
+   and emits a typed report with sources and gaps.
+5. Gate bounces a report that browsed families but never produced SKUs or
+   reasons; one targeted retry is allowed for that stage.
+6. Stage 2 runs with discovery's digest on its opening turn, so spec_selection
+   filters inside the families already found instead of re-walking the taxonomy.
+7. Composer checks sufficiency; if a standards claim is still missing it
    re-sends only compliance with that gap.
-7. Final answer is written from the reports, citations included, session
+8. Final answer is written from the reports, citations included, session
    updated for the next turn.
 
-That separation — **rewrite → plan → retrieve in parallel → structurally
-check → revise narrowly → compose from reports** — is the core of the v2
-architecture.
+That separation — **rewrite → plan an order → retrieve stage by stage →
+structurally check → revise narrowly → compose from reports** — is the core of
+the v2 architecture.

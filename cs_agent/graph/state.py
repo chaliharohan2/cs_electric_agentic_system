@@ -27,6 +27,18 @@ class Evidence(TypedDict):
     pricelist_page: int | None
 
 
+def latest_stage(current: int | None, update: int | None) -> int:
+    """Take the stage a branch reports, ignoring a write that carries none.
+
+    Every specialist in a stage finishes by writing the same number, so
+    last-write-wins is unambiguous under the parallel fan-out — and unlike a
+    max reducer it lets a new turn reset the pipeline to stage zero.
+    """
+    if update is None:
+        return current or 0
+    return update
+
+
 def merge_reports(
     current: dict[str, dict[str, Any]], update: dict[str, dict[str, Any]]
 ) -> dict[str, dict[str, Any]]:
@@ -44,6 +56,8 @@ class AgentState(TypedDict, total=False):
     plan: dict | None
     dispatch: list[dict[str, Any]]
     brief: dict[str, Any]
+    upstream: dict[str, dict[str, Any]]
+    stage_index: Annotated[int, latest_stage]
     reports: Annotated[dict[str, dict[str, Any]], merge_reports]
     evidence: Annotated[list[Evidence], operator.add]
     clarify_count: int
@@ -51,7 +65,7 @@ class AgentState(TypedDict, total=False):
     turn_tool_calls_start: int
     tool_failures: int
     revision_round: int
-    gate_retries: int
+    gate_retries: dict[str, int]
     gate_result: dict[str, Any] | None
     sufficiency: dict[str, Any] | None
     assumptions: list[str]

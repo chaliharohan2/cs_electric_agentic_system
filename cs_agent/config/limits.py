@@ -18,6 +18,7 @@ class Limits(BaseModel):
     clarify_rounds: int = Field(2, ge=0)
     tool_failure_limit: int = Field(3, ge=1)
     max_parallel_agents: int = Field(5, ge=1, le=5)
+    max_stages: int = Field(3, ge=1, le=5)
     analytics_max_queries: int = Field(4, ge=1)
     sqlite_path: str = "artifacts/catalog-latest.sqlite"
     checkpoint_path: str = "state/checkpoints.sqlite"
@@ -40,6 +41,7 @@ _ENV_NAMES = {
     "clarify_rounds": "CS_CLARIFY_ROUNDS",
     "tool_failure_limit": "CS_TOOL_FAILURE_LIMIT",
     "max_parallel_agents": "CS_MAX_PARALLEL_AGENTS",
+    "max_stages": "CS_MAX_STAGES",
     "analytics_max_queries": "CS_ANALYTICS_MAX_QUERIES",
 }
 _ENV_STRINGS = {

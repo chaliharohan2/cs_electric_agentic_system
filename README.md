@@ -70,12 +70,16 @@ used (`mode: "lexical"`).
 
 ## Workflow
 
-`intake` resolves follow-ups, the planner dispatches one to five private specialists
-in parallel, a deterministic gate checks each report, and the composer performs a
-structured sufficiency pass before writing the answer. Missing evidence triggers only
-the named specialist, up to the configured revision cap. Runtime caps live in
-`cs_agent/config/limits.yaml` and can be overridden with `CS_GLOBAL_TOOL_BUDGET`,
-`CS_PER_AGENT_TOOL_BUDGET`, `CS_COMPOSER_REVISIONS`, and related variables.
+`intake` resolves follow-ups, then the planner picks the private specialists the
+question needs and orders them into stages. A stage starts only once the one before it
+has finished, and receives a digest of its findings, so `discovery` hands families to
+`spec_selection` instead of both retrieving them. Agents share a stage only when
+neither needs the other's output. A deterministic gate checks each stage's reports
+before the next begins, and the composer performs a structured sufficiency pass before
+writing the answer. Missing evidence triggers only the named specialist, up to the
+configured revision cap. Runtime caps live in `cs_agent/config/limits.yaml` and can be
+overridden with `CS_GLOBAL_TOOL_BUDGET`, `CS_PER_AGENT_TOOL_BUDGET`, `CS_MAX_STAGES`,
+`CS_COMPOSER_REVISIONS`, and related variables.
 
 ## Execution tracing
 

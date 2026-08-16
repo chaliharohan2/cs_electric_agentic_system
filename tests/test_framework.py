@@ -35,7 +35,10 @@ from cs_agent.graph.build import (
     _after_planner,
     _run_specialist,
     build_graph,
+    next_stage,
+    stages_in,
 )
+from cs_agent.graph.digest import digest_report, upstream_digest
 from cs_agent.graph.nodes.gate import gate
 from cs_agent.graph.state import merge_reports
 from cs_agent.llm.factory import clear_model_cache, resolve_endpoint
@@ -126,13 +129,34 @@ class ContractAndGateTests(unittest.TestCase):
         )
         result = gate(
             {
-                "dispatch": [{"agent": "discovery"}],
+                "dispatch": [{"agent": "discovery", "stage": 1}],
                 "reports": {"discovery": report.model_dump()},
-                "gate_retries": 0,
+                "stage_index": 1,
+                "gate_retries": {},
             }
         )
         self.assertFalse(result["gate_result"]["ok"])
-        self.assertEqual(1, result["gate_retries"])
+        self.assertEqual({"1": 1}, result["gate_retries"])
+
+    def test_gate_ignores_stages_that_have_not_run_yet(self) -> None:
+        report = DiscoveryReport(
+            **self.base("discovery"),
+            families=[FamilyBrief(name="MCCB")],
+            representative_skus=["SKU-1"],
+        )
+        result = gate(
+            {
+                "dispatch": [
+                    {"agent": "discovery", "stage": 1},
+                    {"agent": "spec_selection", "stage": 2},
+                ],
+                "reports": {"discovery": report.model_dump()},
+                "stage_index": 1,
+                "gate_retries": {},
+            }
+        )
+        self.assertTrue(result["gate_result"]["ok"])
+        self.assertNotIn("gate_retries", result)
 
     def test_gate_requires_sku_source_for_specification(self) -> None:
         report = ComplianceReport(
@@ -151,9 +175,10 @@ class ContractAndGateTests(unittest.TestCase):
         )
         result = gate(
             {
-                "dispatch": [{"agent": "compliance"}],
+                "dispatch": [{"agent": "compliance", "stage": 1}],
                 "reports": {"compliance": report.model_dump()},
-                "gate_retries": 0,
+                "stage_index": 1,
+                "gate_retries": {},
             }
         )
         self.assertFalse(result["gate_result"]["ok"])
@@ -164,6 +189,83 @@ class ContractAndGateTests(unittest.TestCase):
         })
         self.assertEqual({"discovery", "comparison"}, set(merged))
         self.assertEqual({}, merge_reports(merged, {"__reset__": {}}))
+
+
+class StagedPlanTests(unittest.TestCase):
+    """The planner orders agents; the runtime must be able to trust that order."""
+
+    def _plan(self, *briefs: AgentBrief) -> Plan:
+        return Plan(intent="x", dispatch=list(briefs))
+
+    def test_sparse_stage_numbers_are_renumbered_contiguously(self) -> None:
+        plan = self._plan(
+            AgentBrief(agent="discovery", objective="map", stage=1),
+            AgentBrief(agent="spec_selection", objective="shortlist", stage=7),
+        )
+        self.assertEqual([1, 2], [brief.stage for brief in plan.dispatch])
+
+    def test_a_repeated_agent_keeps_only_its_earliest_stage(self) -> None:
+        plan = self._plan(
+            AgentBrief(agent="discovery", objective="map", stage=2),
+            AgentBrief(agent="discovery", objective="map again", stage=1),
+        )
+        self.assertEqual(1, len(plan.dispatch))
+        self.assertEqual("map again", plan.dispatch[0].objective)
+
+    def test_agents_sharing_a_stage_stay_parallel(self) -> None:
+        plan = self._plan(
+            AgentBrief(agent="discovery", objective="map", stage=1),
+            AgentBrief(agent="compliance", objective="standards", stage=1),
+        )
+        dispatch = [brief.model_dump() for brief in plan.dispatch]
+        self.assertEqual([1], stages_in(dispatch))
+        self.assertIsNone(next_stage(dispatch, 1))
+
+    def test_planner_clamps_stages_to_the_configured_maximum(self) -> None:
+        module = importlib.import_module("cs_agent.graph.nodes.planner")
+        plan = self._plan(
+            AgentBrief(agent="discovery", objective="a", stage=1),
+            AgentBrief(agent="spec_selection", objective="b", stage=2),
+            AgentBrief(agent="comparison", objective="c", stage=3),
+            AgentBrief(agent="compliance", objective="d", stage=4),
+        )
+        with patch.object(module, "structured", return_value=plan):
+            result = module.planner(
+                {"standalone_question": "q", "session": {}, "assumptions": []}
+            )
+        stages = [brief["stage"] for brief in result["dispatch"]]
+        self.assertLessEqual(max(stages), get_limits().max_stages)
+        self.assertEqual(4, len(stages))
+
+    def test_digest_keeps_identifiers_and_drops_the_bulk(self) -> None:
+        report = DiscoveryReport(
+            agent="discovery",
+            status="complete",
+            summary="Wintrip covers 16-630 A",
+            families=[FamilyBrief(name="MCCB – Wintrip", sku_count=42, url="u")],
+            representative_skus=["WT-100"],
+            sources=[SourceRef(sku_code="WT-100", brochure_md="b.md")],
+            findings=[Finding(statement="noise")],
+        ).model_dump()
+        digest = digest_report(report)
+        self.assertEqual(["WT-100"], digest["representative_skus"])
+        self.assertEqual("MCCB – Wintrip", digest["families"][0]["name"])
+        self.assertNotIn("findings", digest)
+        self.assertNotIn("sources", digest)
+
+    def test_upstream_digest_covers_only_earlier_stages(self) -> None:
+        dispatch = [
+            AgentBrief(agent="discovery", objective="a", stage=1).model_dump(),
+            AgentBrief(agent="spec_selection", objective="b", stage=2).model_dump(),
+        ]
+        reports = {
+            "discovery": {"status": "complete", "summary": "d"},
+            "spec_selection": {"status": "complete", "summary": "s"},
+        }
+        self.assertEqual(
+            ["discovery"], list(upstream_digest(reports, dispatch, 2))
+        )
+        self.assertEqual({}, upstream_digest(reports, dispatch, 1))
 
 
 class FixtureToolTests(unittest.TestCase):
@@ -277,26 +379,77 @@ class GraphTests(unittest.TestCase):
         self.assertEqual("partial", report["status"])
         self.assertTrue(report["gaps"])
 
-    def test_planner_fans_out_send_objects(self) -> None:
+    def test_planner_dispatches_only_the_first_stage(self) -> None:
         state = {
             "plan": {"needs_clarification": False},
             "dispatch": [
                 AgentBrief(
-                    agent="discovery",
-                    objective="map MCCBs",
-                    allowance=10,
+                    agent="discovery", objective="map MCCBs", stage=1
                 ).model_dump(),
                 AgentBrief(
-                    agent="spec_selection",
-                    objective="filter MCCBs",
-                    allowance=10,
+                    agent="spec_selection", objective="filter MCCBs", stage=2
                 ).model_dump(),
             ],
             "standalone_question": "show MCCBs",
+            "tool_calls_made": 0,
+            "turn_tool_calls_start": 0,
         }
         sends = _after_planner(state)
-        self.assertEqual(2, len(sends))
-        self.assertTrue(all(send.node == "specialist" for send in sends))
+        self.assertEqual(1, len(sends))
+        self.assertEqual("specialist", sends[0].node)
+        self.assertEqual("discovery", sends[0].arg["brief"]["agent"])
+        # The whole per-agent budget, not a share split with a stage that has
+        # not started; stage two is sized from what stage one leaves behind.
+        self.assertEqual(
+            get_limits().per_agent_tool_budget, sends[0].arg["brief"]["allowance"]
+        )
+
+    def test_gate_starts_the_next_stage_with_upstream_findings(self) -> None:
+        discovery = DiscoveryReport(
+            agent="discovery",
+            status="complete",
+            summary="Two MCCB families",
+            families=[FamilyBrief(name="MCCB – Wintrip", sku_count=42)],
+            representative_skus=["WT-100"],
+        ).model_dump()
+        state = {
+            "gate_result": {"ok": True, "failures": []},
+            "gate_retries": {},
+            "stage_index": 1,
+            "reports": {"discovery": discovery},
+            "dispatch": [
+                AgentBrief(agent="discovery", objective="map", stage=1).model_dump(),
+                AgentBrief(
+                    agent="spec_selection", objective="shortlist", stage=2
+                ).model_dump(),
+            ],
+            "standalone_question": "best MCB for a leather factory",
+            "tool_calls_made": 6,
+            "turn_tool_calls_start": 0,
+        }
+        sends = _after_gate(state)
+        self.assertEqual(1, len(sends))
+        self.assertEqual("spec_selection", sends[0].arg["brief"]["agent"])
+        upstream = sends[0].arg["upstream"]
+        self.assertIn("discovery", upstream)
+        self.assertEqual(["WT-100"], upstream["discovery"]["representative_skus"])
+
+    def test_gate_composes_after_the_last_stage(self) -> None:
+        state = {
+            "gate_result": {"ok": True, "failures": []},
+            "gate_retries": {},
+            "stage_index": 2,
+            "dispatch": [
+                AgentBrief(agent="discovery", objective="map", stage=1).model_dump(),
+                AgentBrief(
+                    agent="spec_selection", objective="shortlist", stage=2
+                ).model_dump(),
+            ],
+            "standalone_question": "q",
+            "tool_calls_made": 6,
+            "turn_tool_calls_start": 0,
+        }
+        self.assertEqual("composer", _after_gate(state))
 
     def test_gate_retry_is_targeted(self) -> None:
         state = {
@@ -306,11 +459,10 @@ class GraphTests(unittest.TestCase):
                     {"agent": "discovery", "violations": ["needs SKU"]}
                 ],
             },
-            "gate_retries": 1,
+            "gate_retries": {"1": 1},
+            "stage_index": 1,
             "dispatch": [
-                AgentBrief(
-                    agent="discovery", objective="map", allowance=10
-                ).model_dump()
+                AgentBrief(agent="discovery", objective="map", stage=1).model_dump()
             ],
             "standalone_question": "map",
             "tool_calls_made": 0,
@@ -319,6 +471,30 @@ class GraphTests(unittest.TestCase):
         sends = _after_gate(state)
         self.assertEqual(1, len(sends))
         self.assertIn("needs SKU", sends[0].arg["brief"]["revision_note"])
+        self.assertEqual(1, sends[0].arg["brief"]["stage"])
+
+    def test_exhausted_retries_do_not_block_the_next_stage(self) -> None:
+        state = {
+            "gate_result": {
+                "ok": False,
+                "failures": [{"agent": "discovery", "violations": ["needs SKU"]}],
+            },
+            "gate_retries": {"1": 2},
+            "stage_index": 1,
+            "reports": {},
+            "dispatch": [
+                AgentBrief(agent="discovery", objective="map", stage=1).model_dump(),
+                AgentBrief(
+                    agent="spec_selection", objective="shortlist", stage=2
+                ).model_dump(),
+            ],
+            "standalone_question": "q",
+            "tool_calls_made": 0,
+            "turn_tool_calls_start": 0,
+        }
+        sends = _after_gate(state)
+        self.assertEqual(1, len(sends))
+        self.assertEqual("spec_selection", sends[0].arg["brief"]["agent"])
 
     def test_composer_revision_is_targeted(self) -> None:
         state = {
@@ -333,9 +509,10 @@ class GraphTests(unittest.TestCase):
             },
             "dispatch": [
                 AgentBrief(
-                    agent="compliance", objective="check IEC", allowance=10
+                    agent="compliance", objective="check IEC", stage=1
                 ).model_dump()
             ],
+            "stage_index": 1,
             "standalone_question": "IEC?",
             "tool_calls_made": 0,
             "turn_tool_calls_start": 0,
@@ -500,13 +677,14 @@ class GraphTests(unittest.TestCase):
                 AgentBrief(
                     agent="discovery",
                     objective="map MCCBs",
-                    allowance=10,
                 ).model_dump(),
             ],
             "standalone_question": "solar feed protection",
             "session": {
                 "resolved_params": {"rated_current_a": 200, "poles": 4}
             },
+            "tool_calls_made": 0,
+            "turn_tool_calls_start": 0,
         }
         sends = _after_planner(state)
         self.assertEqual(1, len(sends))
@@ -568,7 +746,6 @@ class DatabaseDefinitionTests(unittest.TestCase):
         test_target = makefile.split("test:", 1)[1].split("\ntest-vector:", 1)[0]
         self.assertIn("tests.test_framework", test_target)
         self.assertNotIn("test_vector_retrieval", test_target)
-
 
 if __name__ == "__main__":
     unittest.main()

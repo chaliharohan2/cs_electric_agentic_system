@@ -134,9 +134,15 @@ def _summarize_state_update(update: Any) -> list[str]:
     if isinstance(plan, dict):
         parts = [f"intent={plan.get('intent', '?')}"]
         if plan.get("dispatch"):
+            by_stage: dict[int, list[str]] = {}
+            for brief in plan["dispatch"]:
+                by_stage.setdefault(int(brief.get("stage", 1) or 1), []).append(
+                    brief.get("agent", "?")
+                )
             parts.append(
-                "agents=" + ", ".join(
-                    brief.get("agent", "?") for brief in plan["dispatch"]
+                "agents="
+                + " -> ".join(
+                    ", ".join(by_stage[stage]) for stage in sorted(by_stage)
                 )
             )
         if plan.get("open_params"):
