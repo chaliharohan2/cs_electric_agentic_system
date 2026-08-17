@@ -9,7 +9,7 @@ from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from cs_agent.config.limits import get_limits
-from cs_agent.contracts import SufficiencyResult
+from cs_agent.contracts import SufficiencyResult, brief_depth
 from cs_agent.graph.state import AgentState
 from cs_agent.llm import get_model, structured
 
@@ -74,7 +74,13 @@ def composer_sufficiency(state: AgentState) -> dict[str, Any]:
                     "Check whether the specialist reports contain enough evidence to "
                     "answer the user's question. Identify only concrete, retrievable "
                     "gaps and name the specialist best able to fill each. Do not request "
-                    "a blanket rerun."
+                    "a blanket rerun.\n"
+                    "A brief dispatched at overview depth was asked to answer at range "
+                    "level and to end with follow-up questions. Missing ordering codes, "
+                    "specifications and prices are the intended shape of that report, "
+                    "not gaps — the user is being invited to ask for them next turn. "
+                    "Only raise a gap against an overview if it failed to name the "
+                    "families or to ask anything back."
                 )
             ),
             HumanMessage(
@@ -84,6 +90,10 @@ def composer_sufficiency(state: AgentState) -> dict[str, Any]:
                         "known_params": (state.get("session") or {}).get(
                             "resolved_params", {}
                         ),
+                        "dispatch_depth": {
+                            brief["agent"]: brief_depth(brief)
+                            for brief in state.get("dispatch", [])
+                        },
                         "reports": state.get("reports", {}),
                     },
                     default=str,

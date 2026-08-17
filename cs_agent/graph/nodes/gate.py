@@ -4,11 +4,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from cs_agent.contracts import GateFailure, GateResult, REPORT_SCHEMAS
+from cs_agent.contracts import (
+    GateFailure,
+    GateResult,
+    REPORT_SCHEMAS,
+    brief_depth,
+)
 from cs_agent.graph.state import AgentState
 
 
-def _violations(agent: str, raw: dict[str, Any]) -> list[str]:
+def _violations(agent: str, raw: dict[str, Any], depth: str = "detailed") -> list[str]:
     schema = REPORT_SCHEMAS[agent]
     try:
         report = schema.model_validate(raw)
@@ -25,7 +30,15 @@ def _violations(agent: str, raw: dict[str, Any]) -> list[str]:
     elif agent == "discovery":
         if not report.families:
             failures.append("Return at least one family.")
-        if not report.representative_skus and not any(
+        if depth == "overview":
+            # An overview answers at range level, so ordering codes are not the
+            # deliverable — the question that narrows the next turn is. Demanding
+            # SKUs here is what drove the retrieval this depth exists to avoid.
+            if not report.follow_up_questions:
+                failures.append(
+                    "An overview must return at least one follow_up_question."
+                )
+        elif not report.representative_skus and not any(
             "representative" in gap.lower() or "sku" in gap.lower()
             for gap in report.gaps
         ):
@@ -51,14 +64,21 @@ def _violations(agent: str, raw: dict[str, Any]) -> list[str]:
                 failures.append(
                     f"Resolve advisory slot {slot.function!r} or mark no C&S product."
                 )
-    for finding in report.findings:
-        if finding.kind == "specification" and not (
-            finding.source and finding.source.sku_code
-        ):
-            failures.append(
-                "Every specification finding needs a SourceRef with sku_code."
-            )
-    return failures
+    # An overview never reaches a SKU, so a sku_code is not something it could
+    # supply: what it quotes is a category-level span off the taxonomy page, not
+    # a claim about one product. Enforcing the SKU rule here made the check
+    # unsatisfiable by construction and cost a full re-run of the specialist.
+    if depth != "overview":
+        for finding in report.findings:
+            if finding.kind == "specification" and not (
+                finding.source and finding.source.sku_code
+            ):
+                failures.append(
+                    "Every specification finding needs a SourceRef with sku_code."
+                )
+    # One sentence per distinct problem: the list is replayed to the specialist
+    # as its revision note, and four copies of a rule read as four faults.
+    return list(dict.fromkeys(failures))
 
 
 def gate(state: AgentState) -> dict[str, Any]:
@@ -77,7 +97,7 @@ def gate(state: AgentState) -> dict[str, Any]:
         violations = (
             ["The specialist did not return a report."]
             if report is None
-            else _violations(agent, report)
+            else _violations(agent, report, brief_depth(brief))
         )
         if violations:
             failures.append(GateFailure(agent=agent, violations=violations))

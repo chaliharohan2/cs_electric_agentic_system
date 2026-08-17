@@ -77,9 +77,18 @@ has finished, and receives a digest of its findings, so `discovery` hands famili
 neither needs the other's output. A deterministic gate checks each stage's reports
 before the next begins, and the composer performs a structured sufficiency pass before
 writing the answer. Missing evidence triggers only the named specialist, up to the
-configured revision cap. Runtime caps live in `cs_agent/config/limits.yaml` and can be
-overridden with `CS_GLOBAL_TOOL_BUDGET`, `CS_PER_AGENT_TOOL_BUDGET`, `CS_MAX_STAGES`,
-`CS_COMPOSER_REVISIONS`, and related variables.
+configured revision cap.
+
+The planner also sets each brief's **depth**. An `overview` answers at range level —
+which families exist and what each is for — and closes by asking what the user wants to
+narrow to; a `detailed` brief goes through to ordering codes and specifications.
+Discovery defaults to `overview`, so "what air circuit breakers do you have" names the
+three ranges and asks a question back instead of walking the whole branch. Follow-up
+turns are not promoted automatically: the planner decides depth every turn.
+
+Runtime caps live in `cs_agent/config/limits.yaml` and can be overridden with
+`CS_GLOBAL_TOOL_BUDGET`, `CS_PER_AGENT_TOOL_BUDGET`, `CS_OVERVIEW_TOOL_BUDGET`,
+`CS_MAX_STAGES`, `CS_COMPOSER_REVISIONS`, and related variables.
 
 ## Execution tracing
 

@@ -231,7 +231,7 @@ Each brief names an agent (`discovery`, `spec_selection`,
 
 | Agent | Entry question | Produces |
 |---|---|---|
-| `discovery` | “What do you have in MCCBs?” — or a vague ask, entered through the application segment (home, panel, plant, substation) | Families with descriptions, URLs, SKU counts, representative codes |
+| `discovery` | “What do you have in MCCBs?” — or a vague ask, entered through the application segment (home, panel, plant, substation) | Families with descriptions, URLs and SKU counts, plus follow-up questions at `overview` depth or representative codes at `detailed` |
 | `spec_selection` | “A 400 A 4-pole changeover” | The missing criticals, then a ranked shortlist of ordering codes |
 | `solution_advisory` | “Protection scheme for an 11 kV feeder”, “AMF for 2×500 kVA gensets” | A multi-category scheme: one resolved slot per function |
 | `comparison` | “Winbreak or Winbreak 2?” | A difference table over named products or a peer set |
@@ -257,15 +257,47 @@ still yields a runnable pipeline. The planner node then clamps any stage above
 `max_stages` onto the last stage — an over-long plan runs flatter rather than
 losing an agent.
 
+**Answer depth.** Every brief also carries a `depth`, which the planner sets and
+which decides how far the specialist retrieves:
+
+| Depth | Answers at | Tool ceiling | Discovery must return |
+|---|---|---|---|
+| `overview` | Range level: which families exist, what each is for | `overview_tool_budget` (6) | ≥1 family and ≥1 `follow_up_question`; ordering codes are **not** required |
+| `detailed` | Ordering codes and the specifications the brief names | `per_agent_tool_budget` (20) | ≥1 family and ≥1 representative SKU or an explicit gap |
+
+A plan that names no depth gets `overview` for `discovery` and `detailed` for
+everyone else (`DEFAULT_DEPTH` in `contracts.py`, applied by `Plan` validation).
+The default runs that way round deliberately: a planner that forgets the field
+produces a cheap answer that asks a question back, rather than an exhaustive
+catalogue sweep.
+
+Depth exists because breadth was previously emergent. Asked "what air circuit
+breakers do you have", discovery spent 19 tool calls and 14 minutes deriving
+current bands per family — an answer that the single `taxonomy_browse` call at
+`Circuit Breakers > Air Circuit Breakers` already contained in 1.4 kB. Three
+things drove it, and all three had to change together: the gate demanded a
+representative SKU, `agent_common.md` told every specialist that browsing is not
+a product answer, and a 20-call budget with no stopping rule reads as work still
+to do. Relaxing any one alone would have been overridden by the others — a
+softened prompt still fails the gate, and a failed gate spends a retry.
+
+The follow-up questions are **not** the clarify mechanism. Clarify interrupts
+before planning and blocks on an answer; `follow_up_questions` ride out with a
+delivered answer and invite the next turn. Whether that next turn is `detailed`
+is again the planner's call — nothing infers it from `is_followup`.
+
 **Budget allocation** happens per stage, at dispatch:
 
 ```text
 remaining = global_tool_budget − tools already used this turn
 allowance = min(per_agent_tool_budget, remaining // n_in_this_stage)
+if depth == "overview": allowance = min(allowance, overview_tool_budget)
 ```
 
 Because it is recomputed when each stage starts, a cheap first stage leaves its
-unspent budget to the stages behind it.
+unspent budget to the stages behind it. The depth cap is applied in `_send`, so
+it holds on every path that reaches a specialist: first dispatch, gate retry,
+and composer revision.
 
 Defaults (from `limits.yaml`, overridable with `CS_*`):
 
@@ -273,6 +305,7 @@ Defaults (from `limits.yaml`, overridable with `CS_*`):
 |---|---|
 | Global tool budget / turn | 100 |
 | Per-agent tool budget | 20 |
+| Overview tool budget | 6 |
 | Stages per plan | 3 |
 | Clarify rounds | 2 |
 | Gate retries | 1 per stage (hard-coded routing) |
@@ -365,15 +398,29 @@ spend the retry budget on work never dispatched.
 
 | Agent | Must satisfy |
 |---|---|
-| discovery | ≥1 family, and ≥1 representative SKU **or** an explicit gap explaining why none |
+| discovery (`detailed`) | ≥1 family, and ≥1 representative SKU **or** an explicit gap explaining why none |
+| discovery (`overview`) | ≥1 family, and ≥1 `follow_up_question`. Ordering codes are not the deliverable at this depth |
 | spec_selection | ≥1 candidate **or** (`no_candidates_reason` + non-empty `filters_tried`) |
 | comparison | non-empty axes and ≥2 SKU rows, or `status=no_result` with a reason |
 | compliance | ≥1 standards claim **or** non-empty `not_established` |
 | solution_advisory | ≥1 catalog_backed or engineering_guidance claim; every recommended slot resolved to a family/SKU or explicitly “no C&S product” |
-| all agents | any `Finding` of kind `specification` must cite a `SourceRef.sku_code` |
+| all agents except an `overview` brief | any `Finding` of kind `specification` must cite a `SourceRef.sku_code` |
+
+The `overview` carve-out is not a loosened standard, it is the right subject.
+"Up to 6300 A in 3 or 4 pole" is published on the *Air Circuit Breakers category
+page*, so it describes the range and there is no ordering code to attribute it
+to. Holding an overview to the SKU rule made the check unsatisfiable by
+construction — the depth forbids reaching a SKU, and the rule demands one — so
+every overview that quoted a rating failed and re-ran. Category-level facts
+belong to `kind: catalogue`; `specification` means a value read against one
+`sku_code`.
 
 On failure, the gate may **re-Send only the failing agents once**, appending the
-violations as a `revision_note` on their briefs. Retries are counted per stage
+violations as a `revision_note` on their briefs. Because a retry restarts the
+specialist with only that note — no transcript — it repeats the agent's
+retrieval, so a rule that fires on a formatting slip costs a full re-run.
+Violations are deduplicated for that reason: the note is prose the model reads,
+and one rule repeated four times reads as four faults. Retries are counted per stage
 in `gate_retries`, so a stage that struggled does not consume the retry another
 stage may need. This is what keeps weaker local models from “browsing forever
 and never looking up a SKU.”
@@ -617,9 +664,9 @@ find the rest, because the analyst has SQL and can discover any spec it needs.
 
 ### 7.3 Tool result size
 
-Every tool result becomes prompt tokens on the next turn, and the local
-profiles run `num_ctx: 80000`. Measured on the 2026-08-16 catalogue, four
-payloads could each fill that window on their own:
+Every tool result becomes prompt tokens on the next turn. Measured on the
+2026-08-16 catalogue against the `num_ctx: 80000` the local profiles ran at the
+time, four payloads could each fill that window on their own:
 
 | Payload | Before | After | Cap |
 |---|---:|---:|---|

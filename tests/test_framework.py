@@ -151,7 +151,7 @@ class ContractAndGateTests(unittest.TestCase):
         result = gate(
             {
                 "dispatch": [
-                    {"agent": "discovery", "stage": 1},
+                    {"agent": "discovery", "stage": 1, "depth": "detailed"},
                     {"agent": "spec_selection", "stage": 2},
                 ],
                 "reports": {"discovery": report.model_dump()},
@@ -193,6 +193,232 @@ class ContractAndGateTests(unittest.TestCase):
         })
         self.assertEqual({"discovery", "comparison"}, set(merged))
         self.assertEqual({}, merge_reports(merged, {"__reset__": {}}))
+
+
+class AnswerDepthTests(unittest.TestCase):
+    """Breadth is planned, not emergent.
+
+    A broad question like "what air circuit breakers do you have" is answered by
+    naming the ranges and asking what the user is after. Before depth existed the
+    gate demanded ordering codes and the full tool budget invited a sweep for
+    them, so discovery spent 19 calls elaborating an answer that one taxonomy
+    browse already held.
+    """
+
+    def _brief(self, agent: str = "discovery", **kwargs: Any) -> dict[str, Any]:
+        return AgentBrief(agent=agent, objective="o", **kwargs).model_dump()
+
+    def test_discovery_defaults_to_overview_and_others_to_detailed(self) -> None:
+        plan = Plan(
+            intent="x",
+            dispatch=[
+                AgentBrief(agent="discovery", objective="map"),
+                AgentBrief(agent="spec_selection", objective="shortlist"),
+            ],
+        )
+        depths = {brief.agent: brief.depth for brief in plan.dispatch}
+        self.assertEqual(
+            {"discovery": "overview", "spec_selection": "detailed"}, depths
+        )
+
+    def test_the_planner_can_override_the_default(self) -> None:
+        plan = Plan(
+            intent="x",
+            dispatch=[
+                AgentBrief(agent="discovery", objective="map", depth="detailed")
+            ],
+        )
+        self.assertEqual("detailed", plan.dispatch[0].depth)
+
+    def test_an_overview_brief_is_capped_to_the_overview_budget(self) -> None:
+        state = {
+            "plan": {"needs_clarification": False},
+            "dispatch": [self._brief()],
+            "standalone_question": "what ACBs do you have",
+            "tool_calls_made": 0,
+            "turn_tool_calls_start": 0,
+        }
+        sends = _after_planner(state)
+        limits = get_limits()
+        self.assertEqual(
+            limits.overview_tool_budget, sends[0].arg["brief"]["allowance"]
+        )
+        self.assertLess(limits.overview_tool_budget, limits.per_agent_tool_budget)
+
+    def test_an_overview_passes_the_gate_without_ordering_codes(self) -> None:
+        report = DiscoveryReport(
+            agent="discovery",
+            status="complete",
+            summary="Three ACB ranges",
+            families=[FamilyBrief(name="ACB – WiNmaster 3", sku_count=157)],
+            follow_up_questions=["What rated current do you need?"],
+        )
+        result = gate(
+            {
+                "dispatch": [self._brief(stage=1)],
+                "reports": {"discovery": report.model_dump()},
+                "stage_index": 1,
+                "gate_retries": {},
+            }
+        )
+        self.assertTrue(result["gate_result"]["ok"])
+
+    def test_an_overview_without_a_follow_up_question_fails_the_gate(self) -> None:
+        report = DiscoveryReport(
+            agent="discovery",
+            status="complete",
+            summary="Three ACB ranges",
+            families=[FamilyBrief(name="ACB – WiNmaster 3", sku_count=157)],
+        )
+        result = gate(
+            {
+                "dispatch": [self._brief(stage=1)],
+                "reports": {"discovery": report.model_dump()},
+                "stage_index": 1,
+                "gate_retries": {},
+            }
+        )
+        self.assertFalse(result["gate_result"]["ok"])
+
+    def test_a_detailed_discovery_still_owes_ordering_codes(self) -> None:
+        report = DiscoveryReport(
+            agent="discovery",
+            status="complete",
+            summary="Three ACB ranges",
+            families=[FamilyBrief(name="ACB – WiNmaster 3", sku_count=157)],
+            follow_up_questions=["What rated current do you need?"],
+        )
+        result = gate(
+            {
+                "dispatch": [self._brief(stage=1, depth="detailed")],
+                "reports": {"discovery": report.model_dump()},
+                "stage_index": 1,
+                "gate_retries": {},
+            }
+        )
+        self.assertFalse(result["gate_result"]["ok"])
+
+    def test_an_overview_may_state_a_span_without_a_sku_to_cite(self) -> None:
+        """The SKU-source rule is unsatisfiable at a depth that reaches no SKU.
+
+        "Up to 6300 A in 3 or 4 pole" is published on the Air Circuit Breakers
+        category page, not against an ordering code. Enforcing the sku_code rule
+        against it failed the gate on every overview that quoted a rating, and
+        the retry re-ran the whole specialist.
+        """
+        report = DiscoveryReport(
+            agent="discovery",
+            status="complete",
+            summary="Three ACB ranges",
+            families=[FamilyBrief(name="ACB – AH-AHA", sku_count=316)],
+            follow_up_questions=["Which range are you interested in?"],
+            findings=[
+                Finding(
+                    statement="ACBs are rated up to 6300 A in 3 or 4 pole.",
+                    kind="specification",
+                )
+            ],
+        )
+        result = gate(
+            {
+                "dispatch": [self._brief(stage=1)],
+                "reports": {"discovery": report.model_dump()},
+                "stage_index": 1,
+                "gate_retries": {},
+            }
+        )
+        self.assertTrue(result["gate_result"]["ok"])
+
+    def test_a_detailed_report_still_needs_a_sku_behind_a_specification(self) -> None:
+        report = DiscoveryReport(
+            agent="discovery",
+            status="complete",
+            summary="Three ACB ranges",
+            families=[FamilyBrief(name="ACB – AH-AHA", sku_count=316)],
+            representative_skus=["AH40D4CSMP3.1MF(S)"],
+            findings=[
+                Finding(statement="Rated to 6300 A.", kind="specification"),
+                Finding(statement="Rated to 4000 A.", kind="specification"),
+            ],
+        )
+        result = gate(
+            {
+                "dispatch": [self._brief(stage=1, depth="detailed")],
+                "reports": {"discovery": report.model_dump()},
+                "stage_index": 1,
+                "gate_retries": {},
+            }
+        )
+        violations = result["gate_result"]["failures"][0]["violations"]
+        self.assertIn("sku_code", " ".join(violations))
+        # Two offending findings, one sentence: the violations become the
+        # specialist's revision note, and repetition reads as extra faults.
+        self.assertEqual(len(violations), len(set(violations)))
+
+    def test_the_report_node_is_told_to_write_follow_up_questions(self) -> None:
+        """The gate check is only cheap if the report reliably carries the field.
+
+        The role prompt explaining depth is bound to the agent node, so the
+        report node needs the overview contract restated. Without it the report
+        came back with no follow_up_questions, failed the gate, and the retry
+        re-ran the specialist from scratch — 5 more tool calls re-walking a
+        taxonomy it had already walked.
+        """
+        from cs_agent.subgraphs.agents.nodes import make_report_node
+
+        seen: dict[str, Any] = {}
+
+        def _structured(node, messages, schema):
+            seen[node] = messages[0].content
+            return schema(agent="discovery", status="complete", summary="s")
+
+        node = make_report_node("discovery")
+        with patch(
+            "cs_agent.subgraphs.agents.nodes.structured", side_effect=_structured
+        ):
+            node({"brief": self._brief(), "agent_name": "discovery", "messages": []})
+        self.assertIn("follow_up_questions", seen["agent"])
+
+    def test_the_report_node_stays_quiet_about_depth_when_detailed(self) -> None:
+        from cs_agent.subgraphs.agents.nodes import make_report_node
+
+        seen: dict[str, Any] = {}
+
+        def _structured(node, messages, schema):
+            seen[node] = messages[0].content
+            return schema(agent="discovery", status="complete", summary="s")
+
+        node = make_report_node("discovery")
+        with patch(
+            "cs_agent.subgraphs.agents.nodes.structured", side_effect=_structured
+        ):
+            node(
+                {
+                    "brief": self._brief(depth="detailed"),
+                    "agent_name": "discovery",
+                    "messages": [],
+                }
+            )
+        self.assertNotIn("follow_up_questions", seen["agent"])
+
+    def test_the_specialist_prompt_states_the_depth_it_is_working_at(self) -> None:
+        from cs_agent.subgraphs.agents.nodes import DEPTH_NOTE, make_agent_node
+
+        captured: dict[str, Any] = {}
+
+        class _Model:
+            def bind_tools(self, tools):
+                return self
+
+            def invoke(self, messages):
+                captured["system"] = messages[0].content
+                return HumanMessage(content="")
+
+        node = make_agent_node("discovery", [])
+        with patch("cs_agent.subgraphs.agents.nodes.get_model", return_value=_Model()):
+            node({"brief": self._brief(), "allowance": 5, "messages": []})
+        self.assertIn(DEPTH_NOTE["overview"], captured["system"])
+        self.assertNotIn(DEPTH_NOTE["detailed"], captured["system"])
 
 
 class StagedPlanTests(unittest.TestCase):
@@ -512,7 +738,7 @@ class GraphTests(unittest.TestCase):
             "plan": {"needs_clarification": False},
             "dispatch": [
                 AgentBrief(
-                    agent="discovery", objective="map MCCBs", stage=1
+                    agent="discovery", objective="map MCCBs", stage=1, depth="detailed"
                 ).model_dump(),
                 AgentBrief(
                     agent="spec_selection", objective="filter MCCBs", stage=2

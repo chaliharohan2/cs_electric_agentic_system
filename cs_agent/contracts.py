@@ -14,6 +14,18 @@ AgentName = Literal[
     "compliance",
 ]
 ReportStatus = Literal["complete", "partial", "no_result"]
+Depth = Literal["overview", "detailed"]
+
+# Depth the planner gets when it names none. Discovery answers "what do you have"
+# questions, where the ranges themselves are the answer and detail belongs to a
+# follow-up turn, so it starts shallow; the agents that exist to produce a
+# shortlist, a table, or a scheme have nothing to say at overview depth.
+DEFAULT_DEPTH: dict[str, Depth] = {"discovery": "overview"}
+
+
+def brief_depth(brief: dict[str, Any]) -> str:
+    """Read a dispatched brief's depth, defaulting the way the Plan does."""
+    return brief.get("depth") or DEFAULT_DEPTH.get(brief.get("agent", ""), "detailed")
 
 
 class SourceRef(BaseModel):
@@ -39,6 +51,7 @@ class AgentBrief(BaseModel):
     parameters: dict[str, Any] = Field(default_factory=dict)
     must_return: list[str] = Field(default_factory=list)
     allowance: int = Field(0, ge=0)
+    depth: Depth | None = None
     revision_note: str | None = None
 
 
@@ -51,13 +64,16 @@ class Plan(BaseModel):
     strategy: str = ""
 
     @model_validator(mode="after")
-    def _normalise_stages(self) -> "Plan":
+    def _normalise_dispatch(self) -> "Plan":
         """Order the dispatch into contiguous stages with one brief per agent.
 
         A model asked to sequence agents readily emits sparse stage numbers
         (1 and 3) or lists an agent twice. Either would leave the runtime
         waiting on a stage that never runs, so renumber rather than reject:
         the ordering the planner intended survives, the gaps do not.
+
+        Depth is settled here too, so a planner that omits it produces a cheap
+        answer that invites a follow-up rather than an exhaustive sweep.
         """
         seen: set[str] = set()
         unique: list[AgentBrief] = []
@@ -72,6 +88,8 @@ class Plan(BaseModel):
         }
         for brief in unique:
             brief.stage = ranks[brief.stage]
+            if brief.depth is None:
+                brief.depth = DEFAULT_DEPTH.get(brief.agent, "detailed")
         self.dispatch = unique
         return self
 
@@ -145,6 +163,7 @@ class DiscoveryReport(AgentReport):
     agent: Literal["discovery"] = "discovery"
     families: list[FamilyBrief] = Field(default_factory=list)
     representative_skus: list[str] = Field(default_factory=list)
+    follow_up_questions: list[str] = Field(default_factory=list)
     uncategorised_note: str | None = None
 
 
