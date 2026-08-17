@@ -5,9 +5,7 @@ from __future__ import annotations
 from functools import lru_cache
 
 from langgraph.graph import END, START, StateGraph
-from langgraph.prebuilt import ToolNode
 
-from cs_agent.tool_errors import tool_error_message
 from cs_agent.tools.registry import tools_for_agent
 
 from .nodes import (
@@ -19,6 +17,7 @@ from .nodes import (
     record,
     should_use_tools,
 )
+from .tool_node import make_tool_node
 
 
 @lru_cache(maxsize=5)
@@ -27,12 +26,9 @@ def build_specialist_graph(agent_name: str):
     graph = StateGraph(SpecialistState)
     graph.add_node("prepare", prepare)
     graph.add_node("agent", make_agent_node(agent_name, tools))
-    graph.add_node(
-        "tools",
-        ToolNode(tools, handle_tool_errors=tool_error_message),
-    )
+    graph.add_node("tools", make_tool_node(tools))
     graph.add_node("record", record)
-    graph.add_node("report", make_report_node(agent_name))
+    graph.add_node("report", make_report_node(agent_name, tools))
     graph.add_edge(START, "prepare")
     graph.add_edge("prepare", "agent")
     graph.add_conditional_edges("agent", should_use_tools)

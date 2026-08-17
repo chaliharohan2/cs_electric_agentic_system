@@ -6,6 +6,7 @@ from functools import lru_cache
 from typing import Any
 
 from cs_agent.backends import CatalogBackend, get_backend
+from cs_agent.backends.matching import normalize, squash
 
 
 @lru_cache(maxsize=1)
@@ -16,6 +17,7 @@ def backend() -> CatalogBackend:
 def reset_backend() -> None:
     """Clear backend selection, primarily for process-level configuration tests."""
     backend.cache_clear()
+    _known_families.cache_clear()
 
 
 def resolve_product(
@@ -26,16 +28,62 @@ def resolve_product(
     )
 
 
+@lru_cache(maxsize=1)
+def _known_families() -> tuple[str, ...]:
+    """Every family name the catalogue actually uses.
+
+    One query per process, kept as names only. It exists so an empty result can
+    tell the caller *why* it is empty; the alternative is what was measured — a
+    specialist re-issuing the same guessed family name until its budget ran out.
+    """
+    names = {
+        row.get("family")
+        for row in backend().list_canonical_specs()
+        if row.get("family")
+    }
+    return tuple(sorted(names))
+
+
+def _closest_families(wanted: str, limit: int = 6) -> list[str]:
+    """Families worth trying instead of one that matched nothing."""
+    needle = squash(wanted)
+    words = {word for word in normalize(wanted).split() if len(word) > 2}
+    scored: list[tuple[int, str]] = []
+    for name in _known_families():
+        key = squash(name)
+        overlap = len(words & set(normalize(name).split()))
+        if needle and (needle in key or key in needle):
+            scored.append((100, name))
+        elif overlap:
+            scored.append((overlap, name))
+    scored.sort(key=lambda item: (-item[0], item[1]))
+    return [name for _, name in scored[:limit]]
+
+
 def list_canonical_specs(
     family: str | None = None,
     spec_id_contains: str | None = None,
     canonical_only: bool = False,
-) -> list[dict[str, Any]]:
-    return backend().list_canonical_specs(
+) -> list[dict[str, Any]] | dict[str, Any]:
+    rows = backend().list_canonical_specs(
         family=family,
         spec_id_contains=spec_id_contains,
         canonical_only=canonical_only,
     )
+    if rows or not family:
+        return rows
+    # An empty list reads as "this family has no specs recorded", which sends
+    # the caller back with the same argument. Naming the miss ends that loop.
+    return {
+        "specs": [],
+        "family_not_found": family,
+        "closest_families": _closest_families(family),
+        "hint": (
+            f"No family is named {family!r}. Try one of closest_families, or "
+            "call taxonomy_browse to see what C&S actually publishes. Calling "
+            "this again with the same family will return the same nothing."
+        ),
+    }
 
 
 def taxonomy_browse(

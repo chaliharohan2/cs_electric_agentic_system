@@ -12,6 +12,7 @@ from cs_agent.config.limits import get_limits
 from cs_agent.contracts import SufficiencyResult, brief_depth
 from cs_agent.graph.state import AgentState
 from cs_agent.llm import get_model, structured
+from cs_agent.observability import active_trace
 
 PROMPT = (Path(__file__).parents[2] / "prompts" / "composer.md").read_text(
     encoding="utf-8"
@@ -114,6 +115,36 @@ def composer_sufficiency(state: AgentState) -> dict[str, Any]:
     return update
 
 
+def _stream_answer(messages: list[Any]) -> tuple[str, bool]:
+    """Generate the answer a token at a time, printing as it arrives.
+
+    This is the last stage, and it decodes several hundred tokens on a local
+    model — measured at roughly half a minute of complete silence at the end of
+    every run. Streaming does not make the run shorter; it makes the wait
+    visible, and the answer readable while the rest is still being written.
+    """
+    model = get_model("composer")
+    trace = active_trace()
+    show = bool(trace and trace.print_to_screen)
+    parts: list[str] = []
+    try:
+        for chunk in model.stream(messages):
+            text = _text(chunk.content)
+            if not text:
+                continue
+            if show:
+                if not parts:
+                    print("\nAnswer\n------", flush=True)
+                print(text, end="", flush=True)
+            parts.append(text)
+    except NotImplementedError:
+        # A model wrapper without streaming still has to produce an answer.
+        return _text(model.invoke(messages).content), False
+    if show and parts:
+        print(flush=True)
+    return "".join(parts), bool(show and parts)
+
+
 def compose_final(state: AgentState) -> dict[str, Any]:
     assumptions = state.get("assumptions") or []
     system = (
@@ -128,7 +159,7 @@ def compose_final(state: AgentState) -> dict[str, Any]:
     )
     if state.get("sufficiency", {}).get("budget_exhausted"):
         system += "\nThe global tool budget was exhausted; disclose unresolved evidence gaps."
-    response = get_model("composer").invoke(
+    draft, streamed = _stream_answer(
         [
             SystemMessage(content=system),
             HumanMessage(
@@ -144,7 +175,7 @@ def compose_final(state: AgentState) -> dict[str, Any]:
             ),
         ]
     )
-    draft = _text(response.content).strip()
+    draft = draft.strip()
     if not draft:
         # Preserve an existing draft if the composer is invoked manually as a
         # retry and the model returns no content.
@@ -180,7 +211,7 @@ def compose_final(state: AgentState) -> dict[str, Any]:
         "resolved_params": session.get("resolved_params", {}),
         "prior_reports": reports,
     }
-    return {"draft": draft, "session": updated_session}
+    return {"draft": draft, "draft_streamed": streamed, "session": updated_session}
 
 
 # Backward-compatible import name.

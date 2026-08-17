@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from pathlib import Path
 from typing import Annotated, Any, TypedDict
 
@@ -13,6 +12,7 @@ from langchain_core.tools import StructuredTool
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
 
+from cs_agent.backends.read_only_sql import read_only_sql_error
 from cs_agent.config.limits import get_limits
 from cs_agent.llm import get_model, structured
 from cs_agent.tool_errors import (
@@ -27,7 +27,6 @@ WRITE_SQL_PROMPT = (PROMPTS / "analytics_write_sql.md").read_text(encoding="utf-
 SHAPE_PROMPT = (PROMPTS / "analytics_shape.md").read_text(encoding="utf-8")
 
 logger = logging.getLogger(__name__)
-_READ_ONLY_SELECT = re.compile(r"^\s*select\b", re.IGNORECASE)
 
 
 class AnalyticsState(TypedDict, total=False):
@@ -130,10 +129,11 @@ def prepare(state: AnalyticsState) -> dict[str, Any]:
 
 
 def execute_analytics_sql(sql: str) -> dict[str, Any]:
-    """Execute one read-only PostgreSQL SELECT against the analytics views."""
+    """Execute one read-only SQLite query against the analytics views."""
     statement = sql.strip().rstrip(";")
-    if not _READ_ONLY_SELECT.match(statement) or ";" in statement:
-        return {"error": "Only one read-only SELECT statement is allowed."}
+    error = read_only_sql_error(statement)
+    if error:
+        return {"error": error}
     logger.info("analytics SQL: %s", statement)
     return backend().execute_sql(statement)
 
@@ -143,8 +143,9 @@ ANALYTICS_TOOLS = [
         func=execute_analytics_sql,
         name="execute_analytics_sql",
         description=(
-            "Execute one read-only PostgreSQL SELECT and return its columns, rows, "
-            "row count, or database error. Use one call at a time."
+            "Execute one read-only SQLite query and return its columns, rows, "
+            "row count, or database error. The statement may be a SELECT or a "
+            "WITH ... SELECT; run as many as the budget allows, one per call."
         ),
     )
 ]

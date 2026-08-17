@@ -1,4 +1,5 @@
-Write ONE SQLite SELECT answering the question.
+Write ONE SQLite query answering the question. A `WITH name AS (SELECT ...)` common
+table expression counts as one query and is the right shape for staging a comparison.
 
 Tables:
   sku_fact — ONE ROW PER (sku_code, spec_id). A product with many specifications occupies
@@ -29,7 +30,8 @@ DIALECT
   json_extract(col, '$.key'); expand arrays with json_each(col).
 
 RULES
-- One statement. SELECT only.
+- One statement per call, and it must only read: SELECT, WITH ... SELECT, or VALUES.
+  No semicolon — a trailing one is stripped, an internal one is rejected.
 - Range predicates:
     gte x -> COALESCE(value_max, value_num) >= x
     lte x -> COALESCE(value_min, value_num) <= x

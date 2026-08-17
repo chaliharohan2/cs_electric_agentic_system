@@ -69,6 +69,7 @@ def _send(
     upstream: dict[str, Any],
     *,
     revision_note: str | None = None,
+    resume: bool = False,
 ) -> Send:
     known = _known_params(state)
     depth = brief_depth(brief)
@@ -86,14 +87,16 @@ def _send(
     }
     if revision_note:
         merged["revision_note"] = revision_note
-    return Send(
-        "specialist",
-        {
-            "brief": merged,
-            "standalone_question": state.get("standalone_question", ""),
-            "upstream": upstream,
-        },
-    )
+    payload: dict[str, Any] = {
+        "brief": merged,
+        "standalone_question": state.get("standalone_question", ""),
+        "upstream": upstream,
+    }
+    if resume:
+        prior = (state.get("transcripts") or {}).get(brief["agent"]) or []
+        if prior:
+            payload["prior_messages"] = prior
+    return Send("specialist", payload)
 
 
 def dispatch_stage(state: AgentState, stage: int) -> list[Send]:
@@ -118,6 +121,7 @@ def _run_specialist(state: AgentState) -> dict[str, Any]:
                 "brief": brief,
                 "question": state.get("standalone_question", ""),
                 "upstream": state.get("upstream") or {},
+                "prior_messages": state.get("prior_messages") or [],
                 "messages": [],
                 "evidence": [],
             },
@@ -139,6 +143,9 @@ def _run_specialist(state: AgentState) -> dict[str, Any]:
     report = result["report"]
     return {
         "reports": {agent_name: report},
+        # Kept so a gate retry can resume here rather than re-retrieve; see
+        # `_resume_messages`. Held for the turn only — run.py resets it.
+        "transcripts": {agent_name: result.get("messages", [])},
         "evidence": result.get("evidence", []),
         "tool_calls_made": int(report.get("tool_calls_used", 0)),
         "stage_index": stage,
@@ -179,6 +186,7 @@ def _after_gate(state: AgentState):
                     allowance,
                     upstream,
                     revision_note="; ".join(item["violations"]),
+                    resume=True,
                 )
                 for item in failures
                 if item["agent"] in briefs

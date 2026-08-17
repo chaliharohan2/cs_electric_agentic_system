@@ -15,6 +15,7 @@ class Limits(BaseModel):
     global_tool_budget: int = Field(100, ge=1)
     per_agent_tool_budget: int = Field(20, ge=1)
     overview_tool_budget: int = Field(5, ge=1)
+    revision_tool_budget: int = Field(5, ge=1)
     composer_revision_rounds: int = Field(2, ge=0)
     clarify_rounds: int = Field(2, ge=0)
     tool_failure_limit: int = Field(3, ge=1)
@@ -46,6 +47,7 @@ _ENV_NAMES = {
     "global_tool_budget": "CS_GLOBAL_TOOL_BUDGET",
     "per_agent_tool_budget": "CS_PER_AGENT_TOOL_BUDGET",
     "overview_tool_budget": "CS_OVERVIEW_TOOL_BUDGET",
+    "revision_tool_budget": "CS_REVISION_TOOL_BUDGET",
     "composer_revision_rounds": "CS_COMPOSER_REVISIONS",
     "clarify_rounds": "CS_CLARIFY_ROUNDS",
     "tool_failure_limit": "CS_TOOL_FAILURE_LIMIT",
@@ -78,6 +80,8 @@ def get_limits() -> Limits:
         raise ValueError("per_agent_tool_budget cannot exceed global_tool_budget")
     if limits.overview_tool_budget > limits.per_agent_tool_budget:
         raise ValueError("overview_tool_budget cannot exceed per_agent_tool_budget")
+    if limits.revision_tool_budget > limits.per_agent_tool_budget:
+        raise ValueError("revision_tool_budget cannot exceed per_agent_tool_budget")
     return limits
 
 
