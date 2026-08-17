@@ -16,6 +16,7 @@ from langchain_core.runnables.config import ensure_config
 from pydantic import BaseModel
 
 from cs_agent.config.limits import get_limits
+from cs_agent.contracts import brief_depth
 from cs_agent.tool_errors import TOOL_FAILURE_LIMIT
 
 AGENT_METADATA_KEY = "cs_agent"
@@ -136,8 +137,10 @@ def _summarize_state_update(update: Any) -> list[str]:
         if plan.get("dispatch"):
             by_stage: dict[int, list[str]] = {}
             for brief in plan["dispatch"]:
+                # Depth drives how much retrieval a brief is allowed, so it is
+                # worth seeing beside the agent when reading a trace back.
                 by_stage.setdefault(int(brief.get("stage", 1) or 1), []).append(
-                    brief.get("agent", "?")
+                    f"{brief.get('agent', '?')}[{brief_depth(brief)}]"
                 )
             parts.append(
                 "agents="

@@ -11,13 +11,28 @@ from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, SystemM
 from langgraph.graph.message import add_messages
 
 from cs_agent.config.limits import get_limits
-from cs_agent.contracts import AgentBrief, REPORT_SCHEMAS
+from cs_agent.contracts import AgentBrief, REPORT_SCHEMAS, brief_depth
 from cs_agent.graph.nodes.record_evidence import _extract
 from cs_agent.llm import get_model, structured
 from cs_agent.tool_errors import count_failures, trailing_tool_messages
 
 PROMPTS = Path(__file__).resolve().parents[2] / "prompts"
 COMMON_PROMPT = (PROMPTS / "agent_common.md").read_text(encoding="utf-8")
+
+
+DEPTH_NOTE = {
+    "overview": (
+        "DEPTH: overview. Answer at range level. Name the families with their "
+        "published descriptions and SKU counts, and stop there — do not reach "
+        "ordering codes, specifications, or prices. Finish by writing the "
+        "follow_up_questions that would let the user narrow down next turn. "
+        "Spare tool budget is not work still to do."
+    ),
+    "detailed": (
+        "DEPTH: detailed. Take the objective all the way to ordering codes and "
+        "the specifications the brief asks for."
+    ),
+}
 
 
 class SpecialistState(TypedDict, total=False):
@@ -74,6 +89,7 @@ def make_agent_node(agent_name: str, tools: list[Any]):
         system = COMMON_PROMPT.format(
             brief_json=json.dumps(brief.model_dump(), default=str),
             allowance=state.get("allowance", brief.allowance),
+            depth_note=DEPTH_NOTE[brief_depth(state["brief"])],
         )
         system += "\n\n" + role_prompt
         # The running counters change every turn, so they go after the history
@@ -144,15 +160,28 @@ def make_report_node(agent_name: str):
             "evidence": state.get("evidence", []),
             "transcript": transcript,
         }
+        instruction = (
+            "Produce the specialist report. Every specification finding "
+            "must cite a SourceRef containing its sku_code."
+        )
+        # The role prompt that explains depth is bound to the agent node, not to
+        # this one, so restate the overview contract here. Without it the report
+        # comes back with no follow_up_questions, fails the gate, and the retry
+        # re-runs the whole specialist — retrieval included.
+        if brief_depth(state["brief"]) == "overview":
+            instruction += (
+                " This brief was answered at overview depth: report the families "
+                "and leave representative_skus empty, and populate "
+                "follow_up_questions with the two or three questions that would "
+                "let the user narrow down on the next turn. A rating span read "
+                "off a category or family page describes the range, not one "
+                "product, so record it with kind 'catalogue' — 'specification' "
+                "is for a value retrieved against a particular sku_code."
+            )
         result = structured(
             "agent",
             [
-                SystemMessage(
-                    content=(
-                        "Produce the specialist report. Every specification finding "
-                        "must cite a SourceRef containing its sku_code."
-                    )
-                ),
+                SystemMessage(content=instruction),
                 HumanMessage(content=json.dumps(payload, default=str)),
             ],
             schema,

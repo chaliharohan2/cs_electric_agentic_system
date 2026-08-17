@@ -20,7 +20,10 @@ TAXONOMY_BROWSE = (
     "as uncategorised pricelist sections. include_facets adds ordering-code axis values "
     "for the whole branch; near the root that list is capped to the most common ones, "
     "so read facets_truncated and browse deeper rather than concluding a variant does "
-    "not exist. Browsing alone is not a product answer."
+    "not exist. path is a LIST of literal division / product_group / "
+    "product_subgroup / product_range values, never a URL slug or brochure wording; "
+    "call it with path=[] — the empty list, not an empty string — to list the "
+    "divisions, then work down from the children it returns."
 )
 
 PRODUCT_SEARCH = (

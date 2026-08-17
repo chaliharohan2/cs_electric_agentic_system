@@ -10,7 +10,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
 
 from cs_agent.config.limits import get_limits
-from cs_agent.contracts import REPORT_SCHEMAS
+from cs_agent.contracts import REPORT_SCHEMAS, brief_depth
 from cs_agent.graph.digest import upstream_digest
 from cs_agent.graph.nodes import (
     clarify,
@@ -71,10 +71,17 @@ def _send(
     revision_note: str | None = None,
 ) -> Send:
     known = _known_params(state)
+    depth = brief_depth(brief)
+    if depth == "overview":
+        # Capping here rather than in _allowance keeps the fair share of the
+        # turn's budget one calculation, and applies the ceiling on every path
+        # that reaches a specialist: first dispatch, gate retry, and revision.
+        allowance = min(allowance, get_limits().overview_tool_budget)
     merged = {
         **brief,
         "stage": stage,
         "allowance": allowance,
+        "depth": depth,
         "parameters": {**known, **(brief.get("parameters") or {})},
     }
     if revision_note:

@@ -1,5 +1,10 @@
 global_tool_budget: 100
 per_agent_tool_budget: 20
+# An overview answers at range level: a walk down the taxonomy and little else.
+# Kept tight because a specialist treats spare budget as work still to do, but
+# not tighter than the deepest walk — root plus four levels is four browses, and
+# a malformed call that fails validation still costs one.
+overview_tool_budget: 6
 composer_revision_rounds: 2
 clarify_rounds: 2
 tool_failure_limit: 3
