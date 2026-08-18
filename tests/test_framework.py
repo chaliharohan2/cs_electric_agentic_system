@@ -12,9 +12,10 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from cs_agent.backends.fixtures import FixturesBackend
+from cs_agent.backends.read_only_sql import read_only_sql_error
 from cs_agent.config.limits import clear_limits_cache, get_limits
 from cs_agent.contracts import (
     AdvisoryReport,
@@ -368,8 +369,10 @@ class AnswerDepthTests(unittest.TestCase):
 
         seen: dict[str, Any] = {}
 
-        def _structured(node, messages, schema):
-            seen[node] = messages[0].content
+        def _structured(node, messages, schema, **kw):
+            # The report node continues the agent's thread, so its instruction
+            # is the trailing message, not the system prompt.
+            seen[node] = messages[-1].content
             return schema(agent="discovery", status="complete", summary="s")
 
         node = make_report_node("discovery")
@@ -384,8 +387,8 @@ class AnswerDepthTests(unittest.TestCase):
 
         seen: dict[str, Any] = {}
 
-        def _structured(node, messages, schema):
-            seen[node] = messages[0].content
+        def _structured(node, messages, schema, **kw):
+            seen[node] = messages[-1].content
             return schema(agent="discovery", status="complete", summary="s")
 
         node = make_report_node("discovery")
@@ -399,7 +402,9 @@ class AnswerDepthTests(unittest.TestCase):
                     "messages": [],
                 }
             )
-        self.assertNotIn("follow_up_questions", seen["agent"])
+        # The schema rides on the same message, and DiscoveryReport declares the
+        # field, so look for the sentence the overview branch adds.
+        self.assertNotIn("populate", seen["agent"])
 
     def test_the_specialist_prompt_states_the_depth_it_is_working_at(self) -> None:
         from cs_agent.subgraphs.agents.nodes import DEPTH_NOTE, make_agent_node
@@ -419,6 +424,380 @@ class AnswerDepthTests(unittest.TestCase):
             node({"brief": self._brief(), "allowance": 5, "messages": []})
         self.assertIn(DEPTH_NOTE["overview"], captured["system"])
         self.assertNotIn(DEPTH_NOTE["detailed"], captured["system"])
+
+
+class LatencyShapeTests(unittest.TestCase):
+    """Each of these pins a change made because a run was measured too slow.
+
+    The profile of the run that prompted them: 95–99% of wall time was model
+    inference, tools were 0.9%, and the single largest stage was the specialist
+    report at 48% of all model time.
+    """
+
+    @staticmethod
+    def _brief(**kw: Any) -> dict[str, Any]:
+        return AgentBrief(
+            agent="discovery",
+            objective="map ACBs",
+            depth="detailed",
+            allowance=20,
+            **kw,
+        ).model_dump()
+
+    def _capture_report_messages(self, state: dict[str, Any]) -> list[Any]:
+        from cs_agent.subgraphs.agents.nodes import make_report_node
+
+        seen: dict[str, list[Any]] = {}
+
+        def _structured(node, messages, schema, **kw):
+            seen["messages"] = messages
+            return schema(agent="discovery", status="complete", summary="s")
+
+        node = make_report_node("discovery")
+        with patch(
+            "cs_agent.subgraphs.agents.nodes.structured", side_effect=_structured
+        ):
+            node(state)
+        return seen["messages"]
+
+    def test_the_report_continues_the_agent_thread(self) -> None:
+        """The prefix has to match the loop's, or the server re-reads it all.
+
+        The old node built a fresh system prompt and one JSON payload, which
+        shared nothing with the conversation that had just run: 642 tok/s of
+        prefill against the 2,771 tok/s the loop was getting on the same text.
+        """
+        from cs_agent.subgraphs.agents.nodes import _system_prompt, make_agent_node
+
+        history = [
+            HumanMessage(content="User question: what ACBs are there?"),
+            AIMessage(content="looked it up"),
+        ]
+        state = {
+            "brief": self._brief(),
+            "agent_name": "discovery",
+            "allowance": 20,
+            "messages": history,
+        }
+        messages = self._capture_report_messages(state)
+        self.assertEqual(history, list(messages[1:-1]))
+
+        captured: dict[str, Any] = {}
+
+        class _Model:
+            def bind_tools(self, tools):
+                return self
+
+            def invoke(self, msgs):
+                captured["system"] = msgs[0].content
+                return AIMessage(content="")
+
+        with patch("cs_agent.subgraphs.agents.nodes.get_model", return_value=_Model()):
+            make_agent_node("discovery", [])(state)
+        # Byte-identical, not merely similar: one differing character at the
+        # front costs a full re-read of the accumulated transcript.
+        self.assertEqual(captured["system"], messages[0].content)
+        self.assertEqual(_system_prompt("discovery", state), messages[0].content)
+
+    def test_the_report_no_longer_restates_the_transcript_as_evidence(self) -> None:
+        """Transcript plus evidence was the same tool output twice.
+
+        On the measured run that payload was 407,618 chars, 214,427 of it the
+        `evidence` re-encoding.
+        """
+        state = {
+            "brief": self._brief(),
+            "agent_name": "discovery",
+            "allowance": 20,
+            "messages": [HumanMessage(content="q")],
+            "evidence": [
+                {"tool": "taxonomy_browse", "text": "UNIQUE-EVIDENCE-MARKER"}
+            ],
+        }
+        rendered = json.dumps(
+            [m.content for m in self._capture_report_messages(state)], default=str
+        )
+        self.assertNotIn("UNIQUE-EVIDENCE-MARKER", rendered)
+
+    def test_the_schema_rides_last_so_it_cannot_break_the_prefix(self) -> None:
+        messages = self._capture_report_messages(
+            {
+                "brief": self._brief(),
+                "agent_name": "discovery",
+                "allowance": 20,
+                "messages": [HumanMessage(content="q")],
+            }
+        )
+        self.assertIn("JSON Schema", messages[-1].content)
+        self.assertNotIn("JSON Schema", messages[0].content)
+
+    def test_an_unanswered_tool_call_is_closed_before_the_thread_is_reused(
+        self,
+    ) -> None:
+        """The loop can stop mid-turn; providers reject a dangling call."""
+        pending = AIMessage(
+            content="",
+            tool_calls=[{"name": "get_sku", "args": {"sku_code": "X"}, "id": "c1"}],
+        )
+        messages = self._capture_report_messages(
+            {
+                "brief": self._brief(),
+                "agent_name": "discovery",
+                "allowance": 20,
+                "messages": [HumanMessage(content="q"), pending],
+            }
+        )
+        answered = [m for m in messages if isinstance(m, ToolMessage)]
+        self.assertEqual(["c1"], [m.tool_call_id for m in answered])
+
+    def test_the_loop_is_told_not_to_write_the_report_itself(self) -> None:
+        """It wrote the report twice: once as prose, then again as JSON.
+
+        Measured at 4,423 characters of discarded prose on the turn before the
+        report node ran — about 100s of decode on a model at 11 tok/s.
+        """
+        from cs_agent.subgraphs.agents.nodes import COMMON_PROMPT
+
+        self.assertIn("You do not write the report", COMMON_PROMPT)
+        self.assertIn("call no tool", COMMON_PROMPT)
+
+    def test_the_report_keeps_the_loop_tools_bound(self) -> None:
+        """A server renders tool schemas into the prompt prefix.
+
+        Measured directly against Ollama: identical messages prefill at 91,611
+        tok/s with tools bound and repeated, and at 808 tok/s — cold — with the
+        tools removed. Dropping them here re-reads the whole transcript.
+        """
+        from cs_agent.subgraphs.agents.nodes import make_report_node
+
+        seen: dict[str, Any] = {}
+
+        def _structured(node, messages, schema, **kw):
+            seen.update(kw)
+            return schema(agent="discovery", status="complete", summary="s")
+
+        tools = tools_for_agent("discovery")
+        node = make_report_node("discovery", tools)
+        with patch(
+            "cs_agent.subgraphs.agents.nodes.structured", side_effect=_structured
+        ):
+            node(
+                {
+                    "brief": self._brief(),
+                    "agent_name": "discovery",
+                    "allowance": 20,
+                    "messages": [HumanMessage(content="q")],
+                }
+            )
+        self.assertEqual(tools, seen["tools"])
+        # Bound so the prefix matches, never so a tool gets called.
+        messages = self._capture_report_messages(
+            {
+                "brief": self._brief(),
+                "agent_name": "discovery",
+                "allowance": 20,
+                "messages": [HumanMessage(content="q")],
+            }
+        )
+        self.assertIn("Do not call a tool", messages[-1].content)
+
+    def test_structured_binds_tools_only_when_asked(self) -> None:
+        # By module path: `cs_agent.llm.structured` also names the function.
+        structured_module = importlib.import_module("cs_agent.llm.structured")
+
+        bound: dict[str, Any] = {}
+
+        class _Model:
+            def bind_tools(self, tools):
+                bound["tools"] = tools
+                return self
+
+            def invoke(self, messages):
+                return AIMessage(content='{"name": "ACB"}')
+
+        with patch.object(structured_module, "get_model", return_value=_Model()):
+            structured_module.structured(
+                "planner", [HumanMessage(content="q")], FamilyBrief
+            )
+            self.assertNotIn("tools", bound)
+            structured_module.structured(
+                "planner", [HumanMessage(content="q")], FamilyBrief, tools=["t"]
+            )
+        self.assertEqual(["t"], bound["tools"])
+
+    def test_a_gate_retry_resumes_on_the_transcript(self) -> None:
+        """One gate failure cost 471s of a 963s run by restarting empty."""
+        from cs_agent.subgraphs.agents.nodes import prepare
+
+        prior = [
+            HumanMessage(content="User question: what ACBs are there?"),
+            AIMessage(content="three families"),
+        ]
+        update = prepare(
+            {
+                "brief": self._brief(revision_note="Cite a sku_code."),
+                "prior_messages": prior,
+                "question": "what ACBs are there?",
+            }
+        )
+        self.assertEqual(prior, update["messages"][:-1])
+        self.assertIn("Cite a sku_code.", update["messages"][-1].content)
+        # The retrieval is already done, so the retry gets the small budget.
+        self.assertEqual(get_limits().revision_tool_budget, update["allowance"])
+
+    def test_a_first_dispatch_still_starts_from_the_brief(self) -> None:
+        from cs_agent.subgraphs.agents.nodes import prepare
+
+        update = prepare({"brief": self._brief(), "question": "what ACBs?"})
+        self.assertEqual(1, len(update["messages"]))
+        self.assertIn("Your objective", update["messages"][0].content)
+        self.assertEqual(20, update["allowance"])
+
+    def test_the_retry_send_carries_the_previous_transcript(self) -> None:
+        from cs_agent.graph.build import _send
+
+        prior = [HumanMessage(content="earlier work")]
+        send = _send(
+            {"transcripts": {"discovery": prior}},
+            self._brief(),
+            1,
+            20,
+            {},
+            revision_note="fix it",
+            resume=True,
+        )
+        self.assertEqual(prior, send.arg["prior_messages"])
+        fresh = _send({}, self._brief(), 1, 20, {})
+        self.assertNotIn("prior_messages", fresh.arg)
+
+    def test_a_passing_gate_drops_the_transcripts_it_was_holding(self) -> None:
+        """They exist only for a retry; kept, they ride every later checkpoint."""
+        report = DiscoveryReport(
+            agent="discovery",
+            status="complete",
+            summary="s",
+            families=[FamilyBrief(name="ACB")],
+            representative_skus=["SKU-1"],
+        ).model_dump()
+        passed = gate(
+            {
+                "dispatch": [{"agent": "discovery", "stage": 1, "depth": "detailed"}],
+                "reports": {"discovery": report},
+                "transcripts": {"discovery": [HumanMessage(content="work")]},
+                "stage_index": 1,
+                "gate_retries": {},
+            }
+        )
+        self.assertEqual({"__reset__": []}, passed["transcripts"])
+        failed = gate(
+            {
+                "dispatch": [{"agent": "discovery", "stage": 1, "depth": "detailed"}],
+                "reports": {"discovery": {**report, "families": []}},
+                "transcripts": {"discovery": [HumanMessage(content="work")]},
+                "stage_index": 1,
+                "gate_retries": {},
+            }
+        )
+        # A failing stage keeps them: the retry is about to resume on them.
+        self.assertNotIn("transcripts", failed)
+
+    def test_an_identical_repeat_call_never_reaches_the_backend(self) -> None:
+        """Four identical dead-end calls out of twenty, on the measured run."""
+        from cs_agent.subgraphs.agents.tool_node import make_tool_node
+
+        ran: list[dict[str, Any]] = []
+
+        def _fake(state, config=None):
+            ran.append(state)
+            return {"messages": [ToolMessage(content="{}", tool_call_id="c2")]}
+
+        call = {"name": "list_canonical_specs", "args": {"family": "X"}, "id": "c1"}
+        again = {**call, "id": "c2"}
+        node = make_tool_node([])
+        with patch(
+            "cs_agent.subgraphs.agents.tool_node.ToolNode",
+            return_value=SimpleNamespace(invoke=_fake),
+        ):
+            node = make_tool_node([])
+            result = node(
+                {
+                    "messages": [
+                        AIMessage(content="", tool_calls=[call]),
+                        ToolMessage(content="[]", tool_call_id="c1"),
+                        AIMessage(content="", tool_calls=[again]),
+                    ]
+                }
+            )
+        self.assertEqual([], ran)
+        self.assertIn("repeat_of_call", result["messages"][0].content)
+
+    def test_a_fresh_call_alongside_a_repeat_still_runs(self) -> None:
+        from cs_agent.subgraphs.agents.tool_node import make_tool_node
+
+        sent: list[Any] = []
+
+        def _fake(state, config=None):
+            sent.extend(state["messages"][-1].tool_calls)
+            return {"messages": [ToolMessage(content="{}", tool_call_id="c3")]}
+
+        repeat = {"name": "get_sku", "args": {"sku_code": "A"}, "id": "c1"}
+        with patch(
+            "cs_agent.subgraphs.agents.tool_node.ToolNode",
+            return_value=SimpleNamespace(invoke=_fake),
+        ):
+            result = make_tool_node([])(
+                {
+                    "messages": [
+                        AIMessage(content="", tool_calls=[repeat]),
+                        ToolMessage(content="{}", tool_call_id="c1"),
+                        AIMessage(
+                            content="",
+                            tool_calls=[
+                                {**repeat, "id": "c2"},
+                                {
+                                    "name": "get_sku",
+                                    "args": {"sku_code": "B"},
+                                    "id": "c3",
+                                },
+                            ],
+                        ),
+                    ]
+                }
+            )
+        self.assertEqual(["c3"], [call["id"] for call in sent])
+        # Every call the model made gets an answer, or the thread is invalid.
+        self.assertEqual({"c2", "c3"}, {m.tool_call_id for m in result["messages"]})
+
+    def test_a_family_that_does_not_exist_says_so(self) -> None:
+        """An empty list reads as 'no specs here' and invites the same call."""
+        from cs_agent.tools import impl
+
+        result = impl.list_canonical_specs(family="Switch Sockets")
+        self.assertIsInstance(result, dict)
+        self.assertEqual("Switch Sockets", result["family_not_found"])
+        self.assertIn("taxonomy_browse", result["hint"])
+
+    def test_a_family_that_exists_returns_plain_rows(self) -> None:
+        from cs_agent.tools import impl
+
+        family = impl._known_families()[0]
+        self.assertIsInstance(impl.list_canonical_specs(family=family), list)
+
+    def test_the_final_answer_streams(self) -> None:
+        """~35s of silence at the end of every run, at 12 tok/s."""
+        # By module path: `cs_agent.graph.nodes.composer` also names a function
+        # re-exported from the package.
+        composer_module = importlib.import_module("cs_agent.graph.nodes.composer")
+
+        class _Model:
+            def stream(self, messages):
+                for piece in ("Three ", "ACB ", "families."):
+                    yield SimpleNamespace(content=piece)
+
+        with patch.object(composer_module, "get_model", return_value=_Model()):
+            text, streamed = composer_module._stream_answer([])
+        self.assertEqual("Three ACB families.", text)
+        self.assertFalse(streamed)  # no active trace, so nothing was printed
 
 
 class StagedPlanTests(unittest.TestCase):
@@ -620,6 +999,87 @@ class AnalyticsRegistryTests(unittest.TestCase):
             result = analytics_nodes.prepare({"family": "MCCB"})
         self.assertEqual({"family": "MCCB"}, seen)
         self.assertIn("MCCB", result["registry_note"])
+
+
+class ReadOnlySqlTests(unittest.TestCase):
+    """The guard on the analytics tool, which used to reject every CTE.
+
+    Two copies of this rule existed and drifted: the fixtures backend allowed
+    WITH, the tool the live runs use did not, so nothing here caught it.
+    """
+
+    def _error(self, sql: str) -> str | None:
+        return read_only_sql_error(sql.strip().rstrip(";"))
+
+    def test_a_cte_is_one_read_only_query(self) -> None:
+        sql = (
+            "WITH candidates AS (\n"
+            "  SELECT 'CSCS400DM4CO' AS sku_code\n"
+            "  UNION ALL SELECT 'CSSD400DM4CO'\n"
+            ")\n"
+            "SELECT f.sku_code, f.price_inr FROM sku_fact f "
+            "JOIN candidates c ON c.sku_code = f.sku_code"
+        )
+        self.assertIsNone(self._error(sql))
+
+    def test_the_tool_runs_a_cte_rather_than_refusing_it(self) -> None:
+        seen: dict[str, str] = {}
+        fake = SimpleNamespace(
+            execute_sql=lambda sql: seen.setdefault("sql", sql) and {"rows": []}
+        )
+        with patch.object(analytics_nodes, "backend", return_value=fake):
+            result = analytics_nodes.execute_analytics_sql(
+                "WITH x AS (SELECT 1 AS n) SELECT n FROM x;"
+            )
+        self.assertNotIn("error", result)
+        self.assertTrue(seen["sql"].startswith("WITH"))
+        self.assertFalse(seen["sql"].endswith(";"))
+
+    def test_plain_select_and_values_still_pass(self) -> None:
+        self.assertIsNone(self._error("SELECT count(DISTINCT sku_code) FROM sku_fact"))
+        self.assertIsNone(self._error("  values (1), (2)"))
+
+    def test_a_write_is_refused_wherever_it_sits(self) -> None:
+        for sql in (
+            "DELETE FROM sku_fact",
+            "WITH gone AS (DELETE FROM sku_fact RETURNING sku_code) SELECT * FROM gone",
+            "CREATE TABLE t AS SELECT 1",
+            "REPLACE INTO sku_fact VALUES (1)",
+            "PRAGMA writable_schema = 1",
+        ):
+            self.assertIsNotNone(self._error(sql), msg=sql)
+
+    def test_a_write_word_inside_an_expression_is_not_a_write(self) -> None:
+        # coalesce(replace(...)) puts `replace` right after an open paren, and
+        # a LIKE pattern can hold any keyword at all; neither is a statement.
+        self.assertIsNone(
+            self._error(
+                "SELECT coalesce(replace(value_display, ',', ''), '') AS v "
+                "FROM sku_fact WHERE spec_label LIKE '%update; drop%'"
+            )
+        )
+        self.assertIsNone(self._error("SELECT create_date FROM sku_fact"))
+
+    def test_a_second_statement_is_named_as_the_fault(self) -> None:
+        error = self._error("SELECT 1; SELECT 2")
+        self.assertIsNotNone(error)
+        # The two rejections must read differently: a single message sent the
+        # analyst back with nothing to change, and it re-sent the same SQL.
+        self.assertNotEqual(error, self._error("DELETE FROM sku_fact"))
+        self.assertIn(";", error)
+
+    def test_the_fixtures_backend_applies_the_same_rule(self) -> None:
+        backend = FixturesBackend()
+        self.assertNotIn("error", backend.execute_sql("WITH x AS (SELECT 1) SELECT 1"))
+        self.assertIn("error", backend.execute_sql("DROP TABLE sku_fact"))
+
+    def test_the_prompt_and_tool_description_admit_cte(self) -> None:
+        prompt = (ROOT / "cs_agent" / "prompts" / "analytics_write_sql.md").read_text()
+        self.assertIn("WITH", prompt)
+        description = analytics_nodes.ANALYTICS_TOOLS[0].description
+        self.assertIn("WITH", description)
+        # The backend is SQLite; calling it PostgreSQL invited Postgres-only SQL.
+        self.assertNotIn("PostgreSQL", description)
 
 
 class FixtureToolTests(unittest.TestCase):

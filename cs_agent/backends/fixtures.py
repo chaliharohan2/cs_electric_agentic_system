@@ -9,9 +9,9 @@ from pathlib import Path
 from typing import Any
 
 from cs_agent.backends.matching import matches
+from cs_agent.backends.read_only_sql import read_only_sql_error
 
 DATA_DIR = Path(__file__).parents[1] / "data" / "fixtures"
-_READ_ONLY = re.compile(r"^\s*(select|with)\b", re.IGNORECASE)
 
 
 class FixturesBackend:
@@ -366,8 +366,9 @@ class FixturesBackend:
 
     def execute_sql(self, sql: str) -> dict[str, Any]:
         statement = sql.strip().rstrip(";")
-        if not _READ_ONLY.match(statement) or ";" in statement:
-            return {"error": "Only one read-only SELECT statement is allowed"}
+        error = read_only_sql_error(statement)
+        if error:
+            return {"error": error}
         try:
             cursor = self._db.execute(statement)
             columns = [description[0] for description in cursor.description or []]

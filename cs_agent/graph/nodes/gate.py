@@ -107,4 +107,10 @@ def gate(state: AgentState) -> dict[str, Any]:
         retries = dict(state.get("gate_retries") or {})
         retries[str(stage)] = retries.get(str(stage), 0) + 1
         update["gate_retries"] = retries
+    else:
+        # Transcripts are held only so a failing stage can resume on its own
+        # work. Once the stage passes, nothing will read them again, and each
+        # one is tens of thousands of tokens that would otherwise be copied
+        # into every later checkpoint.
+        update["transcripts"] = {"__reset__": []}
     return update

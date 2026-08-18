@@ -41,7 +41,28 @@ endpoints:
     temperature: 0.0
     max_tokens: 20000
     thinking: false
-    # keep_alive: -1 # to keep the model loaded forever
+    keep_alive: -1 # to keep the model loaded forever
+    # Measured peak prompt is ~52k tokens once the report node stops restating
+    # the transcript. num_ctx buys no speed — decode is flat across 4k, 64k and
+    # 131k on this server — so this is sized for headroom, not latency: a
+    # smaller window frees VRAM for the parallel slots the fan-out needs.
+    num_ctx: 80000
+    timeout: 1800.0
+
+  # Native Ollama endpoints. `provider: ollama` swaps ChatOpenAI for ChatOllama,
+  # which needs no API key and takes thinking and the context window directly.
+  ollama_qwen_3_8_27b:
+    provider: ollama
+    base_url: http://192.168.0.147:11434/api/chat
+    model: qwen3.8:27b
+    temperature: 0.0
+    max_tokens: 20000
+    thinking: false
+    keep_alive: -1 # to keep the model loaded forever
+    # Measured peak prompt is ~52k tokens once the report node stops restating
+    # the transcript. num_ctx buys no speed — decode is flat across 4k, 64k and
+    # 131k on this server — so this is sized for headroom, not latency: a
+    # smaller window frees VRAM for the parallel slots the fan-out needs.
     num_ctx: 80000
     timeout: 1800.0
 
@@ -53,6 +74,10 @@ endpoints:
     max_tokens: 20000
     thinking: false
     keep_alive: -1 # to keep the model loaded forever
+    # Measured peak prompt is ~52k tokens once the report node stops restating
+    # the transcript. num_ctx buys no speed — decode is flat across 4k, 64k and
+    # 131k on this server — so this is sized for headroom, not latency: a
+    # smaller window frees VRAM for the parallel slots the fan-out needs.
     num_ctx: 80000
     timeout: 1800.0
 

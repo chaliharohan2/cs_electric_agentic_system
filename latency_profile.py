@@ -42,6 +42,54 @@ def _find_ollama_meta(node, out: list[dict]) -> None:
             _find_ollama_meta(value, out)
 
 
+def _stage_of(messages: object) -> str:
+    """Name the pipeline stage a call belongs to, from its system prompt.
+
+    The split that matters is the specialist's tool loop against its report
+    call: they run the same model on nearly the same text, and on the run this
+    was written for the report was 48% of all model time.
+    """
+    flat = messages
+    while isinstance(flat, list) and flat and isinstance(flat[0], list):
+        flat = flat[0]
+    if not isinstance(flat, list):
+        return "?"
+    system = " ".join(
+        str(m.get("content") or "")
+        for m in flat
+        if isinstance(m, dict) and m.get("type") == "system"
+    )
+    # The whole last message, not a slice of it: the report node puts its
+    # instruction and the schema there, and the schema JSON is long enough that
+    # any fixed-size window off the end misses the wording that identifies it.
+    tail = " ".join(
+        str(m.get("content") or "") for m in flat[-1:] if isinstance(m, dict)
+    )
+    # Match the report node's own instruction, which is worded the same before
+    # and after that node was folded into the specialist's thread, so old and
+    # new runs stay comparable. Matching a looser "specialist report" would also
+    # catch both composer prompts, which talk *about* specialist reports.
+    produced = "Produce the specialist report"
+    if produced in system or produced in tail:
+        return "specialist report"
+    # `structured` retries by appending its validation error, so a retry's last
+    # message is the error, not the instruction. Without this the retry — often
+    # the call that actually produces the report — lands in the loop's bucket.
+    if "Invalid output. Fix these errors" in tail:
+        return "specialist report" if "You are one specialist" in system else "retry"
+    if "You are one specialist" in system:
+        return "specialist report" if "JSON Schema" in tail else "specialist loop"
+    if "Write the final answer" in system:
+        return "compose_final"
+    if "enough evidence" in system:
+        return "composer sufficiency"
+    if "Ask at most" in system:
+        return "clarify"
+    if "JSON Schema" in system:
+        return "intake / planner"
+    return "other"
+
+
 def _merged_seconds(spans: list[tuple[datetime, datetime]]) -> float:
     """Union of intervals, so parallel specialists are not double counted."""
     total = 0.0
@@ -109,9 +157,13 @@ def profile(path: Path) -> None:
                         }
                     )
             elif event == "llm.start":
-                open_llm[run_id] = _parse_ts(record["timestamp"])
+                open_llm[run_id] = (
+                    _parse_ts(record["timestamp"]),
+                    _stage_of(record.get("messages")),
+                )
             elif event in {"llm.end", "llm.error"}:
-                start_ts = open_llm.pop(run_id, None)
+                opened = open_llm.pop(run_id, None)
+                start_ts, stage = opened if opened else (None, "?")
                 if start_ts:
                     llm_spans.append((start_ts, _parse_ts(record["timestamp"])))
                 if event == "llm.end":
@@ -121,6 +173,7 @@ def profile(path: Path) -> None:
                         meta = found[0]
                         ollama_calls.append(
                             {
+                                "stage": stage,
                                 "agent": record.get("agent") or "-",
                                 "prompt_tokens": meta.get("prompt_eval_count") or 0,
                                 "output_tokens": meta.get("eval_count") or 0,
@@ -190,6 +243,27 @@ def profile(path: Path) -> None:
         print(f"  {label:<10}{value:>9.1f}s{value / total * 100:>7.1f}%")
     print(f"  {'TOTAL':<10}{total:>9.1f}s")
 
+    by_stage: dict[str, list[dict]] = defaultdict(list)
+    for call in ollama_calls:
+        by_stage[call["stage"]].append(call)
+    print()
+    print("model time by stage")
+    print(
+        f"{'stage':<22}{'n':>4}{'wall_s':>9}{'prefill':>9}{'decode':>9}"
+        f"{'in_tok':>11}{'out_tok':>9}"
+    )
+    for stage, calls in sorted(
+        by_stage.items(), key=lambda item: -sum(c["total_s"] for c in item[1])
+    ):
+        print(
+            f"{stage:<22}{len(calls):>4}"
+            f"{sum(c['total_s'] for c in calls):>9.1f}"
+            f"{sum(c['prefill_s'] for c in calls):>9.1f}"
+            f"{sum(c['decode_s'] for c in calls):>9.1f}"
+            f"{sum(c['prompt_tokens'] for c in calls):>11,}"
+            f"{sum(c['output_tokens'] for c in calls):>9,}"
+        )
+
     prompt_tokens = sum(call["prompt_tokens"] for call in ollama_calls)
     output_tokens = sum(call["output_tokens"] for call in ollama_calls)
     print()
@@ -216,8 +290,15 @@ def profile(path: Path) -> None:
         )
 
     # The first call of a run cannot hit the cache, so its rate is the local
-    # floor to compare the aggregate against.
-    cold = min(ollama_calls, key=lambda call: call["total_s"] - call["load_s"])
+    # floor to compare the aggregate against. It has to be the first one
+    # chronologically, not the quickest: once caching works the quickest call is
+    # a cache hit, and using it as the "uncached" baseline reports every healthy
+    # run as broken. Calls with a trivial prompt are skipped because per-request
+    # overhead, not prefill, sets their rate.
+    cold = next(
+        (call for call in ollama_calls if call["prompt_tokens"] >= 500),
+        ollama_calls[0],
+    )
     cold_rate = (
         cold["prompt_tokens"] / cold["prefill_s"] if cold["prefill_s"] else 0.0
     )

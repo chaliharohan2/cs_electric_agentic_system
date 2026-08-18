@@ -31,13 +31,21 @@ def strip_fences(text: str) -> str:
     return text
 
 
-def _schema_instruction(schema: type[BaseModel]) -> str:
+def schema_instruction(schema: type[BaseModel]) -> str:
+    """The wording that asks for a schema-shaped JSON object.
+
+    Public because a caller continuing an existing conversation has to place it
+    itself: `structured` puts it first, which is right for a one-shot call and
+    wrong when the messages before it are a transcript the server has already
+    cached. Passing it as the last message keeps that prefix byte-identical.
+    """
     schema_json = json.dumps(schema.model_json_schema(), indent=2)
     return (
         "Respond with ONLY a JSON object matching this JSON Schema. "
         "No markdown fences, no commentary.\n\n"
         f"{schema_json}"
     )
+
 
 
 def _content_text(content: object) -> str:
@@ -56,8 +64,19 @@ def structured(
     messages: list[BaseMessage],
     schema: type[T],
     attempts: int = 2,
+    tools: list[object] | None = None,
 ) -> T:
+    """Ask for a schema-shaped JSON object, validating and retrying.
+
+    ``tools`` are bound but never expected to be called. It exists for a caller
+    continuing a tool-using conversation: a server renders the tool schema into
+    the prompt prefix, so asking the same messages *without* tools is a
+    different prefix and re-reads the whole transcript from cold — measured at
+    808 tok/s against 91,611 tok/s for the identical text with tools bound.
+    """
     model = get_model(node)
+    if tools:
+        model = model.bind_tools(tools)
     msgs: list[BaseMessage] = list(messages)
     has_schema_hint = any(
         isinstance(m, (SystemMessage, HumanMessage))
@@ -65,7 +84,7 @@ def structured(
         for m in msgs
     )
     if not has_schema_hint:
-        msgs = [SystemMessage(content=_schema_instruction(schema))] + msgs
+        msgs = [SystemMessage(content=schema_instruction(schema))] + msgs
 
     last_raw: str | None = None
     for _ in range(attempts + 1):

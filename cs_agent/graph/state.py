@@ -47,6 +47,21 @@ def merge_reports(
     return {**(current or {}), **(update or {})}
 
 
+def merge_transcripts(
+    current: dict[str, list[AnyMessage]] | None,
+    update: dict[str, list[AnyMessage]] | None,
+) -> dict[str, list[AnyMessage]]:
+    """Last transcript per agent wins, and a new turn clears the previous one.
+
+    Same reset protocol as `merge_reports`: a specialist that runs twice in a
+    turn replaces its own entry rather than accumulating, so a retry always
+    resumes from the most recent attempt.
+    """
+    if "__reset__" in (update or {}):
+        return {key: value for key, value in update.items() if key != "__reset__"}
+    return {**(current or {}), **(update or {})}
+
+
 class AgentState(TypedDict, total=False):
     messages: Annotated[list[AnyMessage], add_messages]
     session: dict[str, Any]
@@ -57,8 +72,13 @@ class AgentState(TypedDict, total=False):
     dispatch: list[dict[str, Any]]
     brief: dict[str, Any]
     upstream: dict[str, dict[str, Any]]
+    # Set on a retry's Send payload only; the branch hands it to the specialist.
+    prior_messages: list[AnyMessage]
     stage_index: Annotated[int, latest_stage]
     reports: Annotated[dict[str, dict[str, Any]], merge_reports]
+    # Each specialist's finished transcript, so a gate retry can re-enter on the
+    # work it already did instead of starting from an empty message list.
+    transcripts: Annotated[dict[str, list[AnyMessage]], merge_transcripts]
     evidence: Annotated[list[Evidence], operator.add]
     clarify_count: int
     tool_calls_made: Annotated[int, operator.add]
@@ -70,4 +90,7 @@ class AgentState(TypedDict, total=False):
     sufficiency: dict[str, Any] | None
     assumptions: list[str]
     draft: str | None
+    # Set when compose_final already printed the answer as it generated it,
+    # so the caller does not print it a second time.
+    draft_streamed: bool
     validation: dict | None

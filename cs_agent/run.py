@@ -62,6 +62,7 @@ def _initial_state(
         "dispatch": [],
         "stage_index": 0,
         "reports": {"__reset__": {}},
+        "transcripts": {"__reset__": []},
         "evidence": [],
         "clarify_count": 0,
         "tool_calls_made": 0,
@@ -74,6 +75,14 @@ def _initial_state(
         "assumptions": [],
         "draft": None,
     }
+
+
+def _print_answer(result: dict[str, Any]) -> None:
+    """Show the answer, unless compose_final already streamed it to the screen."""
+    if result.get("draft_streamed"):
+        return
+    print("\nAnswer\n------")
+    print(result.get("draft") or "No answer was produced.")
 
 
 def _answer_interrupt(payload: Any) -> str:
@@ -161,8 +170,7 @@ def main() -> int:
         session = None
         result = run_question(question, thread_id=thread_id, session=session)
         if not args.question:
-            print("\nAnswer\n------")
-            print(result.get("draft") or "No answer was produced.")
+            _print_answer(result)
             while True:
                 follow_up = input("\nFollow-up (blank to finish): ").strip()
                 if not follow_up:
@@ -171,15 +179,13 @@ def main() -> int:
                 result = run_question(
                     follow_up, thread_id=thread_id, session=session
                 )
-                print("\nAnswer\n------")
-                print(result.get("draft") or "No answer was produced.")
+                _print_answer(result)
     except (KeyboardInterrupt, EOFError):
         print("\nCancelled.", file=sys.stderr)
         return 130
 
     if args.question:
-        print("\nAnswer\n------")
-        print(result.get("draft") or "No answer was produced.")
+        _print_answer(result)
     return 0
 
 

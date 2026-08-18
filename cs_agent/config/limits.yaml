@@ -5,6 +5,11 @@ per_agent_tool_budget: 20
 # not tighter than the deepest walk — root plus four levels is four browses, and
 # a malformed call that fails validation still costs one.
 overview_tool_budget: 6
+# A retry re-enters the specialist on its own transcript, so everything already
+# retrieved is still there and the budget only has to cover the fix the gate
+# asked for. Restarting empty on the full 20 is what made one gate failure cost
+# 471s of a 963s run.
+revision_tool_budget: 5
 composer_revision_rounds: 2
 clarify_rounds: 2
 tool_failure_limit: 3

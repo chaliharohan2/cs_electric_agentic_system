@@ -88,7 +88,8 @@ turns are not promoted automatically: the planner decides depth every turn.
 
 Runtime caps live in `cs_agent/config/limits.yaml` and can be overridden with
 `CS_GLOBAL_TOOL_BUDGET`, `CS_PER_AGENT_TOOL_BUDGET`, `CS_OVERVIEW_TOOL_BUDGET`,
-`CS_MAX_STAGES`, `CS_COMPOSER_REVISIONS`, and related variables.
+`CS_REVISION_TOOL_BUDGET`, `CS_MAX_STAGES`, `CS_COMPOSER_REVISIONS`, and related
+variables.
 
 ## Execution tracing
 

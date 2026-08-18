@@ -4,16 +4,23 @@ from __future__ import annotations
 
 import json
 import operator
+from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Any, TypedDict
 
-from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, SystemMessage
+from langchain_core.messages import (
+    AIMessage,
+    AnyMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+)
 from langgraph.graph.message import add_messages
 
 from cs_agent.config.limits import get_limits
 from cs_agent.contracts import AgentBrief, REPORT_SCHEMAS, brief_depth
 from cs_agent.graph.nodes.record_evidence import _extract
-from cs_agent.llm import get_model, structured
+from cs_agent.llm import get_model, schema_instruction, structured
 from cs_agent.tool_errors import count_failures, trailing_tool_messages
 
 PROMPTS = Path(__file__).resolve().parents[2] / "prompts"
@@ -37,6 +44,9 @@ DEPTH_NOTE = {
 
 class SpecialistState(TypedDict, total=False):
     messages: Annotated[list[AnyMessage], add_messages]
+    # The transcript of this agent's previous attempt, when the gate sent it
+    # back. Distinct from `messages`, which the add_messages reducer owns.
+    prior_messages: list[AnyMessage]
     question: str
     brief: dict[str, Any]
     upstream: dict[str, dict[str, Any]]
@@ -50,6 +60,16 @@ class SpecialistState(TypedDict, total=False):
 
 def prepare(state: SpecialistState) -> dict[str, Any]:
     brief = AgentBrief.model_validate(state["brief"])
+    if resumed := _resume_messages(state, brief):
+        # A retry that starts from the transcript keeps everything already
+        # retrieved, so its budget covers only what the revision note asks for.
+        return {
+            "agent_name": brief.agent,
+            "allowance": min(brief.allowance, get_limits().revision_tool_budget),
+            "tool_calls_used": 0,
+            "tool_failures": 0,
+            "messages": resumed,
+        }
     opening = (
         f"User question: {state.get('question', '')}\n"
         f"Known parameters: {json.dumps(brief.parameters or {}, default=str)}\n"
@@ -74,6 +94,62 @@ def prepare(state: SpecialistState) -> dict[str, Any]:
     }
 
 
+def _resume_messages(
+    state: SpecialistState, brief: AgentBrief
+) -> list[AnyMessage] | None:
+    """Re-enter a specialist on its own transcript instead of from nothing.
+
+    A gate failure is nearly always about the shape of the report — a missing
+    citation, an absent follow-up question — and the retrieval that would answer
+    it is already sitting in the transcript. Restarting empty made the specialist
+    re-run every tool call to fix a field, which measured at 471s of a 963s run.
+    Coming back on the transcript also keeps the server's KV prefix, so the
+    retry's first turn costs a few hundred tokens rather than the whole history.
+    """
+    prior = state.get("prior_messages")
+    if not prior or not brief.revision_note:
+        return None
+    return [
+        *_settled(prior),
+        HumanMessage(
+            content=(
+                "Your report was rejected. Fix exactly this and nothing else:\n"
+                f"{brief.revision_note}\n\n"
+                "Everything above is still yours — do not retrieve it again. "
+                "Call a tool only if the fix needs a fact you have not already "
+                "got; otherwise answer with no tool call and the report will be "
+                "rebuilt from this transcript."
+            )
+        ),
+    ]
+
+
+def _settled(messages: list[AnyMessage]) -> list[AnyMessage]:
+    """Close off a tool call the loop stopped before answering.
+
+    The loop can exit with the model's last request unserved — budget ran out
+    mid-turn. Sending that history back with an unanswered tool_call is a
+    protocol error at most providers, so the gap is filled with the reason.
+    """
+    if not messages:
+        return []
+    last = messages[-1]
+    calls = getattr(last, "tool_calls", None)
+    if not calls:
+        return list(messages)
+    return [
+        *messages,
+        *(
+            ToolMessage(
+                content="Not executed: the tool budget ran out on this turn.",
+                tool_call_id=call["id"],
+                name=call.get("name", "unknown"),
+            )
+            for call in calls
+        ),
+    ]
+
+
 def _budget_note(state: SpecialistState) -> str:
     return (
         f"Tool calls used: {state.get('tool_calls_used', 0)}."
@@ -81,17 +157,30 @@ def _budget_note(state: SpecialistState) -> str:
     )
 
 
-def make_agent_node(agent_name: str, tools: list[Any]):
-    role_prompt = (PROMPTS / "agents" / f"{agent_name}.md").read_text(encoding="utf-8")
+@lru_cache(maxsize=8)
+def _role_prompt(agent_name: str) -> str:
+    return (PROMPTS / "agents" / f"{agent_name}.md").read_text(encoding="utf-8")
 
+
+def _system_prompt(agent_name: str, state: SpecialistState) -> str:
+    """The specialist's system prompt, identical for the loop and the report.
+
+    Both nodes build it from here so the report call shares a byte-identical
+    prefix with the loop turn before it; a single differing character at the
+    front would cost a full re-read of the accumulated transcript.
+    """
+    brief = AgentBrief.model_validate(state["brief"])
+    system = COMMON_PROMPT.format(
+        brief_json=json.dumps(brief.model_dump(), default=str),
+        allowance=state.get("allowance", brief.allowance),
+        depth_note=DEPTH_NOTE[brief_depth(state["brief"])],
+    )
+    return system + "\n\n" + _role_prompt(agent_name)
+
+
+def make_agent_node(agent_name: str, tools: list[Any]):
     def agent(state: SpecialistState) -> dict[str, Any]:
-        brief = AgentBrief.model_validate(state["brief"])
-        system = COMMON_PROMPT.format(
-            brief_json=json.dumps(brief.model_dump(), default=str),
-            allowance=state.get("allowance", brief.allowance),
-            depth_note=DEPTH_NOTE[brief_depth(state["brief"])],
-        )
-        system += "\n\n" + role_prompt
+        system = _system_prompt(agent_name, state)
         # The running counters change every turn, so they go after the history
         # rather than into the system prompt. Anything before the first differing
         # token is a KV cache hit, and a counter at the front of the prompt would
@@ -143,26 +232,22 @@ def record(state: SpecialistState) -> dict[str, Any]:
     }
 
 
-def make_report_node(agent_name: str):
+def make_report_node(agent_name: str, tools: list[Any] | None = None):
     schema = REPORT_SCHEMAS[agent_name]
 
     def report(state: SpecialistState) -> dict[str, Any]:
-        transcript = []
-        for message in state.get("messages", []):
-            item = {"type": message.type, "content": message.content}
-            if calls := getattr(message, "tool_calls", None):
-                item["tool_calls"] = calls
-            transcript.append(item)
-        payload = {
-            "brief": state["brief"],
-            "question": state.get("question"),
-            "tool_calls_used": state.get("tool_calls_used", 0),
-            "evidence": state.get("evidence", []),
-            "transcript": transcript,
-        }
+        # Continue the agent's own conversation rather than restating it as a
+        # JSON payload. The old payload carried the transcript *and* an
+        # `evidence` re-encoding of the same tool outputs — 407,618 chars on the
+        # run that motivated this, 53% of it the duplicate — and, because it
+        # opened with a fresh system prompt, none of it hit the server's KV
+        # cache: 642 tok/s against the 2,771 tok/s the agent loop was getting on
+        # the identical text. Reusing the thread makes the prefix free and hands
+        # the model the tool results in their original form.
         instruction = (
-            "Produce the specialist report. Every specification finding "
-            "must cite a SourceRef containing its sku_code."
+            "Produce the specialist report from the work above. Do not call a "
+            "tool — the retrieval is finished. Every specification finding must "
+            "cite a SourceRef containing its sku_code."
         )
         # The role prompt that explains depth is bound to the agent node, not to
         # this one, so restate the overview contract here. Without it the report
@@ -181,10 +266,19 @@ def make_report_node(agent_name: str):
         result = structured(
             "agent",
             [
-                SystemMessage(content=instruction),
-                HumanMessage(content=json.dumps(payload, default=str)),
+                SystemMessage(content=_system_prompt(agent_name, state)),
+                *_settled(state.get("messages", [])),
+                # Last, not first: `structured` would otherwise prepend the
+                # schema and break the prefix this node exists to reuse.
+                HumanMessage(
+                    content=f"{instruction}\n\n{schema_instruction(schema)}"
+                ),
             ],
             schema,
+            # Bound, not offered: the server renders tool schemas into the
+            # prompt prefix, so dropping them here would make this a different
+            # prefix from the loop's and re-read the transcript from cold.
+            tools=tools,
         )
         result.tool_calls_used = state.get("tool_calls_used", 0)
         return {"report": result.model_dump()}

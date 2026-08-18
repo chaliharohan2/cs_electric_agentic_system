@@ -306,6 +306,7 @@ Defaults (from `limits.yaml`, overridable with `CS_*`):
 | Global tool budget / turn | 100 |
 | Per-agent tool budget | 20 |
 | Overview tool budget | 6 |
+| Revision tool budget (gate retry, resumed) | 5 |
 | Stages per plan | 3 |
 | Clarify rounds | 2 |
 | Gate retries | 1 per stage (hard-coded routing) |
@@ -377,9 +378,9 @@ prepare → agent ⇄ tools → record → agent → … → report → END
 |---|---|
 | **prepare** | Seed a private human message from the brief/objective; reset local call counters. |
 | **agent** | LLM bound only to that role’s tools. System prompt = shared `agent_common.md` + role body under `prompts/agents/`. Remembers remaining allowance and failure count. |
-| **tools** | LangGraph `ToolNode` executes the requested catalogue/analytics tools. Errors become tool results (with hints), not graph crashes. |
+| **tools** | A wrapper around LangGraph's `ToolNode` (`subgraphs/agents/tool_node.py`) executes the requested tools. Errors become tool results (with hints), not graph crashes. A call whose name and arguments exactly match one already answered in this transcript is short-circuited with a pointer to it rather than re-executed — see "Repeat calls" below. |
 | **record** | Trailing tool messages are turned into evidence rows (facts, names, document snippets, analytics statements) and tagged with the agent name. Call/failure counters update. |
-| **report** | Structured Pydantic report for that role (`DiscoveryReport`, `SpecSelectionReport`, …). Spec findings must carry a `SourceRef` with `sku_code`. |
+| **report** | Structured Pydantic report for that role (`DiscoveryReport`, `SpecSelectionReport`, …). Spec findings must carry a `SourceRef` with `sku_code`. Runs as a continuation of the agent's own conversation, not a fresh call — see "Why the report reuses the thread" below. |
 
 Routing stops tool use when:
 
@@ -388,6 +389,56 @@ Routing stops tool use when:
 - tool failures hit the per-agent failure limit
 
 Then the report node always runs.
+
+**Why the report reuses the thread.** The report call sends the same system
+prompt the loop used, then the loop's own messages, then the instruction and
+schema as one trailing human message. It looks redundant — the model just saw
+all of it — and it is the single largest latency saving in the pipeline.
+
+The node used to build a fresh `SystemMessage` and one large JSON payload
+holding `brief`, `question`, a rendered `transcript`, *and* the `evidence` rows.
+The last two are the same tool outputs in two encodings: on the measured run the
+payload was 407,618 characters, of which `evidence` was 214,427 and 79% of those
+records were spec-registry rows rather than product facts. Worse, a fresh system
+prompt shares no prefix with the loop that just ran, so none of it hit the
+server's KV cache: report calls prefilled at 642 tok/s against the 2,771 tok/s
+the agent loop was getting on the identical text. One report call took 422s.
+
+Continuing the thread makes the prefix free and hands the model the tool results
+in their original form. Three constraints hold it together, and each was found
+by measurement rather than reasoning:
+
+1. `_system_prompt` is shared by both nodes, so the prefix is byte-identical.
+2. The schema rides in the **last** message, not the first: `structured()`
+   prepends its schema hint unless one is already present, which would put a
+   fresh 5.8k-character system message ahead of the transcript.
+3. The loop's tools stay **bound** on the report call. A server renders tool
+   schemas into the prompt prefix, so the same messages sent without tools are
+   a different prefix. Measured against Ollama directly: identical text
+   prefills at 91,611 tok/s with tools bound and repeated, and at 808 tok/s —
+   cold, indistinguishable from a first call — with the tools removed. The
+   report is still told not to call one; they are bound for the prefix, not
+   offered for use.
+
+`evidence` no longer goes to the model at all; it is still accumulated into
+`AgentState` for the (dormant) validator.
+
+Because the report node reads the same conversation, the loop must not write the
+report itself. Left to its own devices the specialist ends its last turn with the
+report in prose — 4,423 characters of it on one measured run — which the report
+node then regenerates as JSON. The prose is discarded, and generating it cost
+about 100s on a model decoding at 11 tok/s. `agent_common.md` therefore states
+that retrieval is the loop's whole job and that it should finish with one short
+sentence and no tool call.
+
+**Repeat calls.** Specialists re-issue calls they have already made — one
+measured run called `list_canonical_specs(family="Switch Sockets")` four times
+unchanged after the first returned nothing. The tool node answers an exact
+repeat with `{"repeat_of_call": n, ...}` instead of re-running it, which costs a
+few tokens rather than a few thousand and says the thing a second identical call
+cannot discover for itself: the arguments have to change. Mixed batches still
+run their fresh calls, and every call the model made gets a result, because a
+tool call left unanswered makes the thread invalid at most providers.
 
 ### 4.7 Gate (deterministic, no LLM)
 
@@ -416,13 +467,21 @@ belong to `kind: catalogue`; `specification` means a value read against one
 `sku_code`.
 
 On failure, the gate may **re-Send only the failing agents once**, appending the
-violations as a `revision_note` on their briefs. Because a retry restarts the
-specialist with only that note — no transcript — it repeats the agent's
-retrieval, so a rule that fires on a formatting slip costs a full re-run.
-Violations are deduplicated for that reason: the note is prose the model reads,
-and one rule repeated four times reads as four faults. Retries are counted per stage
-in `gate_retries`, so a stage that struggled does not consume the retry another
-stage may need. This is what keeps weaker local models from “browsing forever
+violations as a `revision_note` on their briefs. A retry **resumes on the
+specialist's own transcript**: `_run_specialist` keeps each finished message
+list in `AgentState.transcripts`, `_send(..., resume=True)` hands it back, and
+`prepare` re-enters with it plus the revision note. Because the retrieval is
+already there, the retry is capped at `revision_tool_budget` rather than the
+full per-agent budget, and its first turn is a KV-cache hit rather than a cold
+read of the history.
+
+This is a latency fix. A gate failure is nearly always about the *shape* of the
+report — a missing citation, an absent follow-up question — and restarting the
+specialist empty made it re-run every tool call to fix a field: one such retry
+measured 471s of a 963s run. Violations are still deduplicated: the note is
+prose the model reads, and one rule repeated four times reads as four faults.
+Retries are counted per stage in `gate_retries`, so a stage that struggled does
+not consume the retry another stage may need. This is what keeps weaker local models from “browsing forever
 and never looking up a SKU.”
 
 If contracts pass — or the stage's retry is spent — routing moves to the next
@@ -650,10 +709,20 @@ Never use it for numeric rating lookup.
 **`analytics_query`**
 Delegates multi-step SQL analysis to a private analytics subgraph
 (`prepare → analyst ⇄ execute_analytics_sql → summarize`). The analyst may run
-several read-only SELECTs against `sku_fact` / `chunk` (SQLite dialect; capped by
+several read-only queries against `sku_fact` / `chunk` (SQLite dialect; capped by
 `analytics_max_queries`) and returns a factual summary with numeric evidence —
 no recommendations. Used when ranking/aggregating many SKUs is awkward with
 the structured tools alone.
+
+One statement per call, and it must read only: `SELECT`, `WITH … SELECT`, or
+`VALUES`. `read_only_sql_error` in `cs_agent/backends/read_only_sql.py` is the
+single definition, shared by the tool and the fixtures backend so the two cannot
+disagree about what a query is. It rejects an internal `;` and a data-modifying
+keyword in statement-head position, checked against a copy with string literals
+blanked so a `LIKE` pattern is not mistaken for syntax. The SQLite connection
+opens `mode=ro`, so this is defence in depth rather than the enforcement; what it
+buys is a specific message — a rejection that names the wrong fault costs a query
+from the budget and gets the same SQL sent again.
 
 `prepare` seeds the SQL writer with a specification vocabulary. That registry is
 one row per `(family, spec_id)` — 1,712 rows, ~108k tokens — so it is scoped
@@ -862,6 +931,68 @@ attached by `agent_scoped_config` when a subgraph is invoked, and it is
 inherited by all nested runs; work the analytics subgraph performs for a
 specialist is labelled `coverage/analytics`. Filter one agent's activity out of
 a trace with `jq 'select(.agent == "coverage")'`.
+
+### 10.1 Where a run's time goes
+
+`latency_profile.py <trace.jsonl>` splits a run into tool execution and model
+time, and — on Ollama — uses the server's own counters to break model time into
+load, prefill and decode, attributed per pipeline stage.
+
+Two facts shape every optimisation here, and both were surprises:
+
+**Tools are free.** Across a measured two-question session, 60 tool calls took
+25.4s against 1,712s of model time — 0.9% of wall clock. Nothing in the
+catalogue layer is worth tuning for latency. What costs is tokens through the
+model, so the levers are: fewer calls, shorter prompts, fewer generated tokens,
+and prompt prefixes the server can reuse.
+
+**Measured effect of the changes above.** The same two questions, same model
+(`qwen3.6:27b`), before and after the report node was folded into the
+specialist's thread, gate retries were made to resume, repeat tool calls were
+suppressed, and the loop was told to stop writing the report in prose:
+
+| | before | after |
+|---|---:|---:|
+| wall, question 1 | 963s | 450s |
+| wall, question 2 (follow-up) | 804s | 623s |
+| model prefill | 677s | 232s |
+| model decode | 1,002s | 799s |
+| tool calls | 60 | 39 |
+| output tokens | 11,072 | 9,258 |
+| effective prefill | 1,584 tok/s | 3,351 tok/s |
+
+Prefill fell by two thirds; decode by a fifth, and only because fewer tokens
+were generated. That ratio is the point: prompt-side work is nearly free to
+optimise and nearly exhausted, and what remains is generation.
+
+**Prefill is cheap when cached; decode never is.** A tool-calling loop re-sends
+its whole transcript every turn, so `resend` in the profile's prefix-reuse table
+is normally several times 1.0. That is inherent and not a problem *if* the
+server charges only for the new tokens: cached loop turns measure 6,000–7,800
+tok/s against a ~790 tok/s cold rate on the same box. Decode has no such
+escape — it runs at whatever the model does, and on qwen3.6:27b that is 11–12
+tok/s regardless of context size (measured flat across 4k, 64k, 80k and 131k
+windows). Once prefill is cached, decode is 78% of model time, and the only
+remaining levers are generating fewer tokens or serving a faster model.
+
+The prefix-reuse verdict compares the aggregate rate against the run's **first**
+call, not its quickest. Using the quickest inverts the test: once caching works,
+the quickest call is a cache hit, and every healthy run reports as broken.
+
+What a healthy prefix looks like, from one specialist's report call before and
+after the tool schemas were kept bound on it:
+
+| | prompt | prefill | rate |
+|---|---:|---:|---|
+| unbound tools (cold) | 51,011 tok | 72.0s | 708 tok/s |
+| bound, first attempt | 40,087 tok | 12.7s | 3,146 tok/s |
+| bound, `structured` retry | 40,162 tok | 0.4s | 104,185 tok/s |
+
+The middle row is a wasted attempt: with tools in scope the model sometimes
+answers the report request with a tool call instead of JSON, which fails
+validation. It costs ~5s of decode and leaves the whole transcript cached, so
+the retry that follows prefills in 0.4s — still 87s ahead of the cold path.
+That trade is why the tools stay bound despite the occasional wasted call.
 
 `cs_agent/eval.py` is a small JSONL harness that runs cases through
 `run_question` and reports per-agent dispatch accuracy and endpoint profile
