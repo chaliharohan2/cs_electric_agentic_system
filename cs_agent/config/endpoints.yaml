@@ -88,5 +88,6 @@ nodes:
   clarify:   sonnet
   agent:     sonnet
   composer:  sonnet
+  out_of_scope: sonnet
   analytics.write_sql: sonnet
   analytics.shape:     sonnet

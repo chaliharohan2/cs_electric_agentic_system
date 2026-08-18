@@ -70,10 +70,18 @@ used (`mode: "lexical"`).
 
 ## Workflow
 
-`intake` resolves follow-ups, then the planner picks the private specialists the
-question needs and orders them into stages. A stage starts only once the one before it
-has finished, and receives a digest of its findings, so `discovery` hands families to
-`spec_selection` instead of both retrieving them. Agents share a stage only when
+`intake` resolves follow-ups, then the planner decides **scope**. A question that is
+not about the catalogue leaves here: a C&S enquiry for another desk (careers, an order,
+warranty, dealership) is handed to the website and phone number in
+`cs_agent/config/contact.yaml`, and anything with no C&S connection is declined with an
+offer of what the desk does cover. Neither runs a specialist or spends a tool call. The
+scope decision rides on the planner call that already happens, so it adds no round trip
+to a real question.
+
+For a catalogue question the planner picks the private specialists it needs and orders
+them into stages. A stage starts only once the one before it has finished, and receives
+a digest of its findings, so `discovery` hands families to `spec_selection` instead of
+both retrieving them. Agents share a stage only when
 neither needs the other's output. A deterministic gate checks each stage's reports
 before the next begins, and the composer performs a structured sufficiency pass before
 writing the answer. Missing evidence triggers only the named specialist, up to the
@@ -86,12 +94,25 @@ Discovery defaults to `overview`, so "what air circuit breakers do you have" nam
 three ranges and asks a question back instead of walking the whole branch. Follow-up
 turns are not promoted automatically: the planner decides depth every turn.
 
+The composer writes the answer in one voice: what the catalogue holds and what the
+engineering asks for are folded together rather than split into labelled sections, and
+a gap is mentioned only when the customer asked for that thing or when acting without
+it would be a mistake. Redirection details are overridable with `CS_CONTACT_WEBSITE`
+and `CS_CONTACT_PHONE`.
+
 Runtime caps live in `cs_agent/config/limits.yaml` and can be overridden with
 `CS_GLOBAL_TOOL_BUDGET`, `CS_PER_AGENT_TOOL_BUDGET`, `CS_OVERVIEW_TOOL_BUDGET`,
 `CS_REVISION_TOOL_BUDGET`, `CS_MAX_STAGES`, `CS_COMPOSER_REVISIONS`, and related
 variables.
 
 ## Execution tracing
+
+Specialists stream their work to the terminal as they generate it — the prose the
+tool loop writes, and the report JSON, each labelled with the agent that owns it and
+closing with what it cost (`⏹ 1,669 output tokens in 45.8s (36 tok/s)`). The report is
+the largest generation in a turn by a wide margin, so this is where to look for output
+tokens worth cutting. Set `CS_STREAM_AGENTS=false` to silence it without losing the
+streamed final answer.
 
 Every run appends structured JSONL events to `logs/cs_agent_trace.jsonl`.
 Configure tracing in `.env`:

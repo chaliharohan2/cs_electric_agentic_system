@@ -121,18 +121,33 @@ class ContextAwareChatOllama(ChatOllama):
         check_request(self.cs_node, params)
         return params
 
+    def _check(self, info: Any) -> None:
+        # Rebuilt from the model's own configuration rather than stashed on
+        # the instance: specialists in a stage share one cached model, so an
+        # attribute set in _chat_params could belong to a sibling's request.
+        check_response(
+            self.cs_node,
+            {"model": self.model, "options": {"num_ctx": self.num_ctx}},
+            info,
+        )
+
     def _generate(self, messages, stop=None, run_manager=None, **kwargs):  # type: ignore[no-untyped-def]
         result = super()._generate(messages, stop, run_manager, **kwargs)
         if result.generations:
-            # Rebuilt from the model's own configuration rather than stashed on
-            # the instance: specialists in a stage share one cached model, so an
-            # attribute set in _chat_params could belong to a sibling's request.
-            check_response(
-                self.cs_node,
-                {"model": self.model, "options": {"num_ctx": self.num_ctx}},
-                result.generations[0].generation_info,
-            )
+            self._check(result.generations[0].generation_info)
         return result
+
+    def _stream(self, messages, stop=None, run_manager=None, **kwargs):  # type: ignore[no-untyped-def]
+        """Same truncation check on the streaming path.
+
+        The specialist report and the final answer both stream, and the report
+        is exactly where a silently truncated prompt does the most damage. Only
+        the final chunk carries Ollama's counters, so this fires once.
+        """
+        for chunk in super()._stream(messages, stop, run_manager, **kwargs):
+            if chunk.generation_info:
+                self._check(chunk.generation_info)
+            yield chunk
 
 
 def _build_ollama(ep: EndpointConfig, node: str) -> ChatOllama:

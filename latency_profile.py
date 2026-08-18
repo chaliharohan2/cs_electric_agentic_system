@@ -81,6 +81,9 @@ def _stage_of(messages: object) -> str:
         return "specialist report" if "JSON Schema" in tail else "specialist loop"
     if "Write the final answer" in system:
         return "compose_final"
+    # Not structured, so it has no schema to key off; match the refusal prompt.
+    if "you are not going to answer it" in system:
+        return "out_of_scope"
     if "enough evidence" in system:
         return "composer sufficiency"
     if "Ask at most" in system:
