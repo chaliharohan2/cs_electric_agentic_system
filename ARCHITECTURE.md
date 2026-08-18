@@ -58,6 +58,8 @@ cs_agent/
     embeddings.yaml      Query embedding profiles (active: GTE 768-d)
     limits.yaml          Budgets and caps (env-overridable)
     limits.py            Typed loader for limits.yaml
+    contact.yaml         Where an out-of-scope enquiry is sent (site + phone)
+    contact.py           Typed loader for contact.yaml
 
   graph/
     build.py             Parent LangGraph topology and routing
@@ -69,6 +71,7 @@ cs_agent/
       clarify.py         Human interrupt for missing load-bearing params
       gate.py            Deterministic report-contract checks
       composer.py        Sufficiency check + final answer
+      out_of_scope.py    Reply to a turn the catalogue pipeline never runs for
       record_evidence.py Evidence extraction helpers (used by specialists)
       validator.py       Present but unwired
 
@@ -80,7 +83,7 @@ cs_agent/
   backends/              CatalogBackend: sqlite | fixtures
   db/                    Postgres mv_* views.sql + setup/refresh (build source)
   embeddings/            Query embedding factory (GTE)
-  llm/                   Model factory + structured JSON helper
+  llm/                   Model factory, structured JSON helper, streamed generation
   prompts/               Markdown prompts for every LLM node / specialist
   data/fixtures/         Synthetic catalogue for offline tests
   validation/            Numeric fidelity helpers (dormant validator)
@@ -123,6 +126,7 @@ User question (CLI)
 │                                                              │
 │  intake → planner ⇄ clarify                                  │
 │              │                                               │
+│              ├─ scope ≠ catalogue ─► out_of_scope ─► END     │
 │              ▼                                               │
 │      ┌─► stage N: Send → one specialist per brief            │
 │      │            (parallel only within the stage)           │
@@ -166,6 +170,9 @@ Important design rules:
    allowance up front — but that allowance is sized from what earlier stages
    actually spent, so an unused budget carries forward.
 6. **The composer writes from specialist reports**, not from raw evidence dumps.
+7. **A question the catalogue cannot answer leaves before it costs anything.**
+   Scope is decided by the planner call that already happens, so the cheap path
+   is genuinely cheap: no specialist, no tool, no gate, no sufficiency pass.
 
 ---
 
@@ -212,10 +219,11 @@ what order** — not answer it.
 
 The planner returns a structured `Plan`:
 
+- `scope` and `scope_note` — see below
 - `intent` and `strategy`
 - `known_params` / `open_params`
 - `needs_clarification`
-- `dispatch`: one to five `AgentBrief`s
+- `dispatch`: one to five `AgentBrief`s, or none when scope is not `catalogue`
 
 Each brief names an agent (`discovery`, `spec_selection`,
 `solution_advisory`, `comparison`, `compliance`) and carries:
@@ -321,6 +329,29 @@ Defaults (from `limits.yaml`, overridable with `CS_*`):
 If clarification is needed and the clarify cap is not exhausted, routing goes
 to clarify; otherwise the planner forces progress and records assumptions.
 
+**Scope.** Before any of that, the planner sets `scope`:
+
+| `scope` | What it covers | Routing |
+|---|---|---|
+| `catalogue` | Products, ranges, codes, ratings, prices, standards, datasheets, or which C&S product suits an installation | Normal pipeline |
+| `company` | A real C&S enquiry for another desk: careers, an order, a complaint, warranty, dealership, accounts | `out_of_scope` → END |
+| `unrelated` | No C&S connection — general how-to with no product question behind it, another manufacturer, off-topic | `out_of_scope` → END |
+
+It rides on the planner call that already happens, which is the whole point: a
+separate classifier node would add a round trip to **every** turn to catch the
+rare one. `Plan.dispatch` therefore cannot carry a `min_length` any more, so
+`_require_dispatch_in_scope` enforces the floor of one agent for `catalogue`
+plans only — `structured()` retries a planner that returns neither.
+
+Scope is checked **before** `needs_clarification`. Asking a job applicant for a
+pole count is worse than not answering them.
+
+The prompt biases hard toward `catalogue`, because the two failure modes are not
+symmetric: answering a lightbulb question costs a wasted run, while refusing a
+real product question costs a customer. A question that mentions an
+installation, a load, an application or a standard is `catalogue` even when it
+names no product — working out which product fits *is* the job.
+
 ### 4.4 Clarify
 
 **Purpose:** ask only for parameters that would change which **family** is
@@ -372,15 +403,16 @@ Every specialist uses the same loop shape:
 
 ```text
 prepare → agent ⇄ tools → record → agent → … → report → END
+           (streamed)                                (streamed)
 ```
 
 | Step | What happens |
 |---|---|
 | **prepare** | Seed a private human message from the brief/objective; reset local call counters. |
-| **agent** | LLM bound only to that role’s tools. System prompt = shared `agent_common.md` + role body under `prompts/agents/`. Remembers remaining allowance and failure count. |
+| **agent** | LLM bound only to that role’s tools. System prompt = shared `agent_common.md` + role body under `prompts/agents/`. Remembers remaining allowance and failure count. Streams to screen under the agent's name (§10.1). |
 | **tools** | A wrapper around LangGraph's `ToolNode` (`subgraphs/agents/tool_node.py`) executes the requested tools. Errors become tool results (with hints), not graph crashes. A call whose name and arguments exactly match one already answered in this transcript is short-circuited with a pointer to it rather than re-executed — see "Repeat calls" below. |
 | **record** | Trailing tool messages are turned into evidence rows (facts, names, document snippets, analytics statements) and tagged with the agent name. Call/failure counters update. |
-| **report** | Structured Pydantic report for that role (`DiscoveryReport`, `SpecSelectionReport`, …). Spec findings must carry a `SourceRef` with `sku_code`. Runs as a continuation of the agent's own conversation, not a fresh call — see "Why the report reuses the thread" below. |
+| **report** | Structured Pydantic report for that role (`DiscoveryReport`, `SpecSelectionReport`, …). Spec findings must carry a `SourceRef` with `sku_code`. Runs as a continuation of the agent's own conversation, not a fresh call — see "Why the report reuses the thread" below. Streams too: it is the largest generation in a turn. |
 
 Routing stops tool use when:
 
@@ -522,6 +554,29 @@ It does **not** call tools. Citation policy is report-driven:
   `multiple_variants`, and disclose `price_sibling_code` alongside any figure
   carrying it
 
+**How it should read.** The reports are a pipeline artefact; the answer is a
+person. Two habits made it read like a query result instead, and the prompt now
+forbids both:
+
+- *Two sections.* The prompt used to require a labelled split — catalogue facts
+  in one block, general engineering knowledge in another — and the advisory
+  report's `catalog_backed` / `engineering_guidance` fields invited the same
+  shape. That field boundary exists so a **specialist** keeps its sourcing
+  straight; it is not a layout for the customer. The answer is one voice, and
+  what separates a retrieved figure from a judgement is wording, not a heading:
+  the figure is stated flatly and cited, the judgement is voiced as judgement.
+  Honest, and invisible.
+- *A gap inventory.* Specialists record every gap they hit, and the composer
+  used to surface all of them. Silence is now the default. A gap is mentioned
+  only when the customer explicitly asked for that thing, or when acting on the
+  answer without it would be a mistake — one sentence in place, never an
+  opening, a closing, or a list. A gap nobody asked about makes a complete
+  answer read as a failed one.
+
+The same rule covers a family whose `description` is null: write the name and
+the SKU count and move on. Inventing a characterisation is the older bug;
+announcing the absence is the other half of it, and both are now excluded.
+
 After drafting, the composer **updates session memory** for the next turn:
 
 - append a compact turn summary
@@ -529,8 +584,44 @@ After drafting, the composer **updates session memory** for the next turn:
 - refresh `focus_family` when discovery provided one
 - store `prior_reports`
 
-The draft is what the CLI prints. The numeric validator node still exists in
-the package but is **not wired** into the graph.
+The draft is what the CLI prints, unless `compose_final` already streamed it —
+`llm/streaming.py` prints tokens as they arrive and reports back whether it
+did, so the CLI does not print the answer twice. The numeric validator node
+still exists in the package but is **not wired** into the graph.
+
+### 4.10 Out of scope
+
+When the planner sets `scope` to `company` or `unrelated`, routing skips the
+whole pipeline and lands on `out_of_scope`: one short generation, no specialist,
+no tool call, no gate, no sufficiency pass. Measured at 9s end to end against
+roughly two minutes for the cheapest real catalogue answer.
+
+The two branches are deliberately shaped differently:
+
+- **`company`** — acknowledge what they asked, hand over both the website and
+  the phone number **plainly**, and offer catalogue help. No description of what
+  is at either destination: the model does not know whether a role is listed or
+  whether that page tracks orders, and an early version confidently sent people
+  to "browse current openings".
+- **`unrelated`** — decline in a line, say what the desk does cover, and where
+  there is a plausible product question next to what they asked, offer it. The
+  contact details are deliberately **withheld** here; quoting a company hotline
+  at a question that has nothing to do with C&S reads as a brush-off.
+
+Contact details live in `config/contact.yaml`, not in the prompt, because the
+routing is expected to become per-enquiry — careers, orders, service, dealer
+appointment each to their own destination. Adding those means adding keys.
+`config/contact.py` loads and caches the file, and `CS_CONTACT_WEBSITE` /
+`CS_CONTACT_PHONE` override it for a run without editing a tracked file. The
+node substitutes both into `prompts/out_of_scope.md`, so a changed destination
+never means a changed prompt.
+
+The reply streams like the final answer, since it *is* the final answer for that
+turn.
+
+The turn is recorded in `session.turns` with `out_of_scope` set and no agents,
+so a follow-up ("what about a sales role?") still has something to resolve
+against.
 
 ---
 
@@ -885,7 +976,7 @@ populated embeddings already exist at a different dimension.
 `cs_agent/config/endpoints.yaml` defines profiles (`sonnet`, `qwen_*`,
 `ollama_*`) and a node map. Current nodes:
 
-- `intake`, `planner`, `clarify`, `composer`
+- `intake`, `planner`, `clarify`, `composer`, `out_of_scope`
 - `agent` — **shared by all five specialists**
 - `analytics.write_sql`, `analytics.shape`
 
@@ -932,7 +1023,43 @@ inherited by all nested runs; work the analytics subgraph performs for a
 specialist is labelled `coverage/analytics`. Filter one agent's activity out of
 a trace with `jq 'select(.agent == "coverage")'`.
 
-### 10.1 Where a run's time goes
+### 10.1 Watching a specialist write
+
+Decode is the largest single cost in a turn and the specialist report is most of
+it — 1,669 of one overview run's 2,744 output tokens, 46s of decode, for a final
+answer of 1,310 characters. Until it finished, none of it was visible.
+
+Three calls now stream to the terminal as they generate:
+
+| Caller | Shown as | Why |
+|---|---|---|
+| `compose_final`, `out_of_scope` | raw text under `Answer` | it *is* the answer; the terminal wraps it |
+| specialist tool loop | `┊ [discovery] …` | the prose it writes between tool calls |
+| specialist report node | `┊ [discovery report] …` | the JSON, as it is built |
+
+Each specialist stream closes with what it cost —
+`⏹ 1,669 output tokens in 45.8s (36 tok/s)` — because the reason to watch is to
+find tokens not worth generating, and that judgement needs the rate as well as
+the count.
+
+Specialists fan out in parallel, so a token-level write straight to stdout would
+shred five agents' output together. Labelled output is therefore buffered and
+emitted as whole lines, broken on a space at 100 columns, through the trace
+logger's own lock — so a streamed line can never land inside a progress line.
+The answer is written raw instead, because nothing else is competing for the
+terminal by then.
+
+Everything else — intake, planner, the sufficiency check, analytics — passes no
+label and does not stream: short, structured, and only noise on screen. When
+nothing is being shown, `generate` falls through to a plain `invoke`, so no
+behaviour depends on whether anyone is watching. Silence the specialist streams
+alone with `CS_STREAM_AGENTS=false`.
+
+`ContextAwareChatOllama._stream` repeats the truncation check `_generate` does,
+because the report is exactly where a silently truncated prompt does the most
+damage and it is now on the streaming path.
+
+### 10.2 Where a run's time goes
 
 `latency_profile.py <trace.jsonl>` splits a run into tool execution and model
 time, and — on Ollama — uses the server's own counters to break model time into
@@ -1029,8 +1156,10 @@ shape, and set `CS_SKIP_VECTOR_TESTS=1` only when working without an artifact.
 
 1. User asks a follow-up about “that MCCB” on an existing thread.
 2. Intake rewrites it to an explicit SKU/family question using session focus.
-3. Planner orders the work: discovery at stage 1, spec_selection at stage 2, and
-   compliance alongside spec_selection only if the question asks for standards.
+3. Planner confirms the question is a catalogue one, then orders the work:
+   discovery at stage 1, spec_selection at stage 2, and compliance alongside
+   spec_selection only if the question asks for standards. (Had it been a job
+   application or a lightbulb, the turn would have ended here.)
 4. Stage 1 runs. Discovery privately calls structured tools, records evidence,
    and emits a typed report with sources and gaps.
 5. Gate bounces a report that browsed families but never produced SKUs or

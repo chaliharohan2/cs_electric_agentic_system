@@ -20,7 +20,7 @@ from langgraph.graph.message import add_messages
 from cs_agent.config.limits import get_limits
 from cs_agent.contracts import AgentBrief, REPORT_SCHEMAS, brief_depth
 from cs_agent.graph.nodes.record_evidence import _extract
-from cs_agent.llm import get_model, schema_instruction, structured
+from cs_agent.llm import generate, get_model, schema_instruction, structured
 from cs_agent.tool_errors import count_failures, trailing_tool_messages
 
 PROMPTS = Path(__file__).resolve().parents[2] / "prompts"
@@ -186,16 +186,18 @@ def make_agent_node(agent_name: str, tools: list[Any]):
         # token is a KV cache hit, and a counter at the front of the prompt would
         # force the server to re-read the whole accumulated transcript each turn.
         try:
-            response = (
-                get_model("agent")
-                .bind_tools(tools)
-                .invoke(
-                    [
-                        SystemMessage(content=system),
-                        *state.get("messages", []),
-                        HumanMessage(content=_budget_note(state)),
-                    ]
-                )
+            # Streamed under the agent's name so a parallel stage stays legible.
+            # A turn that ends in a tool call arrives as one chunk from Ollama,
+            # so what this actually surfaces is the prose the loop writes — the
+            # thing that should be one sentence and repeatedly was not.
+            response, _ = generate(
+                get_model("agent").bind_tools(tools),
+                [
+                    SystemMessage(content=system),
+                    *state.get("messages", []),
+                    HumanMessage(content=_budget_note(state)),
+                ],
+                label=agent_name,
             )
         except Exception as exc:
             # Ollama (and similar) can 500 on a malformed tool-call XML payload.
@@ -279,6 +281,10 @@ def make_report_node(agent_name: str, tools: list[Any] | None = None):
             # prompt prefix, so dropping them here would make this a different
             # prefix from the loop's and re-read the transcript from cold.
             tools=tools,
+            # The largest generation in a turn by a wide margin — 4,481 of one
+            # measured turn's 6,136 output tokens — and the only way to see
+            # which of them restate a tool result the report did not need.
+            label=f"{agent_name} report",
         )
         result.tool_calls_used = state.get("tool_calls_used", 0)
         return {"report": result.model_dump()}

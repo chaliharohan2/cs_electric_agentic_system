@@ -18,6 +18,7 @@ from cs_agent.graph.nodes import (
     composer_sufficiency,
     gate,
     intake,
+    out_of_scope,
     planner,
 )
 from cs_agent.graph.state import AgentState
@@ -154,6 +155,10 @@ def _run_specialist(state: AgentState) -> dict[str, Any]:
 
 def _after_planner(state: AgentState):
     plan = state.get("plan") or {}
+    # Checked before clarification: a job application has no open parameters
+    # worth asking about, and asking would be worse than not answering.
+    if plan.get("scope", "catalogue") != "catalogue":
+        return "out_of_scope"
     if (
         plan.get("needs_clarification")
         and state.get("clarify_count", 0) < get_limits().clarify_rounds
@@ -315,6 +320,7 @@ def build_graph(checkpointer=None, trace: TraceLogger | None = None):
         "gate": gate,
         "composer": composer_sufficiency,
         "compose_final": compose_final,
+        "out_of_scope": out_of_scope,
     }
     for name, node in nodes.items():
         graph.add_node(name, _trace_node(name, node, trace) if trace else node)
@@ -323,6 +329,7 @@ def build_graph(checkpointer=None, trace: TraceLogger | None = None):
     graph.add_conditional_edges("planner", _after_planner)
     graph.add_edge("clarify", "planner")
     graph.add_edge("specialist", "gate")
+    graph.add_edge("out_of_scope", END)
     graph.add_conditional_edges("gate", _after_gate)
     graph.add_conditional_edges("composer", _after_composer)
     graph.add_edge("compose_final", END)

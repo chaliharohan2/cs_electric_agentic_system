@@ -15,6 +15,12 @@ AgentName = Literal[
 ]
 ReportStatus = Literal["complete", "partial", "no_result"]
 Depth = Literal["overview", "detailed"]
+# What the turn is asking for, decided by the planner because it is already
+# reading the question and a separate classifier would cost another round trip.
+# "company" is a real C&S enquiry this agent cannot serve — a job application, an
+# order, a warranty claim, a dealer appointment. "unrelated" is everything with no
+# C&S connection at all. Both leave the pipeline; only the wording differs.
+Scope = Literal["catalogue", "company", "unrelated"]
 
 # Depth the planner gets when it names none. Discovery answers "what do you have"
 # questions, where the ranges themselves are the answer and detail belongs to a
@@ -57,7 +63,13 @@ class AgentBrief(BaseModel):
 
 class Plan(BaseModel):
     intent: str
-    dispatch: list[AgentBrief] = Field(min_length=1, max_length=5)
+    scope: Scope = "catalogue"
+    # One line naming what the user actually wanted, for the reply to open on.
+    # Only read when scope is not "catalogue".
+    scope_note: str = ""
+    # Empty only for an out-of-scope turn; `_require_dispatch_in_scope` holds
+    # the floor of one for everything else.
+    dispatch: list[AgentBrief] = Field(default_factory=list, max_length=5)
     known_params: dict[str, Any] = Field(default_factory=dict)
     open_params: list[str] = Field(default_factory=list)
     needs_clarification: bool = False
@@ -91,6 +103,22 @@ class Plan(BaseModel):
             if brief.depth is None:
                 brief.depth = DEFAULT_DEPTH.get(brief.agent, "detailed")
         self.dispatch = unique
+        return self
+
+    @model_validator(mode="after")
+    def _require_dispatch_in_scope(self) -> "Plan":
+        """A catalogue question must dispatch somebody.
+
+        `dispatch` cannot carry a minimum length any more, because an
+        out-of-scope turn legitimately dispatches nothing. Enforcing it here
+        instead keeps the guarantee where it matters and lets `structured()`
+        retry, which a Field constraint would also do — but a Field constraint
+        would additionally reject every valid refusal.
+        """
+        if self.scope == "catalogue" and not self.dispatch:
+            raise ValueError(
+                "dispatch must name at least one agent when scope is 'catalogue'"
+            )
         return self
 
 

@@ -1,0 +1,9 @@
+# Where an enquiry this agent cannot answer gets sent.
+#
+# Deliberately one destination for now. The intended shape is a route per
+# enquiry type — careers, orders, service, dealer appointment — and this file is
+# the seam where that arrives: `out_of_scope.py` reads whatever is here and the
+# prompt quotes it verbatim, so adding routes means adding keys, not editing a
+# prompt or a node.
+website: https://cselectric.co.in/
+phone: 1800-572-2012

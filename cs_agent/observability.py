@@ -263,6 +263,22 @@ class TraceLogger:
             if self.print_to_screen:
                 self._print_record(record)
 
+    def write(self, text: str, *, end: str = "\n") -> None:
+        """Print streamed model output, if the screen is in use.
+
+        Takes the same lock as `event`, because specialists stream in parallel
+        and their lines share the terminal with node progress. Deliberately not
+        written to the JSONL: `llm.end` already records the full response, and
+        duplicating it per line would double the size of every trace.
+
+        `end=""` is for the final answer, which streams as raw text and is left
+        to the terminal to wrap.
+        """
+        if not self.print_to_screen:
+            return
+        with self._lock:
+            print(text, end=end, flush=True)
+
     @staticmethod
     def _print_record(record: dict[str, Any]) -> None:
         """Render concise progress while the file retains the complete JSON event."""

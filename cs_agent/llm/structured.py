@@ -10,6 +10,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, System
 from pydantic import BaseModel, ValidationError
 
 from cs_agent.llm.factory import get_model
+from cs_agent.llm.streaming import generate
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -65,6 +66,7 @@ def structured(
     schema: type[T],
     attempts: int = 2,
     tools: list[object] | None = None,
+    label: str | None = None,
 ) -> T:
     """Ask for a schema-shaped JSON object, validating and retrying.
 
@@ -73,6 +75,10 @@ def structured(
     the prompt prefix, so asking the same messages *without* tools is a
     different prefix and re-reads the whole transcript from cold — measured at
     808 tok/s against 91,611 tok/s for the identical text with tools bound.
+
+    ``label`` streams the JSON to screen as it is generated, under that name.
+    The specialist report is the largest single generation in a turn, and it is
+    otherwise invisible until it is finished.
     """
     model = get_model(node)
     if tools:
@@ -87,8 +93,10 @@ def structured(
         msgs = [SystemMessage(content=schema_instruction(schema))] + msgs
 
     last_raw: str | None = None
-    for _ in range(attempts + 1):
-        raw = _content_text(model.invoke(msgs).content)
+    for attempt in range(attempts + 1):
+        shown = label if attempt == 0 else f"{label} retry {attempt}"
+        reply, _ = generate(model, msgs, label=shown if label else None)
+        raw = _content_text(reply.content)
         last_raw = raw
         try:
             return schema.model_validate_json(strip_fences(raw))

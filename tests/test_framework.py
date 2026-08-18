@@ -7,12 +7,14 @@ import json
 import os
 import unittest
 import uuid
+from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from pydantic import ValidationError
 
 from cs_agent.backends.fixtures import FixturesBackend
 from cs_agent.backends.read_only_sql import read_only_sql_error
@@ -30,6 +32,7 @@ from cs_agent.contracts import (
     SourceRef,
     SpecSelectionReport,
 )
+from cs_agent.config.contact import clear_contact_cache, get_contact
 from cs_agent.embeddings.factory import resolve_embedding
 from cs_agent.graph.build import (
     _after_composer,
@@ -41,6 +44,11 @@ from cs_agent.graph.build import (
     stages_in,
 )
 from cs_agent.graph.digest import digest_report, upstream_digest
+from cs_agent.llm import streaming
+# By module path: `cs_agent.graph.nodes.composer` also names a function
+# re-exported from the package, and `out_of_scope` likewise.
+composer_module = importlib.import_module("cs_agent.graph.nodes.composer")
+out_of_scope_module = importlib.import_module("cs_agent.graph.nodes.out_of_scope")
 from cs_agent.graph.nodes.gate import gate
 from cs_agent.llm import context_guard
 from cs_agent.llm.context_guard import check_request, check_response
@@ -51,6 +59,7 @@ from cs_agent.observability import (
     AGENT_METADATA_KEY,
     AgentCallbackHandler,
     agent_scoped_config,
+    set_active_trace,
 )
 from cs_agent.run import _initial_state
 from cs_agent.subgraphs.agents import build_specialist_graph
@@ -58,6 +67,48 @@ from cs_agent.tools.registry import TOOLS_BY_NAME, tools_for_agent
 from cs_agent.tools.schemas import ProductSearchArgs, SearchDocumentsArgs
 
 ROOT = Path(__file__).parents[1]
+
+
+class _StreamingModel:
+    """A chat model whose stream yields the pieces it was given."""
+
+    def __init__(self, *pieces, metadata=None, tool_call_chunks=None):
+        self.pieces = pieces
+        self.metadata = metadata
+        self.tool_call_chunks = tool_call_chunks
+
+    def stream(self, messages):
+        from langchain_core.messages import AIMessageChunk
+
+        if self.tool_call_chunks:
+            for chunk in self.tool_call_chunks:
+                yield AIMessageChunk(content="", tool_call_chunks=[chunk])
+            return
+        last = len(self.pieces) - 1
+        for index, piece in enumerate(self.pieces):
+            yield AIMessageChunk(
+                content=piece,
+                response_metadata=(self.metadata or {}) if index == last else {},
+            )
+
+    def invoke(self, messages):
+        return AIMessage(content="invoked")
+
+
+@contextmanager
+def _screen():
+    """Run with a trace that captures, rather than prints, streamed lines."""
+    lines: list[str] = []
+
+    def write(text: str, *, end: str = "\n") -> None:
+        lines.append(text)
+
+    trace = SimpleNamespace(print_to_screen=True, write=write)
+    set_active_trace(trace)
+    try:
+        yield lines
+    finally:
+        set_active_trace(None)
 
 
 class LimitsAndModelTests(unittest.TestCase):
@@ -785,19 +836,96 @@ class LatencyShapeTests(unittest.TestCase):
 
     def test_the_final_answer_streams(self) -> None:
         """~35s of silence at the end of every run, at 12 tok/s."""
-        # By module path: `cs_agent.graph.nodes.composer` also names a function
-        # re-exported from the package.
-        composer_module = importlib.import_module("cs_agent.graph.nodes.composer")
+        with _screen() as shown, patch.object(
+            streaming, "get_model", return_value=_StreamingModel("Three ", "ACB ")
+        ):
+            text, streamed = streaming.stream_answer("composer", [])
+        self.assertEqual("Three ACB ", text)
+        self.assertTrue(streamed)
+        self.assertIn("Answer", "\n".join(shown))
 
-        class _Model:
-            def stream(self, messages):
-                for piece in ("Three ", "ACB ", "families."):
-                    yield SimpleNamespace(content=piece)
+    def test_nothing_streams_when_nobody_is_watching(self) -> None:
+        """Streaming is a display concern; the result must not depend on it."""
+        model = _StreamingModel("Three ", "ACB ")
+        # No active trace, so `generate` must fall through to plain invoke.
+        with patch.object(streaming, "get_model", return_value=model):
+            text, streamed = streaming.stream_answer("composer", [])
+        self.assertEqual("invoked", text)
+        self.assertFalse(streamed)
 
-        with patch.object(composer_module, "get_model", return_value=_Model()):
-            text, streamed = composer_module._stream_answer([])
-        self.assertEqual("Three ACB families.", text)
-        self.assertFalse(streamed)  # no active trace, so nothing was printed
+    def test_a_specialist_stream_is_labelled_and_line_buffered(self) -> None:
+        """Five specialists fan out at once; unlabelled tokens would interleave."""
+        model = _StreamingModel('{"agent":', ' "discovery",\n', '"status": "ok"}')
+        with _screen() as shown:
+            message, streamed = streaming.generate(model, [], label="discovery report")
+        self.assertTrue(streamed)
+        self.assertEqual('{"agent": "discovery",\n"status": "ok"}', message.content)
+        self.assertTrue(all(line.startswith("  ┊ [discovery report]") for line in shown))
+        # Split on the newline the model emitted, not mid-token.
+        self.assertIn('  ┊ [discovery report] {"agent": "discovery",', shown)
+
+    def test_a_long_run_of_output_breaks_on_a_word(self) -> None:
+        """Labelled output repeats a prefix, so it cannot let the terminal wrap."""
+        model = _StreamingModel("word " * 60)
+        with _screen() as shown:
+            streaming.generate(model, [], label="discovery")
+        body = [line.split("] ", 1)[1] for line in shown if "⏹" not in line]
+        self.assertGreater(len(body), 1)
+        for line in body:
+            self.assertLessEqual(len(line), 100)
+        self.assertTrue(all(part == "word" for line in body for part in line.split()))
+
+    def test_parallel_specialists_never_share_a_line(self) -> None:
+        """Up to five specialists stream at once into one terminal."""
+        import threading
+
+        with _screen() as shown:
+            threads = [
+                threading.Thread(
+                    target=streaming.generate,
+                    args=(_StreamingModel(*([f"{name} "] * 40)), []),
+                    kwargs={"label": name},
+                )
+                for name in ("discovery", "compliance", "comparison")
+            ]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+        for line in shown:
+            label = line.split("] ", 1)[0].removeprefix("  ┊ [")
+            words = {word for word in line.split("] ", 1)[1].split() if word.isalpha()}
+            self.assertLessEqual(words, {label}, f"mixed line: {line!r}")
+
+    def test_a_specialist_stream_reports_what_it_cost(self) -> None:
+        """The point of watching is finding output tokens worth cutting."""
+        model = _StreamingModel(
+            "text",
+            metadata={"eval_count": 4481, "eval_duration": 132_000_000_000},
+        )
+        with _screen() as shown:
+            streaming.generate(model, [], label="discovery report")
+        self.assertIn("4,481 output tokens in 132.0s (34 tok/s)", "\n".join(shown))
+
+    def test_specialist_streaming_can_be_silenced(self) -> None:
+        model = _StreamingModel("text")
+        with patch.dict(os.environ, {"CS_STREAM_AGENTS": "false"}), _screen() as shown:
+            _, streamed = streaming.generate(model, [], label="discovery")
+        self.assertFalse(streamed)
+        self.assertEqual([], shown)
+
+    def test_a_streamed_tool_call_survives_reassembly(self) -> None:
+        """The loop streams too, and its whole purpose is the tool call."""
+        model = _StreamingModel(
+            tool_call_chunks=[
+                {"name": "taxonomy_browse", "args": "", "id": "1", "index": 0},
+                {"name": None, "args": '{"path": []}', "id": None, "index": 0},
+            ]
+        )
+        with _screen():
+            message, _ = streaming.generate(model, [], label="discovery")
+        self.assertEqual(["taxonomy_browse"], [c["name"] for c in message.tool_calls])
+        self.assertEqual({"path": []}, message.tool_calls[0]["args"])
 
 
 class StagedPlanTests(unittest.TestCase):
@@ -1080,6 +1208,183 @@ class ReadOnlySqlTests(unittest.TestCase):
         self.assertIn("WITH", description)
         # The backend is SQLite; calling it PostgreSQL invited Postgres-only SQL.
         self.assertNotIn("PostgreSQL", description)
+
+
+class OutOfScopeTests(unittest.TestCase):
+    """A question the catalogue cannot answer must leave before it costs anything.
+
+    "I'm looking for a job in your R&D team" used to reach the planner as a
+    product question, dispatch discovery, and spend a tool budget walking the
+    taxonomy for a range called R&D. The scope decision rides on the planner
+    call that already happens, so the cheap path costs no extra round trip.
+    """
+
+    def _plan(self, **kwargs: Any) -> Plan:
+        return Plan(intent="i", **kwargs)
+
+    def test_an_out_of_scope_plan_dispatches_nobody(self) -> None:
+        plan = self._plan(scope="company", scope_note="a job in the R&D team")
+        self.assertEqual([], plan.dispatch)
+        self.assertFalse(plan.needs_clarification)
+
+    def test_a_catalogue_plan_must_still_dispatch_somebody(self) -> None:
+        """The floor `dispatch` lost as a Field constraint is kept by validator."""
+        with self.assertRaises(ValidationError):
+            self._plan(scope="catalogue")
+
+    def test_scope_defaults_to_catalogue(self) -> None:
+        plan = self._plan(dispatch=[AgentBrief(agent="discovery", objective="map")])
+        self.assertEqual("catalogue", plan.scope)
+
+    def test_the_planner_routes_an_out_of_scope_turn_out_of_the_pipeline(self) -> None:
+        for scope in ("company", "unrelated"):
+            with self.subTest(scope=scope):
+                state = {
+                    "plan": {"scope": scope, "needs_clarification": False},
+                    "dispatch": [],
+                    "standalone_question": "q",
+                }
+                self.assertEqual("out_of_scope", _after_planner(state))
+
+    def test_scope_is_checked_before_clarification(self) -> None:
+        """Asking a job applicant for a pole count is worse than not answering."""
+        state = {
+            "plan": {
+                "scope": "company",
+                "needs_clarification": True,
+                "open_params": ["rated_current"],
+            },
+            "dispatch": [],
+            "clarify_count": 0,
+            "standalone_question": "any openings in R&D?",
+        }
+        self.assertEqual("out_of_scope", _after_planner(state))
+
+    def test_the_node_is_wired_into_the_graph(self) -> None:
+        self.assertIn("out_of_scope", set(build_graph().get_graph().nodes))
+
+    def test_the_reply_carries_the_configured_contact_details(self) -> None:
+        """They live in config because the routing becomes per-enquiry later."""
+        captured: dict[str, Any] = {}
+
+        def _stream(node, messages):
+            captured["node"] = node
+            captured["system"] = messages[0].content
+            captured["user"] = messages[-1].content
+            return "Try the website.", False
+
+        contact = get_contact()
+        with patch.object(out_of_scope_module, "stream_answer", side_effect=_stream):
+            update = out_of_scope_module.out_of_scope(
+                {
+                    "plan": {"scope": "company", "scope_note": "a job in R&D"},
+                    "standalone_question": "I'm looking for a job in your R&D team.",
+                    "session": {"turns": []},
+                }
+            )
+        self.assertEqual("out_of_scope", captured["node"])
+        self.assertIn(contact.website, captured["system"])
+        self.assertIn(contact.phone, captured["system"])
+        # The scope and what they actually wanted both reach the model: the
+        # reply for a careers enquiry and for a lightbulb are different shapes.
+        self.assertIn("company", captured["user"])
+        self.assertIn("a job in R&D", captured["user"])
+        self.assertEqual("Try the website.", update["draft"])
+
+    def test_an_empty_generation_still_answers_the_user(self) -> None:
+        contact = get_contact()
+        with patch.object(
+            out_of_scope_module, "stream_answer", return_value=("  ", False)
+        ):
+            update = out_of_scope_module.out_of_scope(
+                {"plan": {"scope": "unrelated"}, "standalone_question": "q"}
+            )
+        self.assertIn(contact.website, update["draft"])
+        self.assertIn(contact.phone, update["draft"])
+
+    def test_the_turn_is_recorded_so_a_follow_up_has_context(self) -> None:
+        """"What about sales?" needs to know what the previous turn was."""
+        with patch.object(
+            out_of_scope_module, "stream_answer", return_value=("Call them.", False)
+        ):
+            update = out_of_scope_module.out_of_scope(
+                {
+                    "plan": {"scope": "company", "intent": "careers"},
+                    "standalone_question": "any R&D jobs?",
+                    "session": {"turns": [{"question": "earlier"}]},
+                }
+            )
+        turns = update["session"]["turns"]
+        self.assertEqual(2, len(turns))
+        self.assertEqual("company", turns[-1]["out_of_scope"])
+        self.assertEqual([], turns[-1]["agents_used"])
+
+    def test_the_contact_details_are_overridable_without_editing_a_prompt(self) -> None:
+        with patch.dict(os.environ, {"CS_CONTACT_PHONE": "1800-000-0000"}):
+            clear_contact_cache()
+            self.assertEqual("1800-000-0000", get_contact().phone)
+        clear_contact_cache()
+
+    def test_the_planner_prompt_names_every_scope_the_contract_accepts(self) -> None:
+        """A value the contract allows but the prompt never mentions is dead."""
+        prompt = (ROOT / "cs_agent" / "prompts" / "planner.md").read_text(
+            encoding="utf-8"
+        )
+        for value in ("catalogue", "company", "unrelated"):
+            self.assertIn(f'"{value}"', prompt)
+
+
+class AnswerPresentationTests(unittest.TestCase):
+    """The answer should read like a C&S colleague, not like a query result.
+
+    Two habits made it read like a query result: splitting into a catalogue
+    section and a general-engineering section, and inventorying every gap the
+    specialists recorded whether or not the customer had asked about it.
+    """
+
+    def _system_prompt(self, state: dict[str, Any]) -> str:
+        captured: dict[str, Any] = {}
+
+        def _stream(node, messages):
+            captured["system"] = messages[0].content
+            return "answer", False
+
+        with patch.object(composer_module, "stream_answer", side_effect=_stream):
+            composer_module.compose_final(state)
+        return captured["system"]
+
+    def test_the_composer_is_told_to_write_in_one_voice(self) -> None:
+        system = self._system_prompt({"reports": {}, "standalone_question": "q"})
+        self.assertIn("One voice, never two", system)
+        self.assertNotIn("two clearly labelled sections", system)
+        self.assertNotIn("mark it clearly as general engineering practice", system)
+
+    def test_gaps_are_silent_by_default(self) -> None:
+        system = self._system_prompt({"reports": {}, "standalone_question": "q"})
+        self.assertIn("Silence is the default", system)
+        # The old rule surfaced every uncovered part of the question outright.
+        self.assertNotIn(
+            "If the catalogue does not cover part of the question, say which part",
+            system,
+        )
+
+    def test_an_absent_description_is_not_announced(self) -> None:
+        """Rule 13 stopped invention; announcing the hole is the other half."""
+        system = self._system_prompt({"reports": {}, "standalone_question": "q"})
+        self.assertIn("announce the absence either", system)
+        self.assertIn("fact about the data, not about the product", system)
+
+    def test_a_stopped_retrieval_is_not_a_licence_to_inventory_gaps(self) -> None:
+        system = self._system_prompt(
+            {
+                "reports": {},
+                "standalone_question": "q",
+                "sufficiency": {"budget_exhausted": True},
+            }
+        )
+        self.assertNotIn("disclose unresolved evidence gaps", system)
+        self.assertIn("Retrieval stopped early", system)
+        self.assertIn("Rule 10 still", system)
 
 
 class FixtureToolTests(unittest.TestCase):
