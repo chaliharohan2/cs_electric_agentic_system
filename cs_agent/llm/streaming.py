@@ -23,6 +23,7 @@ add noise.
 from __future__ import annotations
 
 import os
+from collections.abc import Collection
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
@@ -130,12 +131,31 @@ def _cost_note(message: BaseMessage | None) -> str:
     return f"{tokens:,} output tokens in {seconds:.1f}s ({tokens / seconds:.0f} tok/s)"
 
 
+def _mangled_calls(message: BaseMessage, tool_names: Collection[str]) -> list[str]:
+    """Tool names in ``message`` that no bound tool answers to.
+
+    Ollama's incremental tool-call parser is less robust than its batch one. On
+    a turn where qwen3.8 emitted its tool call in Qwen's XML form rather than
+    the JSON Ollama expects, the streamed parse split `catalogue_map` across two
+    calls — `cat\n</parameter` and `alogue_map` — while the same request
+    unstreamed came back clean. A name no tool has is the signature of that
+    split, and it is unambiguous: the model cannot have meant it, because it
+    only ever sees the names of the tools bound to it.
+    """
+    return [
+        name
+        for call in (getattr(message, "tool_calls", None) or [])
+        if (name := call.get("name") or "") not in tool_names
+    ]
+
+
 def generate(
     model: BaseChatModel,
     messages: list[Any],
     *,
     label: str | None = None,
     answer: bool = False,
+    tool_names: Collection[str] | None = None,
 ) -> tuple[BaseMessage, bool]:
     """Run ``model``, streaming to screen when there is a screen to stream to.
 
@@ -144,6 +164,11 @@ def generate(
     back whole: `AIMessageChunk.__add__` merges the tool-call fragments that
     arrive across chunks. With nothing to show, this is a plain `invoke` — the
     caller's behaviour must not depend on whether anyone is watching.
+
+    ``tool_names`` are the tools bound to ``model``. Pass them whenever the
+    reply may carry a tool call: a streamed parse that produces a name none of
+    them has is re-run unstreamed, because showing the work is never worth
+    getting the work wrong.
     """
     sink = _Sink(label, answer)
     if not sink.enabled:
@@ -156,6 +181,19 @@ def generate(
     except NotImplementedError:
         # A model wrapper without streaming still has to produce a reply.
         return model.invoke(messages), False
+    if accumulated is not None and tool_names is not None:
+        if mangled := _mangled_calls(accumulated, tool_names):
+            if trace := active_trace():
+                trace.event(
+                    "llm.stream_reparse",
+                    label=label,
+                    mangled_tool_calls=mangled,
+                    reason="streamed tool call named no bound tool; retried unstreamed",
+                )
+            # Half of the mangled turn is already on screen; close the sink so
+            # the rest is flushed and the line ends before the retry starts.
+            sink.close(accumulated)
+            return model.invoke(messages), sink.wrote
     sink.close(accumulated)
     return accumulated if accumulated is not None else AIMessage(content=""), sink.wrote
 

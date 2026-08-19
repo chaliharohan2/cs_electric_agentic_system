@@ -14,6 +14,46 @@ LIST_CANONICAL_SPECS = (
     "vocabulary. Call before product_search filters; never guess spec IDs."
 )
 
+# The only values market_segment accepts. Assigned per division in the source
+# catalogue, so they select a broad slice of the tree rather than a product
+# audience; a tool that does not say so gets called with "Domestic" and returns
+# nothing, which is what sent one measured run walking the taxonomy by hand.
+MARKET_SEGMENTS = (
+    "Agriculture, Commercial, Distribution & Transmission, Industries, "
+    "Infrastructure, Original Equipment Manufacturers (OEM), Residential"
+)
+
+SEGMENT_NOTE = (
+    "market_segment filters on the catalogue's own audience tag and accepts "
+    f"only these values: {MARKET_SEGMENTS}. The tag is assigned per division, "
+    "so it says where the catalogue files a product, not everywhere it can be "
+    "used — Residential returns Final Distribution Products, and products "
+    "elsewhere whose descriptions mention residential use are not included."
+)
+CATALOGUE_MAP = (
+    "Find where something sits in the catalogue without walking the tree. "
+    "Fuzzy-matches path_text against the full division > group > subgroup > "
+    "family path, and market_segment against the audience tag, then returns "
+    "one row per matching family broken down by the level columns themselves — "
+    "division, product_group, product_subgroup, product_range — with the SKU "
+    "count, published description and URL. A level the branch never reaches is "
+    "omitted rather than returned as 'N/A'. Each row also carries those same "
+    "values as a `path` list, which is exactly what taxonomy_browse and "
+    "product_search take, so a follow-up call needs no guessing. Needs "
+    "path_text, market_segment, or both — neither "
+    "is an error. This is the FASTEST way to answer 'what X products do you "
+    "have' and the right first call when a product-line name is known but its "
+    "path is not: catalogue_map(path_text='wintrip') returns all five WiNtrip "
+    "families in one call. " + SEGMENT_NOTE + " Punctuation and spacing do not "
+    "have to match, so 'wintrip s modular' finds \u2018S\u2019 Modular. "
+    "total_skus counts distinct SKUs across matched families and is exact, not "
+    "a sample. Families the pricelist names but the published taxonomy never "
+    "placed — RCBO among them — come back under uncategorised with no path; "
+    "reach their SKUs with product_search(family=...). An empty result carries "
+    "closest_paths or known_market_segments, so read those instead of guessing "
+    "again. It returns no ordering codes: use product_search for those."
+)
+
 TAXONOMY_BROWSE = (
     "Walk the 2–4 level C&S catalogue path one level at a time, returning published "
     "descriptions, URLs, leaf status and SKU counts. _no_category entries are separated "
@@ -23,7 +63,11 @@ TAXONOMY_BROWSE = (
     "not exist. path is a LIST of literal division / product_group / "
     "product_subgroup / product_range values, never a URL slug or brochure wording; "
     "call it with path=[] — the empty list, not an empty string — to list the "
-    "divisions, then work down from the children it returns."
+    "divisions, then work down from the children it returns. "
+    + SEGMENT_NOTE +
+    " To find a branch by name without knowing its path, or to see every "
+    "branch carrying a segment at once, call catalogue_map instead of "
+    "walking the tree."
 )
 
 PRODUCT_SEARCH = (
@@ -35,7 +79,8 @@ PRODUCT_SEARCH = (
     "finds breaking_capacity_ka. Range specs use their min/max bounds. Missing "
     "specifications mean not published, never zero. composite_excluded values are "
     "unknown, not ruled out. Read widening_hint before concluding no product exists. "
-    "price_status must be a list such as [\"listed\"], not a bare string. Hits carry "
+    "price_status must be a list such as [\"listed\"], not a bare string. "
+    "market_segment accepts only: " + MARKET_SEGMENTS + ". Hits carry "
     "price_inr with a price_quotable flag, cheapest quotable first; a figure whose "
     "price_quotable is false must not be quoted, so call get_price_detail before "
     "stating any price. For the cheapest or dearest product across a family, prefer "

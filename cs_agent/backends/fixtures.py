@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from cs_agent.backends.matching import matches
+from cs_agent.backends.path_levels import NA, path_to_levels
 from cs_agent.backends.read_only_sql import read_only_sql_error
 
 DATA_DIR = Path(__file__).parents[1] / "data" / "fixtures"
@@ -70,7 +71,7 @@ class FixturesBackend:
                         "peer_group": family["family_id"],
                         "comparable_on": [fact["spec_id"] for fact in facts],
                         "related_codes": family["variants"],
-                        "market_segments": [],
+                        "market_segments": list(family.get("market_segments") or []),
                         "also_published_as": [],
                         "decoded": {},
                         "extraction": {"missing": [], "confidence": "fixture"},
@@ -160,6 +161,67 @@ class FixturesBackend:
                     row["observed_min"] = value if row["observed_min"] is None else min(row["observed_min"], value)
                     row["observed_max"] = value if row["observed_max"] is None else max(row["observed_max"], value)
         return list(rows.values())
+
+    def catalogue_map(self, **kw: Any) -> dict:
+        path_text = (kw.get("path_text") or "").strip()
+        market_segment = (kw.get("market_segment") or "").strip()
+        limit = max(1, min(int(kw.get("limit", 40)), 100))
+
+        branches: dict[str, dict[str, Any]] = {}
+        for sku in self._fixture_skus():
+            key = " > ".join(sku["path"])
+            if key not in branches:
+                # Same level columns the SQLite artifact groups on, so a fixture
+                # test exercises the shape the live backend returns.
+                named = {
+                    column: value
+                    for column, value in path_to_levels(sku["path"]).items()
+                    if value != NA
+                }
+                branches[key] = {
+                    **named,
+                    "family": sku["path"][-1] if sku["path"] else sku["family"],
+                    "path": list(sku["path"]),
+                    "sku_count": 0,
+                    "description": sku["description"],
+                    "url": sku["url"],
+                    "market_segments": list(sku.get("market_segments") or []),
+                }
+            branches[key]["sku_count"] += 1
+
+        matched = [
+            branch for key, branch in sorted(branches.items())
+            if (not path_text or self._matches_text(key, path_text))
+            and (
+                not market_segment
+                or any(
+                    self._matches_text(segment, market_segment)
+                    for segment in branch["market_segments"]
+                )
+            )
+        ]
+        matched.sort(key=lambda b: (-b["sku_count"], b["family"]))
+        result: dict[str, Any] = {
+            "matched_on": {
+                key: value for key, value in (
+                    ("path_text", path_text), ("market_segment", market_segment)
+                ) if value
+            },
+            "groups": matched[:limit],
+            "total_groups": len(matched),
+            "total_skus": sum(branch["sku_count"] for branch in matched),
+        }
+        if not matched:
+            miss: dict[str, Any] = {}
+            if path_text:
+                miss["closest_paths"] = sorted(branches)[:6]
+            if market_segment:
+                miss["known_market_segments"] = sorted({
+                    segment for branch in branches.values()
+                    for segment in branch["market_segments"]
+                })
+            result["no_match"] = miss
+        return result
 
     def taxonomy_browse(self, **kw: Any) -> dict:
         path = kw.get("path") or []

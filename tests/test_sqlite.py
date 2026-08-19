@@ -477,6 +477,51 @@ class SqliteBackendTests(unittest.TestCase):
         self.assertIn("facets", leaf)
 
 
+    def test_catalogue_map_counts_skus_not_fact_rows(self) -> None:
+        """The mini catalogue holds one SKU across many fact rows."""
+        result = self.backend.catalogue_map(path_text="mccb")
+        self.assertEqual(1, result["total_groups"])
+        group = result["groups"][0]
+        self.assertEqual("Low Voltage", group["division"])
+        self.assertEqual("Breakers", group["product_group"])
+        self.assertEqual("MCCB", group["product_subgroup"])
+        self.assertNotIn("product_range", group)
+        self.assertEqual(["Low Voltage", "Breakers", "MCCB"], group["path"])
+        fact_rows = self.backend.execute_sql(
+            "SELECT count(*) AS n FROM sku_fact WHERE family = 'MCCB'"
+        )["rows"][0][0]
+        self.assertLess(group["sku_count"], fact_rows)
+        self.assertEqual(group["sku_count"], result["total_skus"])
+
+    def test_catalogue_map_publishes_description_and_url(self) -> None:
+        group = self.backend.catalogue_map(path_text="breakers")["groups"][0]
+        self.assertEqual("Up to 55kA", group["description"])
+        self.assertEqual("https://x/mccb", group["url"])
+
+    def test_catalogue_map_segment_survives_untagged_rows(self) -> None:
+        """One of the branch's SKUs carries no segment; the branch still does."""
+        result = self.backend.catalogue_map(market_segment="Commercial")
+        self.assertEqual(1, result["total_groups"])
+        self.assertIn("Commercial", result["groups"][0]["market_segments"])
+
+    def test_catalogue_map_folds_punctuation_the_catalogue_uses(self) -> None:
+        """Catalogue labels carry en dashes and curly quotes nobody retypes."""
+        spaced = self.backend.catalogue_map(path_text="low voltage breakers")
+        self.assertTrue(spaced["groups"])
+
+    def test_catalogue_map_miss_names_the_vocabulary(self) -> None:
+        miss = self.backend.catalogue_map(path_text="wintrip")
+        self.assertEqual([], miss["groups"])
+        # Nothing in this catalogue scores close, so no misleading suggestions
+        # are offered — but the miss still names the next tool to try.
+        self.assertNotIn("closest_paths", miss["no_match"])
+        self.assertIn("product_search", miss["no_match"]["note"])
+        segment = self.backend.catalogue_map(market_segment="Domestic")
+        self.assertEqual(
+            ["Commercial"], segment["no_match"]["known_market_segments"]
+        )
+
+
 class ContextBudgetTests(unittest.TestCase):
     """A tool result must fit a local model's context window.
 

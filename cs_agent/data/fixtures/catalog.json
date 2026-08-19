@@ -27,6 +27,7 @@
       "category": "protection/mccb",
       "name": "WiNbreak2 125",
       "summary": "Compact thermal-magnetic MCCB family",
+      "market_segments": ["Industries", "Infrastructure"],
       "variants": ["WIN2-125-3P-63", "WIN2-125-3P-100"],
       "facts": [
         {"canonical_fact_id": "rated_current_a", "value_num": 125, "value_text": null, "unit": "A", "conditions": {}},
@@ -41,6 +42,7 @@
       "category": "protection/mccb",
       "name": "WiNbreak2 250",
       "summary": "Adjustable thermal-magnetic MCCB family",
+      "market_segments": ["Industries", "Infrastructure"],
       "variants": ["WIN2-250-3P-160", "WIN2-250-4P-250"],
       "facts": [
         {"canonical_fact_id": "rated_current_a", "value_num": 250, "value_text": null, "unit": "A", "conditions": {}},
@@ -55,6 +57,7 @@
       "category": "protection/mccb",
       "name": "WiNbreak2 400 Electronic",
       "summary": "Electronic-trip MCCB family",
+      "market_segments": ["Industries", "Infrastructure"],
       "variants": ["WIN2-400E-3P-320", "WIN2-400E-4P-400"],
       "facts": [
         {"canonical_fact_id": "rated_current_a", "value_num": 400, "value_text": null, "unit": "A", "conditions": {}},
@@ -69,6 +72,7 @@
       "category": "switching/contactor",
       "name": "DP-Contactor 09",
       "summary": "Compact three-pole AC contactor",
+      "market_segments": ["Industries", "Residential"],
       "variants": ["DP09-230-50", "DP09-110-50"],
       "facts": [
         {"canonical_fact_id": "operational_current_a", "value_num": 9, "value_text": null, "unit": "A", "conditions": {"voltage_v": 415}},
@@ -82,6 +86,7 @@
       "category": "switching/contactor",
       "name": "DP-Contactor 18",
       "summary": "General-purpose three-pole AC contactor",
+      "market_segments": ["Industries", "Residential"],
       "variants": ["DP18-230-50", "DP18-24-50"],
       "facts": [
         {"canonical_fact_id": "operational_current_a", "value_num": 18, "value_text": null, "unit": "A", "conditions": {"voltage_v": 415}},
@@ -95,6 +100,7 @@
       "category": "switching/contactor",
       "name": "DP-Contactor 32",
       "summary": "High-duty three-pole AC contactor",
+      "market_segments": ["Industries", "Residential"],
       "variants": ["DP32-230-50", "DP32-24-50"],
       "facts": [
         {"canonical_fact_id": "operational_current_a", "value_num": 32, "value_text": null, "unit": "A", "conditions": {"voltage_v": 415}},

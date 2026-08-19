@@ -49,6 +49,7 @@ from cs_agent.llm import streaming
 # re-exported from the package, and `out_of_scope` likewise.
 composer_module = importlib.import_module("cs_agent.graph.nodes.composer")
 out_of_scope_module = importlib.import_module("cs_agent.graph.nodes.out_of_scope")
+tool_node_module = importlib.import_module("cs_agent.subgraphs.agents.tool_node")
 from cs_agent.graph.nodes.gate import gate
 from cs_agent.llm import context_guard
 from cs_agent.llm.context_guard import check_request, check_response
@@ -63,8 +64,13 @@ from cs_agent.observability import (
 )
 from cs_agent.run import _initial_state
 from cs_agent.subgraphs.agents import build_specialist_graph
+from cs_agent.tool_errors import count_failures, trailing_tool_messages
 from cs_agent.tools.registry import TOOLS_BY_NAME, tools_for_agent
-from cs_agent.tools.schemas import ProductSearchArgs, SearchDocumentsArgs
+from cs_agent.tools.schemas import (
+    CatalogueMapArgs,
+    ProductSearchArgs,
+    SearchDocumentsArgs,
+)
 
 ROOT = Path(__file__).parents[1]
 
@@ -72,10 +78,14 @@ ROOT = Path(__file__).parents[1]
 class _StreamingModel:
     """A chat model whose stream yields the pieces it was given."""
 
-    def __init__(self, *pieces, metadata=None, tool_call_chunks=None):
+    def __init__(
+        self, *pieces, metadata=None, tool_call_chunks=None, invoke_result=None
+    ):
         self.pieces = pieces
         self.metadata = metadata
         self.tool_call_chunks = tool_call_chunks
+        self.invoke_result = invoke_result or AIMessage(content="invoked")
+        self.invoked = False
 
     def stream(self, messages):
         from langchain_core.messages import AIMessageChunk
@@ -92,18 +102,31 @@ class _StreamingModel:
             )
 
     def invoke(self, messages):
-        return AIMessage(content="invoked")
+        self.invoked = True
+        return self.invoke_result
 
 
 @contextmanager
 def _screen():
     """Run with a trace that captures, rather than prints, streamed lines."""
-    lines: list[str] = []
+    class _Lines(list):
+        """Captured screen writes, with the trace's events alongside them."""
+
+        events: list
+
+    lines = _Lines()
 
     def write(text: str, *, end: str = "\n") -> None:
         lines.append(text)
 
-    trace = SimpleNamespace(print_to_screen=True, write=write)
+    events: list[tuple[str, dict]] = []
+    lines.events = events
+    trace = SimpleNamespace(
+        print_to_screen=True,
+        write=write,
+        event=lambda name, **details: events.append((name, details)),
+        events=events,
+    )
     set_active_trace(trace)
     try:
         yield lines
@@ -764,12 +787,12 @@ class LatencyShapeTests(unittest.TestCase):
 
         call = {"name": "list_canonical_specs", "args": {"family": "X"}, "id": "c1"}
         again = {**call, "id": "c2"}
-        node = make_tool_node([])
+        bound = [SimpleNamespace(name="list_canonical_specs")]
         with patch(
             "cs_agent.subgraphs.agents.tool_node.ToolNode",
             return_value=SimpleNamespace(invoke=_fake),
         ):
-            node = make_tool_node([])
+            node = make_tool_node(bound)
             result = node(
                 {
                     "messages": [
@@ -796,7 +819,7 @@ class LatencyShapeTests(unittest.TestCase):
             "cs_agent.subgraphs.agents.tool_node.ToolNode",
             return_value=SimpleNamespace(invoke=_fake),
         ):
-            result = make_tool_node([])(
+            result = make_tool_node([SimpleNamespace(name="get_sku")])(
                 {
                     "messages": [
                         AIMessage(content="", tool_calls=[repeat]),
@@ -1457,6 +1480,338 @@ class FixtureToolTests(unittest.TestCase):
         comparison_names = {tool.name for tool in tools_for_agent("comparison")}
         self.assertIn("compare_skus", comparison_names)
         self.assertIn("analytics_query", comparison_names)
+
+
+class MangledStreamTests(unittest.TestCase):
+    """A streamed tool call whose name no bound tool has.
+
+    Ollama's incremental tool-call parser is less robust than its batch one.
+    Asked "What do you have in wim trip?", qwen3.8 emitted its call in Qwen's
+    XML form and the streamed parse split `catalogue_map` into two calls —
+    `cat\n</parameter` and `alogue_map`. The identical question with
+    `CS_STREAM_AGENTS=false` answered correctly on the first call.
+    """
+
+    def test_a_name_no_bound_tool_has_is_mangled(self) -> None:
+        message = AIMessage(
+            content="",
+            tool_calls=[
+                {"name": "cat\n</parameter", "args": {}, "id": "1"},
+                {"name": "alogue_map", "args": {"path_text": "wim trip"}, "id": "2"},
+            ],
+        )
+        self.assertEqual(
+            ["cat\n</parameter", "alogue_map"],
+            streaming._mangled_calls(message, {"catalogue_map", "taxonomy_browse"}),
+        )
+
+    def test_a_real_call_is_left_alone(self) -> None:
+        message = AIMessage(
+            content="",
+            tool_calls=[{"name": "catalogue_map", "args": {}, "id": "1"}],
+        )
+        self.assertEqual([], streaming._mangled_calls(message, {"catalogue_map"}))
+        self.assertEqual([], streaming._mangled_calls(AIMessage(content="hi"), {"x"}))
+
+    def test_generate_retries_unstreamed_when_the_parse_is_mangled(self) -> None:
+        good = AIMessage(
+            content="",
+            tool_calls=[
+                {"name": "catalogue_map", "args": {"path_text": "wim trip"}, "id": "1"}
+            ],
+        )
+        model = _StreamingModel(
+            tool_call_chunks=[
+                {"name": "cat\n</parameter", "args": "", "id": "1", "index": 0},
+                {"name": "alogue_map", "args": "{}", "id": "2", "index": 1},
+            ],
+            invoke_result=good,
+        )
+        with _screen() as lines:
+            message, _ = streaming.generate(
+                model, [], label="discovery", tool_names={"catalogue_map"}
+            )
+        self.assertTrue(model.invoked)
+        self.assertEqual("catalogue_map", message.tool_calls[0]["name"])
+        del lines
+
+    def test_a_clean_stream_is_not_re_run(self) -> None:
+        """The retry must cost nothing on the turns that were already fine."""
+        model = _StreamingModel(
+            tool_call_chunks=[
+                {"name": "catalogue_map", "args": "{}", "id": "1", "index": 0}
+            ]
+        )
+        with _screen():
+            streaming.generate(
+                model, [], label="discovery", tool_names={"catalogue_map"}
+            )
+        self.assertFalse(model.invoked)
+
+    def test_without_tool_names_nothing_is_checked(self) -> None:
+        """compose_final streams prose and binds no tools; leave it alone."""
+        model = _StreamingModel(
+            tool_call_chunks=[{"name": "nonsense", "args": "{}", "id": "1", "index": 0}]
+        )
+        with _screen():
+            streaming.generate(model, [], label="discovery")
+        self.assertFalse(model.invoked)
+
+    def test_the_reparse_is_recorded_in_the_trace(self) -> None:
+        model = _StreamingModel(
+            tool_call_chunks=[
+                {"name": "alogue_map", "args": "{}", "id": "1", "index": 0}
+            ]
+        )
+        with _screen() as lines:
+            streaming.generate(
+                model, [], label="discovery", tool_names={"catalogue_map"}
+            )
+        self.assertIn("llm.stream_reparse", [name for name, _ in lines.events])
+
+
+class RepeatedFailureTests(unittest.TestCase):
+    """A repeat short-circuit must never launder a failure into a success.
+
+    `_earlier_calls` used to record every call regardless of outcome, so the
+    second identical *failed* call came back as a plain success message with no
+    `error` field. `tool_failures` therefore stopped rising and the failure
+    limit never tripped: one run spent 443 short-circuits on a single malformed
+    tool call and stopped only when the operator interrupted it.
+    """
+
+    def _messages(self):
+        call = AIMessage(
+            content="",
+            tool_calls=[
+                {"name": "bad_tool", "args": {}, "id": "1"},
+                {"name": "catalogue_map", "args": {"path_text": "x"}, "id": "2"},
+            ],
+        )
+        return [
+            call,
+            ToolMessage(
+                content="Error: bad_tool is not a valid tool",
+                tool_call_id="1",
+                name="bad_tool",
+                status="error",
+            ),
+            ToolMessage(content='{"groups": []}', tool_call_id="2", name="catalogue_map"),
+            call,
+        ]
+
+    def test_a_failed_call_is_not_short_circuited(self) -> None:
+        seen = tool_node_module._earlier_calls(self._messages())
+        self.assertFalse(any("bad_tool" in key for key in seen))
+
+    def test_a_successful_call_still_is(self) -> None:
+        seen = tool_node_module._earlier_calls(self._messages())
+        self.assertTrue(any("catalogue_map" in key for key in seen))
+
+    def test_a_repeated_failure_keeps_counting_against_the_budget(self) -> None:
+        """Re-running costs the same error again, and the limit ends it."""
+        messages = self._messages()
+        replayed = ToolMessage(
+            content="Error: bad_tool is not a valid tool",
+            tool_call_id="3",
+            name="bad_tool",
+            status="error",
+        )
+        self.assertEqual(1, count_failures([replayed]))
+        self.assertEqual(1, count_failures(trailing_tool_messages(messages[:3])))
+
+
+    def test_a_mangled_name_is_rejected_with_the_tool_it_meant(self) -> None:
+        """LangGraph's own message lists nine tools and stops there."""
+        from cs_agent.subgraphs.agents.tool_node import make_tool_node
+
+        bound = [TOOLS_BY_NAME["catalogue_map"], TOOLS_BY_NAME["get_sku"]]
+        result = make_tool_node(bound)(
+            {
+                "messages": [
+                    AIMessage(
+                        content="",
+                        tool_calls=[
+                            {"name": "cat\n</parameter", "args": {}, "id": "c1"}
+                        ],
+                    )
+                ]
+            }
+        )
+        message = result["messages"][0]
+        payload = json.loads(message.content)
+        self.assertEqual("error", message.status)
+        self.assertIn("catalogue_map", payload["error"])
+        self.assertIn("malformed", payload["error"])
+        self.assertEqual(1, count_failures(result["messages"]))
+
+    def test_an_ambiguous_fragment_suggests_nothing(self) -> None:
+        """Naming the wrong tool is worse than naming none."""
+        from cs_agent.subgraphs.agents.tool_node import _did_you_mean
+
+        self.assertIsNone(_did_you_mean("get", ["get_sku", "get_price_detail"]))
+        self.assertIsNone(_did_you_mean("!!", ["get_sku"]))
+        self.assertEqual("get_sku", _did_you_mean("t_sk", ["get_sku", "product_search"]))
+
+    def test_valid_calls_in_the_same_batch_still_run(self) -> None:
+        """One malformed call must not discard the retrieval beside it."""
+        from cs_agent.subgraphs.agents.tool_node import make_tool_node
+
+        sent: list[Any] = []
+
+        def _fake(state, config=None):
+            sent.extend(state["messages"][-1].tool_calls)
+            return {"messages": [ToolMessage(content="{}", tool_call_id="c2")]}
+
+        with patch(
+            "cs_agent.subgraphs.agents.tool_node.ToolNode",
+            return_value=SimpleNamespace(invoke=_fake),
+        ):
+            result = make_tool_node([SimpleNamespace(name="catalogue_map")])(
+                {
+                    "messages": [
+                        AIMessage(
+                            content="",
+                            tool_calls=[
+                                {"name": "alogue_map", "args": {}, "id": "c1"},
+                                {
+                                    "name": "catalogue_map",
+                                    "args": {"path_text": "wintrip"},
+                                    "id": "c2",
+                                },
+                            ],
+                        )
+                    ]
+                }
+            )
+        self.assertEqual(["c2"], [call["id"] for call in sent])
+        self.assertEqual({"c1", "c2"}, {m.tool_call_id for m in result["messages"]})
+
+
+class CatalogueMapTests(unittest.TestCase):
+    """The tool that answers "what X do you have" without walking the tree.
+
+    "What wintrip products do you have" used to cost a product_search that
+    matched nothing, then a taxonomy_browse from the root, then another to walk
+    into the branch it guessed — four calls to learn a fact the path column
+    already held.
+    """
+
+    def setUp(self) -> None:
+        self.backend = FixturesBackend()
+
+    def test_path_text_finds_a_branch_without_knowing_its_path(self) -> None:
+        result = self.backend.catalogue_map(path_text="mccb")
+        self.assertTrue(result["groups"])
+        self.assertTrue(
+            all("mccb" in " > ".join(g["path"]).lower() for g in result["groups"])
+        )
+        self.assertEqual(
+            sum(g["sku_count"] for g in result["groups"]), result["total_skus"]
+        )
+
+    def test_groups_break_down_by_the_level_columns(self) -> None:
+        """Grouped on division / product_group / ... , not on rendered path text.
+
+        Those columns are what the rest of the toolchain takes as arguments, so
+        the tool hands back the real values rather than a re-split string.
+        """
+        group = self.backend.catalogue_map(path_text="WIN2-125")["groups"][0]
+        self.assertEqual("protection", group["division"])
+        self.assertEqual("mccb", group["product_group"])
+        self.assertEqual("WIN2-125", group["product_subgroup"])
+        self.assertEqual("WIN2-125", group["family"])
+        self.assertEqual(2, group["sku_count"])
+        self.assertIn("description", group)
+
+    def test_a_level_the_branch_never_reaches_is_omitted(self) -> None:
+        """'N/A' is build padding for an absent level, not a category name."""
+        group = self.backend.catalogue_map(path_text="WIN2-125")["groups"][0]
+        self.assertNotIn("product_range", group)
+        self.assertNotIn("N/A", group.values())
+
+    def test_path_stays_alongside_the_levels_for_the_next_call(self) -> None:
+        """taxonomy_browse and product_search take a list of literal values."""
+        group = self.backend.catalogue_map(path_text="WIN2-125")["groups"][0]
+        self.assertEqual(["protection", "mccb", "WIN2-125"], group["path"])
+        levels = [
+            group[column]
+            for column in ("division", "product_group", "product_subgroup")
+        ]
+        self.assertEqual(levels, group["path"])
+
+    def test_market_segment_filters_to_the_tagged_branches(self) -> None:
+        result = self.backend.catalogue_map(market_segment="Residential")
+        self.assertTrue(result["groups"])
+        for group in result["groups"]:
+            self.assertIn("Residential", group["market_segments"])
+        # The segment tag is coarse on purpose; every contactor branch carries it
+        # and no breaker branch does.
+        self.assertTrue(
+            all(g["product_group"] == "contactor" for g in result["groups"])
+        )
+
+    def test_both_filters_narrow_rather_than_widen(self) -> None:
+        both = self.backend.catalogue_map(
+            path_text="DP09", market_segment="Residential"
+        )
+        self.assertEqual(1, both["total_groups"])
+        none = self.backend.catalogue_map(
+            path_text="DP09", market_segment="Agriculture"
+        )
+        self.assertEqual(0, none["total_groups"])
+
+    def test_neither_filter_is_a_schema_error_naming_the_fix(self) -> None:
+        """An unfiltered call would dump the whole taxonomy for no question."""
+        with self.assertRaises(ValidationError) as caught:
+            CatalogueMapArgs()
+        message = str(caught.exception)
+        self.assertIn("path_text", message)
+        self.assertIn("market_segment", message)
+        self.assertIn("taxonomy_browse", message)
+
+    def test_a_blank_string_counts_as_no_filter(self) -> None:
+        with self.assertRaises(ValidationError):
+            CatalogueMapArgs(path_text="   ", market_segment="")
+
+    def test_an_empty_result_says_what_to_try_instead(self) -> None:
+        """A silent empty result is what makes a specialist guess again."""
+        miss = self.backend.catalogue_map(path_text="wintrip")
+        self.assertEqual([], miss["groups"])
+        self.assertTrue(miss["no_match"]["closest_paths"])
+        segment = self.backend.catalogue_map(market_segment="Domestic")
+        self.assertIn("Industries", segment["no_match"]["known_market_segments"])
+
+    def test_matched_on_reports_only_the_filters_used(self) -> None:
+        result = self.backend.catalogue_map(path_text="mccb")
+        self.assertEqual({"path_text": "mccb"}, result["matched_on"])
+
+    def test_limit_caps_the_rows_not_the_totals(self) -> None:
+        capped = self.backend.catalogue_map(path_text="protection", limit=1)
+        self.assertEqual(1, len(capped["groups"]))
+        self.assertEqual(3, capped["total_groups"])
+
+    def test_every_specialist_can_reach_it(self) -> None:
+        for agent in (
+            "discovery",
+            "spec_selection",
+            "solution_advisory",
+            "comparison",
+            "compliance",
+        ):
+            names = {tool.name for tool in tools_for_agent(agent)}
+            self.assertIn("catalogue_map", names, agent)
+
+    def test_the_description_documents_the_segment_vocabulary(self) -> None:
+        """market_segment existed on taxonomy_browse but was never described,
+        so the model never used it and walked the taxonomy by hand instead."""
+        from cs_agent.tools import descriptions
+
+        for text in (descriptions.TAXONOMY_BROWSE, descriptions.CATALOGUE_MAP):
+            self.assertIn("market_segment", text)
+            self.assertIn("Residential", text)
+            self.assertIn("Agriculture", text)
+        self.assertIn("market_segment", descriptions.PRODUCT_SEARCH)
 
 
 class GraphTests(unittest.TestCase):

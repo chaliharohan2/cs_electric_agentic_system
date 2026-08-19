@@ -463,6 +463,31 @@ about 100s on a model decoding at 11 tok/s. `agent_common.md` therefore states
 that retrieval is the loop's whole job and that it should finish with one short
 sentence and no tool call.
 
+**Malformed tool calls.** Ollama's tool-call parser sometimes splits a name
+across two calls when the model emits Qwen's XML form rather than the JSON it
+expects. Asked "What do you have in wim trip?", qwen3.8 produced
+`cat\n</parameter` and `alogue_map` for a single `catalogue_map`, and the run
+had to be killed. Three things were wrong, and each is now handled:
+
+1. **The stream is re-read.** `generate` is given the names of the tools bound
+   to the model, and a streamed reply naming a tool none of them has is re-run
+   unstreamed — the batch parser is the more robust of the two. It is logged as
+   `llm.stream_reparse`. Showing the work is never worth getting it wrong.
+2. **A repeat of a *failed* call is no longer short-circuited.** `_earlier_calls`
+   used to record every call regardless of outcome, so the second identical
+   broken call came back as a plain success with no `error` field. That laundered
+   a failure into a non-failure: `tool_failures` stopped rising, the failure
+   limit never tripped, and the loop span until it was interrupted. Only calls
+   that succeeded are short-circuited now; re-running a failed one costs the same
+   error again, and the budget ends it.
+3. **An unknown name gets an error worth reading.** LangGraph's own message lists
+   every tool and stops there, leaving the model to work out that its *syntax*
+   was wrong rather than its choice of tool. The wrapper says so, and where the
+   wreckage still contains a fragment matching exactly one bound tool — `cat` and
+   `alogue_map` both reach `catalogue_map` — it names it. Only an unambiguous
+   match is offered; naming the wrong tool is worse than naming none. Valid calls
+   in the same batch still run.
+
 **Repeat calls.** Specialists re-issue calls they have already made — one
 measured run called `list_canonical_specs(family="Switch Sockets")` four times
 unchanged after the first returned nothing. The tool node answers an exact
@@ -709,6 +734,7 @@ tests use `FixturesBackend`.
 | resolve_product | ● | ● | ● | ● | ● |
 | product_search | ● | ● | ● | ● | ● |
 | get_sku | ● | ● | ● | ● | ● |
+| catalogue_map | ● | ● | ○ | ○ | ○ |
 | taxonomy_browse | ● | ● | ● | ○ | ○ |
 | list_canonical_specs | ○ | ● | ● | ● | ● |
 | search_documents | ● | ○ | ● | ○ | ● |
@@ -720,6 +746,71 @@ tests use `FixturesBackend`.
 ● primary / always bound · ○ available · — not bound
 
 ### 7.2 Individual tools
+
+**`catalogue_map`**
+Fuzzy-matches a phrase against every populated branch of the taxonomy and
+returns one row per family in a single call. It answers "where does this live",
+which is the question most turns open with.
+
+Each row is broken down by the level columns themselves — `division`,
+`product_group`, `product_subgroup`, `product_range` — plus `family`, the SKU
+count, the published description, the URL and the market segments. A level the
+branch never reaches is omitted rather than returned as the build's `N/A`
+padding, so a depth-2 branch carries two level keys and an unplaced one carries
+none. The same values also come back as a `path` list, because that is the
+argument `taxonomy_browse` and `product_search` take.
+
+It exists because that question used to cost a walk. "What wintrip products do
+you have" ran `product_search(text="Wintrip")` (nothing — Wintrip is a family
+name, not indexed text), then `taxonomy_browse(path=[])`, then a browse into the
+division, then one into the group: four calls and 19,958 prompt tokens to learn
+what one column already held. It is now one call and 8,190.
+
+Design notes, each from the data rather than from taste:
+
+- **Matching runs in Python, not SQL.** Labels carry an en dash in `ACB –
+  AH-AHA` and a curly apostrophe in `WiNtrip ‘S’ Modular MCB`; a `LIKE` misses
+  both. `backends/matching.py` folds them, and the corpus is 56 published paths
+  plus a handful of unplaced families, so a full scan is free.
+- **Grouped on the level columns, not on `path_text`.** Those columns are what
+  the rest of the toolchain consumes, so grouping on the rendered string and
+  splitting it back would put a parsed value where the real one was available.
+  The two agree exactly on the built catalogue — 66 groups either way, and the
+  levels reconstruct every `path_text` — so this is a change of provenance, not
+  of result. `family` stays in the group key because it is the only thing
+  separating the eleven unplaced branches, which share one all-`N/A` tuple.
+- **Counted with `count(DISTINCT sku_code)`.** `sku_fact` is fact-grained —
+  256,473 rows for 9,115 SKUs — so a plain `count(*)` would overstate every
+  family by a factor of 28.
+- **Neither filter is a schema error, not an empty search.** Unfiltered it would
+  return the whole taxonomy, which is what `taxonomy_browse` already does, level
+  by level and more usefully. The `model_validator` message names both filters
+  and points at `taxonomy_browse`, and `handle_tool_errors` turns it into a tool
+  result the model can act on.
+- **Unplaced families come back separately.** 388 SKUs — RCBO (69), Power
+  Quality Device (83), Automatic Transfer Switch (34) — carry a `family` but no
+  path, because the pricelist named them and the published taxonomy never did.
+  `taxonomy_browse` cannot reach them at all, and a discovery report had already
+  recorded "no dedicated RCBO family was surfaced in the taxonomy" as a gap.
+  They return under `uncategorised` with the caveat attached.
+- **A miss says what to try.** `closest_paths` scores the query against *family
+  names*, squashed to alphanumerics — against the full 96-character path a
+  seven-character typo is swamped by text it never mentioned, and the right
+  family scored below an unrelated one. Cutoff 75, calibrated on the built
+  catalogue: "winbrek" scores 77 on `MCCB – Winbreak`, "distribushion board" 89
+  on `Distribution Boards`, and "solar inverter" — which C&S does not make —
+  tops out at 72, so it returns no suggestions and says to try `product_search`
+  instead. A list of unrelated branches reads as an answer.
+
+**`market_segment` is division-grained.** The tag comes from the source
+catalogue and is assigned per division, so `Residential` selects Final
+Distribution Products — 9 families, 1,664 SKUs — and nothing else, even though
+Circuit Breakers, Fuses and Switches all describe residential use in their own
+published text. The tool reports the tag and only the tag; the wording of every
+description that mentions it lives in the branch descriptions the tool also
+returns. `descriptions.SEGMENT_NOTE` states this on every tool that accepts the
+argument, because a tool that does not say so gets called with "Domestic" and
+returns nothing.
 
 **`resolve_product`**
 Three-stage cascade, stop at first hits:
@@ -1048,6 +1139,10 @@ emitted as whole lines, broken on a space at 100 columns, through the trace
 logger's own lock — so a streamed line can never land inside a progress line.
 The answer is written raw instead, because nothing else is competing for the
 terminal by then.
+
+A caller whose reply may carry a tool call also passes the names of the tools
+bound to the model, so `generate` can notice a mis-parsed tool name and re-run
+the turn unstreamed (§4.6).
 
 Everything else — intake, planner, the sufficiency check, analytics — passes no
 label and does not stream: short, structured, and only noise on screen. When

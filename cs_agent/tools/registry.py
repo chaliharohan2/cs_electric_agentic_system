@@ -6,6 +6,7 @@ from cs_agent.subgraphs.analytics.tool import analytics_query
 
 from . import descriptions
 from .impl import (
+    catalogue_map,
     compare_skus,
     get_peer_group,
     get_price_detail,
@@ -18,6 +19,7 @@ from .impl import (
 )
 from .schemas import (
     AnalyticsQueryArgs,
+    CatalogueMapArgs,
     CompareSkusArgs,
     GetPeerGroupArgs,
     GetPriceDetailArgs,
@@ -41,6 +43,12 @@ TOOLS = [
         name="list_canonical_specs",
         description=descriptions.LIST_CANONICAL_SPECS,
         args_schema=ListCanonicalSpecsArgs,
+    ),
+    StructuredTool.from_function(
+        func=catalogue_map,
+        name="catalogue_map",
+        description=descriptions.CATALOGUE_MAP,
+        args_schema=CatalogueMapArgs,
     ),
     StructuredTool.from_function(
         func=taxonomy_browse,
@@ -97,6 +105,7 @@ TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}
 SHARED_TOOL_NAMES = ("resolve_product", "product_search", "get_sku")
 AGENT_TOOL_NAMES = {
     "discovery": (
+        "catalogue_map",
         "taxonomy_browse",
         "list_canonical_specs",
         "search_documents",
@@ -104,6 +113,7 @@ AGENT_TOOL_NAMES = {
         "get_peer_group",
     ),
     "spec_selection": (
+        "catalogue_map",
         "taxonomy_browse",
         "list_canonical_specs",
         "search_documents",
@@ -113,12 +123,14 @@ AGENT_TOOL_NAMES = {
         "analytics_query",
     ),
     "solution_advisory": (
+        "catalogue_map",
         "taxonomy_browse",
         "list_canonical_specs",
         "search_documents",
         "get_price_detail",
     ),
     "comparison": (
+        "catalogue_map",
         "taxonomy_browse",
         "list_canonical_specs",
         "search_documents",
@@ -128,6 +140,7 @@ AGENT_TOOL_NAMES = {
         "analytics_query",
     ),
     "compliance": (
+        "catalogue_map",
         "taxonomy_browse",
         "list_canonical_specs",
         "search_documents",
