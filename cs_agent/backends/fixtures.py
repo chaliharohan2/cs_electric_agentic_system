@@ -8,9 +8,16 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from cs_agent.backends.matching import matches
+from cs_agent.backends.grouped_search import (
+    GROUP_BY_SCOPE_ERROR,
+    grouped_product_search,
+    group_key,
+    has_search_scope,
+)
+from cs_agent.backends.matching import family_matches, matches, unmatched_family_terms
 from cs_agent.backends.path_levels import NA, path_to_levels
 from cs_agent.backends.read_only_sql import read_only_sql_error
+from cs_agent.backends.spec_envelope import specs_envelope
 
 DATA_DIR = Path(__file__).parents[1] / "data" / "fixtures"
 
@@ -132,15 +139,23 @@ class FixturesBackend:
             ],
         }
 
-    def list_canonical_specs(self, **kw: Any) -> list[dict]:
+    def list_canonical_specs(self, **kw: Any) -> dict:
         family_filter = kw.get("family")
+        path = list(kw.get("path") or [])
         contains = (kw.get("spec_id_contains") or "").lower()
+        canonical_only = bool(kw.get("canonical_only"))
         rows: dict[tuple[str, str], dict[str, Any]] = {}
         for sku in self._fixture_skus():
-            if not self._matches_text(sku["family"], family_filter):
+            if path and sku["path"][: len(path)] != path:
+                continue
+            if not family_matches(sku["family"], family_filter):
                 continue
             for fact in sku["facts"]:
-                if contains and contains not in fact["spec_id"].lower():
+                if contains and contains not in fact["spec_id"].lower() and contains not in (
+                    fact.get("spec_label") or ""
+                ).lower():
+                    continue
+                if canonical_only and not fact.get("is_canonical_spec", True):
                     continue
                 key = (sku["family"], fact["spec_id"])
                 row = rows.setdefault(key, {
@@ -160,7 +175,18 @@ class FixturesBackend:
                 if value is not None:
                     row["observed_min"] = value if row["observed_min"] is None else min(row["observed_min"], value)
                     row["observed_max"] = value if row["observed_max"] is None else max(row["observed_max"], value)
-        return list(rows.values())
+        result = specs_envelope(
+            list(rows.values()),
+            path=path or None,
+            family=family_filter,
+        )
+        missed = unmatched_family_terms(
+            family_filter,
+            [family["family_id"] for family in self._catalog["families"]],
+        )
+        if missed:
+            result["families_not_found"] = missed
+        return result
 
     def catalogue_map(self, **kw: Any) -> dict:
         path_text = (kw.get("path_text") or "").strip()
@@ -250,63 +276,140 @@ class FixturesBackend:
             result["facets"] = []
         return result
 
-    def product_search(self, **kw: Any) -> dict:
-        hits: list[dict[str, Any]] = []
-        numeric_filters = [
-            item for item in kw.get("filters") or []
-            if item["op"] in {"gte", "lte", "eq"}
-        ]
-        for sku in self._fixture_skus():
-            path = kw.get("path") or []
-            if path and sku["path"][:len(path)] != path:
-                continue
-            if not self._matches_text(sku["family"], kw.get("family")):
-                continue
-            text = kw.get("text")
-            if text and not self._matches_text(
-                f"{sku['sku_code']} {sku['family']} {sku['description']}", text
-            ):
-                continue
-            matched = True
-            for wanted in kw.get("filters") or []:
-                candidates = [
-                    fact for fact in sku["facts"]
-                    if fact["spec_id"] == wanted["spec_id"]
-                ]
-                op, expected = wanted["op"], wanted["value"]
-                matched = any(
-                    (op == "eq" and fact["value_num"] == expected)
-                    or (op == "gte" and fact["value_num"] is not None and fact["value_num"] >= expected)
-                    or (op == "lte" and fact["value_num"] is not None and fact["value_num"] <= expected)
-                    or (op == "contains" and str(expected).lower() in fact["value_display"].lower())
-                    for fact in candidates
+    def _sku_in_product_scope(self, sku: dict[str, Any], kw: dict[str, Any]) -> bool:
+        path = kw.get("path") or []
+        if path and sku["path"][: len(path)] != list(path):
+            return False
+        if not family_matches(sku["family"], kw.get("family")):
+            return False
+        text = kw.get("text")
+        if text and not self._matches_text(
+            f"{sku['sku_code']} {sku['family']} {sku['description']}", text
+        ):
+            return False
+        segment = kw.get("market_segment")
+        if segment and not any(
+            self._matches_text(item, segment)
+            for item in sku.get("market_segments") or []
+        ):
+            return False
+        statuses = kw.get("price_status")
+        if isinstance(statuses, str):
+            statuses = [statuses]
+        if statuses and sku.get("price_status") not in statuses:
+            return False
+        return True
+
+    def _sku_matches_filters(
+        self, sku: dict[str, Any], filters: list[dict[str, Any]]
+    ) -> bool:
+        for wanted in filters:
+            candidates = [
+                fact for fact in sku["facts"] if fact["spec_id"] == wanted["spec_id"]
+            ]
+            op, expected = wanted["op"], wanted["value"]
+            matched = any(
+                (op == "eq" and fact["value_num"] == expected)
+                or (
+                    op == "gte"
+                    and fact["value_num"] is not None
+                    and fact["value_num"] >= expected
                 )
-                if not matched:
-                    break
-            if matched:
-                requested = set(kw.get("return_specs") or [])
-                hits.append({
-                    **{key: sku[key] for key in (
-                        "sku_code", "canonical_code", "family", "path",
-                        "description", "url", "price_status", "decoded"
-                    )},
-                    "specs": [
-                        fact for fact in sku["facts"]
-                        if not requested or fact["spec_id"] in requested
-                    ],
-                })
+                or (
+                    op == "lte"
+                    and fact["value_num"] is not None
+                    and fact["value_num"] <= expected
+                )
+                or (
+                    op == "contains"
+                    and str(expected).lower() in fact["value_display"].lower()
+                )
+                for fact in candidates
+            )
+            if not matched:
+                return False
+        return True
+
+    def _hit_from_sku(
+        self, sku: dict[str, Any], kw: dict[str, Any]
+    ) -> dict[str, Any]:
+        requested = set(kw.get("return_specs") or [])
+        return {
+            **{
+                key: sku[key]
+                for key in (
+                    "sku_code",
+                    "canonical_code",
+                    "family",
+                    "path",
+                    "description",
+                    "url",
+                    "price_status",
+                    "decoded",
+                )
+            },
+            "specs": [
+                fact
+                for fact in sku["facts"]
+                if not requested or fact["spec_id"] in requested
+            ],
+        }
+
+    def product_search(self, **kw: Any) -> dict:
+        group_by = kw.get("group_by")
+        if group_by and not has_search_scope(kw.get("path"), kw.get("family")):
+            return {"error": GROUP_BY_SCOPE_ERROR}
+        filters = list(kw.get("filters") or [])
+        numeric_filters = [item for item in filters if item["op"] in {"gte", "lte", "eq"}]
+        in_scope = [
+            sku for sku in self._fixture_skus() if self._sku_in_product_scope(sku, kw)
+        ]
+        matched_skus = [
+            sku for sku in in_scope if self._sku_matches_filters(sku, filters)
+        ]
+        applied = [
+            f"{item['spec_id']} {item['op']} {item['value']}" for item in filters
+        ]
+        missed = unmatched_family_terms(
+            kw.get("family"),
+            [family["family_id"] for family in self._catalog["families"]],
+        )
+        if group_by:
+            in_scope_hits = [self._hit_from_sku(sku, kw) for sku in in_scope]
+            spec_ids_by_group: dict[str, set[str]] = {}
+            filter_spec_ids = [item["spec_id"] for item in filters]
+            if filter_spec_ids:
+                for sku, hit in zip(in_scope, in_scope_hits, strict=True):
+                    key = group_key(hit, group_by)
+                    published = spec_ids_by_group.setdefault(key, set())
+                    for fact in sku["facts"]:
+                        published.add(fact["spec_id"])
+            result = grouped_product_search(
+                group_by=group_by,
+                in_scope=in_scope_hits,
+                matched_codes={sku["sku_code"] for sku in matched_skus},
+                spec_ids_by_group=spec_ids_by_group,
+                filter_spec_ids=filter_spec_ids,
+                limit=int(kw.get("limit", 20)),
+                composite_excluded=0 if numeric_filters else 0,
+                filters_applied=applied,
+                families_not_found=missed,
+                empty_hint="Broaden the path, family, or specification filter.",
+            )
+            return result
+        hits = [self._hit_from_sku(sku, kw) for sku in matched_skus]
         total = len(hits)
         limit = int(kw.get("limit", 20))
-        return {
+        result = {
             "hits": hits[:limit],
             "total_matched": total,
             "composite_excluded": 0 if numeric_filters else 0,
-            "filters_applied": [
-                f"{item['spec_id']} {item['op']} {item['value']}"
-                for item in kw.get("filters") or []
-            ],
+            "filters_applied": applied,
             "widening_hint": None if total else "Broaden the path, family, or specification filter.",
         }
+        if missed:
+            result["families_not_found"] = missed
+        return result
 
     def get_sku(self, sku_code: str, include: list[str], **kw: Any) -> dict:
         sku = self._resolve_sku(sku_code)

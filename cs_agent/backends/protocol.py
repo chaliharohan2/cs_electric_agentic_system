@@ -9,7 +9,7 @@ class CatalogBackend(Protocol):
     def resolve_product(self, **kw: Any) -> dict:
         """Resolve codes, aliases, misspellings, and descriptions."""
 
-    def list_canonical_specs(self, **kw: Any) -> list[dict]:
+    def list_canonical_specs(self, **kw: Any) -> dict:
         """Return observed specification definitions and bounds."""
 
     def catalogue_map(self, **kw: Any) -> dict:
@@ -18,8 +18,8 @@ class CatalogBackend(Protocol):
     def taxonomy_browse(self, **kw: Any) -> dict:
         """Return the next level of the path hierarchy."""
 
-    def product_search(self, **kw: Any) -> list[dict] | dict:
-        """Return matching SKUs, or ``{"error": ...}`` on invalid filters."""
+    def product_search(self, **kw: Any) -> dict:
+        """Return matching SKUs, grouped counts, or ``{"error": ...}``."""
 
     def get_sku(self, sku_code: str, include: list[str], **kw: Any) -> dict:
         """Return requested details for one SKU."""

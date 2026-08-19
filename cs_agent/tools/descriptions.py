@@ -9,9 +9,16 @@ NAME_MATCHING = (
 )
 
 LIST_CANONICAL_SPECS = (
-    "List specification IDs for a family with units, value kinds, SKU counts, "
-    "composite counts, and observed bounds. Use spec_id_contains to discover topic "
-    "vocabulary. Call before product_search filters; never guess spec IDs."
+    "List specification IDs for a path prefix and/or one or more families, with "
+    "units, value kinds, SKU counts, composite counts, and observed bounds. family "
+    "accepts a string or a list of names (OR); path is one prefix (AND down the "
+    "tree), never an OR of levels. Pass every family already in hand in a single "
+    "call rather than looping one family at a time. Returns by_spec_id — the "
+    "rollup across the scope, which is what to read first — and specs, the same "
+    "per-(family, spec_id) rows as before. Empty specs because a family exists but "
+    "spec_id_contains matched nothing is not a miss; a name that matches no family "
+    "is families_not_found. Use spec_id_contains to discover topic vocabulary. "
+    "Call before product_search filters; never guess spec IDs."
 )
 
 # The only values market_segment accepts. Assigned per division in the source
@@ -75,6 +82,16 @@ PRODUCT_SEARCH = (
     "fragments, path, market segment, price status, or chunk presence. This is the "
     "PRIMARY tool for any number, rating, range, or "
     "superlative, and the way to turn a product-line name into ordering codes. "
+    "family accepts a string or a list of names (OR across families); path remains "
+    "one prefix, not an OR of levels. Pass all known families in one call. For "
+    "counts across families or a path level, set group_by to family, division, "
+    "product_group, product_subgroup, or product_range — that returns every "
+    "in-scope group including zeros. A zero with spec_present true means the spec "
+    "is published but no SKU matched; spec_present false means the spec does not "
+    "belong to that group. Zeros are searched-and-none, not forgotten. group_by "
+    "requires family and/or path. Omit group_by for a shortlist of hits: limit "
+    "then caps the hit list globally; with group_by, limit is the sample per "
+    "group. "
     + NAME_MATCHING + " Spec IDs also match their labels, so 'breaking capacity' "
     "finds breaking_capacity_ka. Range specs use their min/max bounds. Missing "
     "specifications mean not published, never zero. composite_excluded values are "

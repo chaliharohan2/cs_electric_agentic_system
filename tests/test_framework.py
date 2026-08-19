@@ -68,6 +68,7 @@ from cs_agent.tool_errors import count_failures, trailing_tool_messages
 from cs_agent.tools.registry import TOOLS_BY_NAME, tools_for_agent
 from cs_agent.tools.schemas import (
     CatalogueMapArgs,
+    ListCanonicalSpecsArgs,
     ProductSearchArgs,
     SearchDocumentsArgs,
 )
@@ -850,16 +851,25 @@ class LatencyShapeTests(unittest.TestCase):
         """An empty list reads as 'no specs here' and invites the same call."""
         from cs_agent.tools import impl
 
-        result = impl.list_canonical_specs(family="Switch Sockets")
+        with patch.object(impl, "backend", return_value=FixturesBackend()):
+            impl._known_families.cache_clear()
+            result = impl.list_canonical_specs(family="Switch Sockets")
         self.assertIsInstance(result, dict)
         self.assertEqual("Switch Sockets", result["family_not_found"])
+        self.assertEqual(["Switch Sockets"], result["families_not_found"])
         self.assertIn("taxonomy_browse", result["hint"])
 
-    def test_a_family_that_exists_returns_plain_rows(self) -> None:
+    def test_a_family_that_exists_returns_an_envelope(self) -> None:
         from cs_agent.tools import impl
 
-        family = impl._known_families()[0]
-        self.assertIsInstance(impl.list_canonical_specs(family=family), list)
+        with patch.object(impl, "backend", return_value=FixturesBackend()):
+            impl._known_families.cache_clear()
+            family = impl._known_families()[0]
+            result = impl.list_canonical_specs(family=family)
+        self.assertIsInstance(result, dict)
+        self.assertIn("specs", result)
+        self.assertIn("by_spec_id", result)
+        self.assertTrue(any(row.get("family") == family for row in result["specs"]))
 
     def test_the_final_answer_streams(self) -> None:
         """~35s of silence at the end of every run, at 12 tok/s."""
@@ -1427,7 +1437,9 @@ class FixtureToolTests(unittest.TestCase):
         result = self.backend.taxonomy_browse(path=["protection", "mccb"])
         self.assertTrue(result["children"])
         specs = self.backend.list_canonical_specs(family="WIN2-125")
-        self.assertTrue(any(row["spec_id"] == "rated_current_a" for row in specs))
+        self.assertTrue(
+            any(row["spec_id"] == "rated_current_a" for row in specs["specs"])
+        )
 
     def test_product_search_v2_envelope(self) -> None:
         result = self.backend.product_search(
@@ -1484,6 +1496,127 @@ class FixtureToolTests(unittest.TestCase):
         comparison_names = {tool.name for tool in tools_for_agent("comparison")}
         self.assertIn("compare_skus", comparison_names)
         self.assertIn("analytics_query", comparison_names)
+
+    def test_family_accepts_str_or_list_and_group_by_validates(self) -> None:
+        self.assertEqual("WIN2-125", ListCanonicalSpecsArgs(family="WIN2-125").family)
+        self.assertEqual(
+            ["WIN2-125", "DP09"],
+            ListCanonicalSpecsArgs(family=["WIN2-125", "DP09"]).family,
+        )
+        self.assertIsNone(ListCanonicalSpecsArgs(family=[]).family)
+        self.assertEqual("WIN2", ProductSearchArgs(family="WIN2").family)
+        self.assertEqual(
+            ["WIN2-125", "WIN2-250"],
+            ProductSearchArgs(family=["WIN2-125", "WIN2-250"]).family,
+        )
+        scoped = ProductSearchArgs(group_by="family", family="WIN2")
+        self.assertEqual("family", scoped.group_by)
+        with self.assertRaises(ValidationError):
+            ProductSearchArgs(group_by="sku")
+        with self.assertRaises(ValidationError) as caught:
+            ProductSearchArgs(group_by="family")
+        message = str(caught.exception)
+        self.assertIn("family", message.lower())
+        self.assertIn("path", message.lower())
+        refused = self.backend.product_search(group_by="family")
+        self.assertIn("error", refused)
+        empty = self.backend.list_canonical_specs(
+            family="WIN2-125", spec_id_contains="no_such_spec"
+        )
+        self.assertEqual([], empty["specs"])
+        self.assertNotIn("families_not_found", empty)
+
+    def test_list_canonical_specs_or_families_rolls_up_poles(self) -> None:
+        result = self.backend.list_canonical_specs(
+            family=["WIN2-125", "DP09"], spec_id_contains="pole"
+        )
+        self.assertIn("by_spec_id", result)
+        self.assertIn("specs", result)
+        poles = next(row for row in result["by_spec_id"] if row["spec_id"] == "poles")
+        self.assertEqual(["WIN2-125"], poles["families"])
+        self.assertEqual(1, poles["family_count"])
+        spec_families = {row["family"] for row in result["specs"]}
+        self.assertIn("WIN2-125", spec_families)
+        self.assertNotIn("DP09", spec_families)
+        self.assertTrue(all(row["spec_id"] == "poles" for row in result["specs"]))
+
+    def test_list_canonical_specs_path_prefix_excludes_contactors(self) -> None:
+        result = self.backend.list_canonical_specs(
+            path=["protection", "mccb"], spec_id_contains="pole"
+        )
+        families = {row["family"] for row in result["specs"]}
+        self.assertEqual({"WIN2-125", "WIN2-250", "WIN2-400E"}, families)
+        self.assertTrue(all(row["spec_id"] == "poles" for row in result["specs"]))
+        poles = next(row for row in result["by_spec_id"] if row["spec_id"] == "poles")
+        self.assertEqual(3, poles["family_count"])
+
+    def test_list_canonical_specs_string_family_still_finds_rated_current(self) -> None:
+        result = self.backend.list_canonical_specs(family="WIN2-125")
+        self.assertTrue(
+            any(row["spec_id"] == "rated_current_a" for row in result["specs"])
+        )
+        self.assertEqual({"path": None, "family": "WIN2-125"}, result["scope"])
+
+    def test_product_search_family_list_and_string_prefix(self) -> None:
+        listed = self.backend.product_search(
+            family=["WIN2-125", "WIN2-250"],
+            filters=[{"spec_id": "poles", "op": "eq", "value": 3}],
+        )
+        self.assertGreater(listed["total_matched"], 0)
+        self.assertTrue(all(hit["family"] == "WIN2-125" for hit in listed["hits"]))
+        prefixed = self.backend.product_search(family="WIN2")
+        families = {hit["family"] for hit in prefixed["hits"]}
+        self.assertTrue({"WIN2-125", "WIN2-250", "WIN2-400E"} <= families)
+
+    def test_product_search_group_by_family_distinguishes_zeros(self) -> None:
+        result = self.backend.product_search(
+            family=["WIN2-125", "WIN2-250", "DP09"],
+            filters=[{"spec_id": "poles", "op": "eq", "value": 3}],
+            group_by="family",
+        )
+        groups = {group["family"]: group for group in result["groups"]}
+        self.assertEqual({"WIN2-125", "WIN2-250", "DP09"}, set(groups))
+        self.assertGreater(groups["WIN2-125"]["matched"], 0)
+        self.assertTrue(groups["WIN2-125"]["spec_present"])
+        self.assertEqual(0, groups["WIN2-250"]["matched"])
+        self.assertTrue(groups["WIN2-250"]["spec_present"])
+        self.assertEqual(0, groups["DP09"]["matched"])
+        self.assertFalse(groups["DP09"]["spec_present"])
+        self.assertEqual(
+            sum(group["matched"] for group in result["groups"]),
+            result["total_matched"],
+        )
+
+    def test_product_search_group_by_level_uses_path_scope(self) -> None:
+        result = self.backend.product_search(
+            path=["protection"],
+            filters=[{"spec_id": "poles", "op": "eq", "value": 3}],
+            group_by="product_group",
+        )
+        self.assertEqual(["mccb"], [group["product_group"] for group in result["groups"]])
+        group = result["groups"][0]
+        self.assertTrue(group["spec_present"])
+        self.assertGreater(group["matched"], 0)
+        self.assertGreater(group["total_in_scope"], group["matched"])
+        self.assertTrue(all(hit["path"][0] == "protection" for hit in group["sample_hits"]))
+
+    def test_unknown_family_is_not_a_zero_group(self) -> None:
+        result = self.backend.product_search(
+            family=["WIN2-125", "NoSuchFamily"],
+            filters=[{"spec_id": "poles", "op": "eq", "value": 3}],
+            group_by="family",
+        )
+        self.assertEqual(["WIN2-125"], [group["family"] for group in result["groups"]])
+        self.assertEqual(["NoSuchFamily"], result["families_not_found"])
+
+    def test_known_families_reads_the_specs_envelope(self) -> None:
+        from cs_agent.tools import impl
+
+        with patch.object(impl, "backend", return_value=self.backend):
+            impl._known_families.cache_clear()
+            names = impl._known_families()
+        self.assertIn("WIN2-125", names)
+        self.assertIn("DP09", names)
 
 
 class MangledStreamTests(unittest.TestCase):

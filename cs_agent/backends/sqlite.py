@@ -16,8 +16,15 @@ from typing import Any
 
 from rapidfuzz import fuzz, process
 
-from cs_agent.backends.matching import matches, matches_any, squash
+from cs_agent.backends.grouped_search import (
+    GROUP_BY_SCOPE_ERROR,
+    grouped_product_search,
+    group_key,
+    has_search_scope,
+)
+from cs_agent.backends.matching import family_terms, matches, matches_any, squash
 from cs_agent.backends.path_levels import LEVEL_COLUMNS, NA
+from cs_agent.backends.spec_envelope import specs_envelope
 from cs_agent.backends.vec_support import try_load_sqlite_vec
 from cs_agent.config.limits import get_limits
 from cs_agent.embeddings import embed
@@ -27,6 +34,26 @@ logger = logging.getLogger(__name__)
 _SKU_GRAIN = (
     "row_id IN (SELECT min(row_id) FROM sku_fact GROUP BY sku_code)"
 )
+
+
+def _path_prefix_clauses(path: list[str] | None) -> tuple[list[str], list[Any]]:
+    clauses: list[str] = []
+    params: list[Any] = []
+    for index, part in enumerate(path or []):
+        if index >= len(LEVEL_COLUMNS):
+            break
+        clauses.append(f"{LEVEL_COLUMNS[index]} = ?")
+        params.append(part)
+    return clauses, params
+
+
+def _family_like_clause(family: Any) -> tuple[str | None, list[Any]]:
+    terms = family_terms(family)
+    if not terms:
+        return None, []
+    return "(" + " OR ".join("family LIKE ?" for _ in terms) + ")", [
+        f"%{term}%" for term in terms
+    ]
 
 
 def _project_root() -> Path:
@@ -444,11 +471,73 @@ class SqliteBackend:
             ).fetchall()
         return tuple(dict(row) for row in rows)
 
-    def list_canonical_specs(self, **kw: Any) -> list[dict]:
+    def _specs_for_scope(
+        self, path: list[str] | None, family: Any
+    ) -> list[dict[str, Any]]:
+        clauses = ["is_sentinel = 0", "spec_id IS NOT NULL"]
+        params: list[Any] = []
+        path_clauses, path_params = _path_prefix_clauses(path)
+        clauses.extend(path_clauses)
+        params.extend(path_params)
+        family_sql, family_params = _family_like_clause(family)
+        if family_sql:
+            clauses.append(family_sql)
+            params.extend(family_params)
+        rows = self._connect().execute(
+            f"""
+            SELECT family, spec_id,
+                   min(spec_label) AS spec_label,
+                   min(unit) AS unit,
+                   min(value_kind) AS value_kind,
+                   max(is_canonical_spec) AS is_canonical_spec,
+                   count(DISTINCT sku_code) AS sku_count,
+                   count(*) FILTER (WHERE value_kind = 'composite') AS composite_count,
+                   min(COALESCE(value_min, value_num)) AS observed_min,
+                   max(COALESCE(value_max, value_num)) AS observed_max
+            FROM sku_fact
+            WHERE {' AND '.join(clauses)}
+            GROUP BY family, spec_id
+            ORDER BY family, spec_label, spec_id
+            """,
+            params,
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    def _unmatched_family_terms_sql(self, family: Any) -> list[str]:
+        connection = self._connect()
+        missed: list[str] = []
+        for term in family_terms(family):
+            row = connection.execute(
+                "SELECT 1 FROM sku_fact WHERE family LIKE ? LIMIT 1",
+                (f"%{term}%",),
+            ).fetchone()
+            if not row:
+                missed.append(term)
+        return missed
+
+    def list_canonical_specs(self, **kw: Any) -> dict:
         family = kw.get("family")
+        path = kw.get("path") or None
+        if isinstance(path, list) and not path:
+            path = None
         contains = kw.get("spec_id_contains")
         canonical_only = bool(kw.get("canonical_only"))
-        rows = list(self._specs_for_family(family or "*"))
+        if path:
+            rows = self._specs_for_scope(path, family)
+        else:
+            terms = family_terms(family)
+            if not terms:
+                rows = list(self._specs_for_family("*"))
+            else:
+                seen: set[tuple[str, str]] = set()
+                rows = []
+                for term in terms:
+                    for row in self._specs_for_family(term):
+                        key = (row["family"], row["spec_id"])
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                        rows.append(row)
         if contains:
             needle = contains.lower()
             rows = [
@@ -459,7 +548,11 @@ class SqliteBackend:
             ]
         if canonical_only:
             rows = [row for row in rows if row.get("is_canonical_spec")]
-        return rows
+        result = specs_envelope(rows, path=path, family=family)
+        missed = self._unmatched_family_terms_sql(family)
+        if missed:
+            result["families_not_found"] = missed
+        return result
 
     # ------------------------------------------------------------------ map
 
@@ -792,22 +885,116 @@ class SqliteBackend:
                 )
         return result
 
+    def _search_hit_from_row(self, row: sqlite3.Row) -> dict[str, Any]:
+        levels = [row[col] for col in LEVEL_COLUMNS if row[col] != NA]
+        return {
+            "product_id": row["product_id"],
+            "sku_code": row["sku_code"],
+            "canonical_code": row["canonical_code"],
+            "family": row["family"],
+            "path": levels,
+            "description": row["description"],
+            "url": row["url"],
+            "price_status": row["price_status"],
+            "price_inr": row["price_inr"],
+            "price_quotable": bool(row["price_quotable"]),
+            "decoded": _loads(row["decoded"], {}),
+        }
+
+    def _row_passes_chunk_and_facets(
+        self, row: sqlite3.Row, kw: dict[str, Any]
+    ) -> bool:
+        if chunk_types := kw.get("has_chunk_type"):
+            present = set(_loads(row["chunk_types"], []) or [])
+            if not set(chunk_types).issubset(present):
+                return False
+        if facets := kw.get("facets"):
+            decoded = _loads(row["decoded"], {}) or {}
+            for axis, code in facets.items():
+                spec = decoded.get(axis) if isinstance(decoded, dict) else None
+                if not isinstance(spec, dict):
+                    return False
+                blob = f"{spec.get('code','')} {spec.get('meaning','')}".lower()
+                if str(code).lower() not in blob:
+                    return False
+        return True
+
+    def _attach_return_specs(
+        self,
+        connection: sqlite3.Connection,
+        hits: list[dict[str, Any]],
+        return_specs: list[str],
+    ) -> None:
+        if not hits or not return_specs:
+            return
+        codes = [hit["sku_code"] for hit in hits]
+        placeholders = ",".join("?" for _ in codes)
+        spec_ph = ",".join("?" for _ in return_specs)
+        facts = connection.execute(
+            f"""
+            SELECT sku_code, product_id, spec_id, spec_label, unit, value_num,
+                   value_min, value_max, value_display, value_kind,
+                   source_of_truth, fact_source_pdf AS source_pdf,
+                   fact_source_page AS source_page
+            FROM sku_fact
+            WHERE sku_code IN ({placeholders}) AND spec_id IN ({spec_ph})
+              AND is_sentinel = 0
+            ORDER BY sku_code, spec_id
+            """,
+            [*codes, *return_specs],
+        ).fetchall()
+        by_sku: dict[str, list[dict]] = {}
+        for fact in facts:
+            by_sku.setdefault(fact["sku_code"], []).append(dict(fact))
+        for hit in hits:
+            hit["specs"] = by_sku.get(hit["sku_code"], [])
+
+    def _spec_ids_by_group(
+        self,
+        connection: sqlite3.Connection,
+        in_scope: list[dict[str, Any]],
+        group_by: str,
+        filter_spec_ids: list[str],
+    ) -> dict[str, set[str]]:
+        published: dict[str, set[str]] = {}
+        if not in_scope or not filter_spec_ids:
+            return published
+        codes = [hit["sku_code"] for hit in in_scope]
+        sku_group = {hit["sku_code"]: group_key(hit, group_by) for hit in in_scope}
+        placeholders = ",".join("?" for _ in codes)
+        spec_ph = ",".join("?" for _ in filter_spec_ids)
+        rows = connection.execute(
+            f"""
+            SELECT sku_code, spec_id FROM sku_fact
+            WHERE sku_code IN ({placeholders}) AND spec_id IN ({spec_ph})
+              AND is_sentinel = 0
+            """,
+            [*codes, *filter_spec_ids],
+        ).fetchall()
+        for row in rows:
+            key = sku_group.get(row["sku_code"])
+            if key is None:
+                continue
+            published.setdefault(key, set()).add(row["spec_id"])
+        return published
+
     def product_search(self, **kw: Any) -> dict:
+        group_by = kw.get("group_by")
+        if group_by and not has_search_scope(kw.get("path"), kw.get("family")):
+            return {"error": GROUP_BY_SCOPE_ERROR}
         filters = kw.get("filters") or []
         limit = max(1, min(int(kw.get("limit", 20)), 100))
         connection = self._connect()
 
         base_clauses: list[str] = []
         base_params: list[Any] = []
-        path = kw.get("path") or []
-        for index, part in enumerate(path):
-            if index >= len(LEVEL_COLUMNS):
-                break
-            base_clauses.append(f"{LEVEL_COLUMNS[index]} = ?")
-            base_params.append(part)
-        if family := kw.get("family"):
-            base_clauses.append("family LIKE ?")
-            base_params.append(f"%{family}%")
+        path_clauses, path_params = _path_prefix_clauses(kw.get("path") or [])
+        base_clauses.extend(path_clauses)
+        base_params.extend(path_params)
+        family_sql, family_params = _family_like_clause(kw.get("family"))
+        if family_sql:
+            base_clauses.append(family_sql)
+            base_params.extend(family_params)
         if text := kw.get("text"):
             base_clauses.append(
                 "(sku_code LIKE ? OR canonical_code LIKE ? OR family LIKE ? "
@@ -885,78 +1072,24 @@ class SqliteBackend:
             base_params,
         ).fetchall()
 
-        hits: list[dict[str, Any]] = []
+        in_scope: list[dict[str, Any]] = []
         for row in rows:
-            sku = row["sku_code"]
-            if matched is not None and sku not in matched:
+            if not self._row_passes_chunk_and_facets(row, kw):
                 continue
-            if chunk_types := kw.get("has_chunk_type"):
-                present = set(_loads(row["chunk_types"], []) or [])
-                if not set(chunk_types).issubset(present):
-                    continue
-            if facets := kw.get("facets"):
-                decoded = _loads(row["decoded"], {}) or {}
-                ok = True
-                for axis, code in facets.items():
-                    spec = decoded.get(axis) if isinstance(decoded, dict) else None
-                    if not isinstance(spec, dict):
-                        ok = False
-                        break
-                    blob = f"{spec.get('code','')} {spec.get('meaning','')}".lower()
-                    if str(code).lower() not in blob:
-                        ok = False
-                        break
-                if not ok:
-                    continue
-            levels = [row[col] for col in LEVEL_COLUMNS if row[col] != NA]
-            hits.append(
-                {
-                    "product_id": row["product_id"],
-                    "sku_code": sku,
-                    "canonical_code": row["canonical_code"],
-                    "family": row["family"],
-                    "path": levels,
-                    "description": row["description"],
-                    "url": row["url"],
-                    "price_status": row["price_status"],
-                    "price_inr": row["price_inr"],
-                    "price_quotable": bool(row["price_quotable"]),
-                    "decoded": _loads(row["decoded"], {}),
-                }
-            )
+            in_scope.append(self._search_hit_from_row(row))
 
-        hits.sort(
+        in_scope.sort(
             key=lambda hit: (
                 0 if hit.get("price_quotable") and hit.get("price_inr") is not None else 1,
                 hit["price_inr"] if hit.get("price_inr") is not None else float("inf"),
                 hit["sku_code"] or "",
             )
         )
-        total = len(hits)
-        limited = hits[:limit]
-        return_specs = kw.get("return_specs") or []
-        if limited and return_specs:
-            codes = [h["sku_code"] for h in limited]
-            placeholders = ",".join("?" for _ in codes)
-            spec_ph = ",".join("?" for _ in return_specs)
-            facts = connection.execute(
-                f"""
-                SELECT sku_code, product_id, spec_id, spec_label, unit, value_num,
-                       value_min, value_max, value_display, value_kind,
-                       source_of_truth, fact_source_pdf AS source_pdf,
-                       fact_source_page AS source_page
-                FROM sku_fact
-                WHERE sku_code IN ({placeholders}) AND spec_id IN ({spec_ph})
-                  AND is_sentinel = 0
-                ORDER BY sku_code, spec_id
-                """,
-                [*codes, *return_specs],
-            ).fetchall()
-            by_sku: dict[str, list[dict]] = {}
-            for fact in facts:
-                by_sku.setdefault(fact["sku_code"], []).append(dict(fact))
-            for hit in limited:
-                hit["specs"] = by_sku.get(hit["sku_code"], [])
+        matched_codes = (
+            {hit["sku_code"] for hit in in_scope}
+            if matched is None
+            else {hit["sku_code"] for hit in in_scope if hit["sku_code"] in matched}
+        )
 
         composite_excluded = 0
         if numeric_spec_ids:
@@ -972,21 +1105,50 @@ class SqliteBackend:
             ).fetchone()
             composite_excluded = int(row["n"] if row else 0)
 
-        return {
+        missed = self._unmatched_family_terms_sql(kw.get("family"))
+        return_specs = kw.get("return_specs") or []
+        empty_hint = (
+            f"Relax {applied[-1]}"
+            if applied
+            else "Broaden the path, family, or text filter."
+        )
+
+        if group_by:
+            filter_spec_ids = [item["spec_id"] for item in filters]
+            result = grouped_product_search(
+                group_by=group_by,
+                in_scope=in_scope,
+                matched_codes=matched_codes,
+                spec_ids_by_group=self._spec_ids_by_group(
+                    connection, in_scope, group_by, filter_spec_ids
+                ),
+                filter_spec_ids=filter_spec_ids,
+                limit=limit,
+                composite_excluded=composite_excluded,
+                filters_applied=applied,
+                families_not_found=missed,
+                empty_hint=empty_hint,
+            )
+            sample_hits = [
+                hit for group in result["groups"] for hit in group["sample_hits"]
+            ]
+            self._attach_return_specs(connection, sample_hits, return_specs)
+            return result
+
+        hits = [hit for hit in in_scope if hit["sku_code"] in matched_codes]
+        total = len(hits)
+        limited = hits[:limit]
+        self._attach_return_specs(connection, limited, return_specs)
+        result = {
             "hits": limited,
             "total_matched": total,
             "composite_excluded": composite_excluded,
             "filters_applied": applied,
-            "widening_hint": (
-                None
-                if total
-                else (
-                    f"Relax {applied[-1]}"
-                    if applied
-                    else "Broaden the path, family, or text filter."
-                )
-            ),
+            "widening_hint": None if total else empty_hint,
         }
+        if missed:
+            result["families_not_found"] = missed
+        return result
 
     def get_sku(self, sku_code: str, include: list[str], **kw: Any) -> dict:
         resolved = self._resolved_sku(sku_code)

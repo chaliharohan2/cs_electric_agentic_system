@@ -37,7 +37,10 @@ TAXONOMY
   literal string 'N/A', which means "this branch has no such level" — not missing data.
 - The deepest level of a path IS the family, so the family name also appears in
   product_subgroup or product_range depending on how deep that branch runs. Always
-  filter families on the `family` column, never on a level column.
+  filter families on the `family` column, never on a level column. On
+  list_canonical_specs and product_search, family may be a string or a list of
+  names; a list is OR. path is still one prefix, AND down the tree, not an OR of
+  levels.
 - Products under division '_no_category' have no published category; their lower levels
   are pricelist section names. Never present those as C&S categories.
 - A path segment is only ever a literal value of division, product_group,

@@ -105,7 +105,8 @@ def prepare(state: AnalyticsState) -> dict[str, Any]:
     """
     limits = get_limits()
     family = state.get("family")
-    rows = backend().list_canonical_specs(**({"family": family} if family else {}))
+    payload = backend().list_canonical_specs(**({"family": family} if family else {}))
+    rows = payload["specs"] if isinstance(payload, dict) else payload
     total = len(rows)
     kept = _registry_rows(rows, limits.analytics_registry_chars)
     if family:

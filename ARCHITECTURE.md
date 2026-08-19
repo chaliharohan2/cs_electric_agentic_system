@@ -834,10 +834,17 @@ every SKU in the branch, **at any depth** — including the deepest level, where
 there are no children left to list. Browsing alone is never a product answer.
 
 **`list_canonical_specs`**
-Family-level vocabulary from `mv_spec_registry`: spec IDs, units, value kinds,
-canonical flag, SKU counts, composite counts, observed min/max.
-`spec_id_contains` lets compliance discover topics (`standard`, `test`, `ip`)
-at runtime instead of hardcoding names.
+Vocabulary for a path prefix and/or one or more families from `mv_spec_registry`:
+spec IDs, units, value kinds, canonical flag, SKU counts, composite counts,
+observed min/max. Specialists were calling this once per family, which spent
+sequential LLM rounds on a rollup the database already has. `family` is a string
+or a list (OR); `path` is one prefix (AND down the tree), not an OR of levels.
+One call now returns `by_spec_id` — the cross-scope rollup, with `family_count`
+and `families`, which is what to read first — and `specs`, the same
+per-(family, spec_id) rows as before. Empty `specs` because a family exists but
+`spec_id_contains` matched nothing is not a miss; a name that matches no family
+is `families_not_found`. `spec_id_contains` lets compliance discover topics
+(`standard`, `test`, `ip`) at runtime instead of hardcoding names.
 
 **`product_search`**
 Primary structured finder. Filters by path prefix, family, facets, market
@@ -848,8 +855,20 @@ segment, price status, chunk presence, free text, and typed spec predicates:
 | gte / lte / eq | Range-aware numeric predicates on min/max/value |
 | contains | Substring on `value_display` |
 
-Response envelope always includes `hits`, `total_matched`,
-`composite_excluded`, `filters_applied`, and `widening_hint` on empty results.
+`family` is a string or a list (OR); `path` remains one prefix. A multi-family
+shortlist is still a hit list; `limit` caps that list globally. For "how many of
+these families are 3-pole", `group_by` (family or a level column) returns every
+in-scope group including zeros: `spec_present` true and `matched` 0 means the
+spec is published but no SKU satisfied the predicate; `spec_present` false means
+the fact does not belong to that group. Spec filters affect `matched` only;
+in-scope groups come from path, family, text, market_segment, price_status,
+chunk, and facet filters. Out-of-scope families do not appear as catalogue-wide
+zero rows. `group_by` without family or path is refused, same idea as
+`catalogue_map` refusing an unfiltered dump. A family term that matches nothing
+is `families_not_found`, not a zero group. `limit` in grouped mode is the sample
+per group. Default (no `group_by`) envelope is unchanged: `hits`,
+`total_matched`, `composite_excluded`, `filters_applied`, and `widening_hint` on
+empty results.
 **Composite values cannot satisfy numeric predicates**; they are counted as
 unknown, not ruled out.
 

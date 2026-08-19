@@ -60,3 +60,39 @@ def matches(value: Any, wanted: Any) -> bool:
 def matches_any(values: Sequence[Any], wanted: Any) -> bool:
     """Whether any of ``values`` satisfies the search term ``wanted``."""
     return any(matches(value, wanted) for value in values)
+
+
+def family_terms(wanted: Any) -> list[str]:
+    """Normalise a family filter to the terms that should be OR-matched.
+
+    A bare string is one term. An empty list (or only blank entries) means no
+    family filter.
+    """
+    if wanted is None or wanted == "":
+        return []
+    if isinstance(wanted, str):
+        term = wanted.strip()
+        return [term] if term else []
+    terms: list[str] = []
+    for item in wanted:
+        term = str(item).strip()
+        if term:
+            terms.append(term)
+    return terms
+
+
+def family_matches(value: Any, wanted: Any) -> bool:
+    """Whether a SKU family satisfies a string or OR-list of family terms."""
+    terms = family_terms(wanted)
+    if not terms:
+        return True
+    return any(matches(value, term) for term in terms)
+
+
+def unmatched_family_terms(wanted: Any, known: Sequence[str]) -> list[str]:
+    """Family terms that match nothing in ``known`` catalogue names."""
+    missed: list[str] = []
+    for term in family_terms(wanted):
+        if not any(matches(name, term) for name in known):
+            missed.append(term)
+    return missed

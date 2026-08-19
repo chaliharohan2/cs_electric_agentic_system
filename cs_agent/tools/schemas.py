@@ -6,6 +6,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from cs_agent.backends.grouped_search import GROUP_BY_SCOPE_ERROR, GROUP_BY_VALUES
+
 
 class SpecFilter(BaseModel):
     spec_id: str
@@ -21,9 +23,18 @@ def _as_str_list(value: Any) -> list[str] | None:
     return list(value)
 
 
+def _coerce_family(value: Any) -> str | list[str] | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, str):
+        return value
+    items = [str(item) for item in value if str(item).strip()]
+    return items or None
+
+
 class ProductSearchArgs(BaseModel):
     path: list[str] | None = None
-    family: str | None = None
+    family: str | list[str] | None = None
     facets: dict[str, str] | None = None
     filters: list[SpecFilter] = Field(default_factory=list)
     market_segment: str | None = None
@@ -35,6 +46,14 @@ class ProductSearchArgs(BaseModel):
     text: str | None = Field(None, description="Optional free-text name/code match.")
     return_specs: list[str] = Field(default_factory=list)
     limit: int = Field(20, ge=1, le=100)
+    group_by: Literal[
+        "family", "division", "product_group", "product_subgroup", "product_range"
+    ] | None = None
+
+    @field_validator("family", mode="before")
+    @classmethod
+    def _family(cls, value: Any) -> str | list[str] | None:
+        return _coerce_family(value)
 
     @field_validator("price_status", "has_chunk_type", mode="before")
     @classmethod
@@ -48,6 +67,23 @@ class ProductSearchArgs(BaseModel):
             return max(1, min(int(value), 100))
         except (TypeError, ValueError):
             return 20
+
+    @field_validator("group_by", mode="before")
+    @classmethod
+    def _empty_group_by(cls, value: Any) -> Any:
+        if value == "":
+            return None
+        return value
+
+    @model_validator(mode="after")
+    def _group_by_needs_scope(self) -> "ProductSearchArgs":
+        if self.group_by and self.group_by not in GROUP_BY_VALUES:
+            raise ValueError(
+                f"group_by must be one of {list(GROUP_BY_VALUES)}, not {self.group_by!r}."
+            )
+        if self.group_by and not self.family and not self.path:
+            raise ValueError(GROUP_BY_SCOPE_ERROR)
+        return self
 
 
 class GetSkuArgs(BaseModel):
@@ -109,9 +145,15 @@ class TaxonomyBrowseArgs(BaseModel):
 
 
 class ListCanonicalSpecsArgs(BaseModel):
-    family: str | None = None
+    path: list[str] | None = None
+    family: str | list[str] | None = None
     spec_id_contains: str | None = None
     canonical_only: bool = False
+
+    @field_validator("family", mode="before")
+    @classmethod
+    def _family(cls, value: Any) -> str | list[str] | None:
+        return _coerce_family(value)
 
 
 class ResolveProductArgs(BaseModel):
