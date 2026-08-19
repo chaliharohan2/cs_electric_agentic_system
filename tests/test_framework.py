@@ -123,8 +123,12 @@ def _screen():
     lines.events = events
     trace = SimpleNamespace(
         print_to_screen=True,
+        listener=None,
         write=write,
         event=lambda name, **details: events.append((name, details)),
+        # Listener-only records — streamed answer fragments — land in the same
+        # list, told apart by their event name.
+        notify=lambda name, **details: events.append((name, details)),
         events=events,
     )
     set_active_trace(trace)
@@ -2234,6 +2238,309 @@ class DatabaseDefinitionTests(unittest.TestCase):
         source = (ROOT / "tests" / "test_vector_retrieval.py").read_text()
         self.assertIn("CS_SKIP_VECTOR_TESTS", source)
         self.assertNotIn("skipUnless", source)
+
+
+class PhraseTests(unittest.TestCase):
+    """The chat window's progress lines, built from trace records."""
+
+    def test_the_named_argument_becomes_the_sentence(self) -> None:
+        from cs_agent.ui.phrases import tool_phrase
+
+        self.assertEqual(
+            tool_phrase("catalogue_map", {"path_text": "MCB"}),
+            "Searching the catalogue for MCB",
+        )
+        self.assertEqual(
+            tool_phrase("product_search", {"text": "MCB solar", "limit": 20}),
+            "Searching products for MCB solar",
+        )
+
+    def test_the_first_argument_present_wins(self) -> None:
+        """Ordering in the table is the priority, so the specific one is used."""
+        from cs_agent.ui.phrases import tool_phrase
+
+        phrase = tool_phrase(
+            "catalogue_map", {"path_text": "MCB", "market_segment": "Residential"}
+        )
+        self.assertEqual(phrase, "Searching the catalogue for MCB")
+
+    def test_an_empty_path_reads_as_the_top_of_the_tree(self) -> None:
+        """`taxonomy_browse(path=[])` is the call that lists the divisions."""
+        from cs_agent.ui.phrases import tool_phrase
+
+        self.assertEqual(
+            tool_phrase("taxonomy_browse", {"path": []}),
+            "Opening the top of the catalogue",
+        )
+        self.assertEqual(
+            tool_phrase("taxonomy_browse", {"path": ["Low Voltage", "Breakers"]}),
+            "Opening Low Voltage > Breakers",
+        )
+
+    def test_every_specialist_is_named_in_its_progress_line(self) -> None:
+        from cs_agent.tools.registry import AGENT_TOOL_NAMES
+        from cs_agent.ui.phrases import agent_phrase, report_phrase
+
+        for agent in AGENT_TOOL_NAMES:
+            with self.subTest(agent=agent):
+                self.assertIsNotNone(agent_phrase(agent), agent)
+                self.assertIn("specialist", agent_phrase(agent))
+                self.assertIn("evidence report", report_phrase(agent) or "")
+
+    def test_a_tool_the_table_never_heard_of_still_reads(self) -> None:
+        from cs_agent.ui.phrases import tool_phrase
+
+        self.assertEqual(tool_phrase("brand_new_tool", {"x": 1}), "Running brand new tool")
+
+    def test_long_values_are_clipped(self) -> None:
+        from cs_agent.ui.phrases import tool_phrase
+
+        phrase = tool_phrase("resolve_product", {"query": "x" * 200})
+        self.assertLess(len(phrase), 90)
+        self.assertTrue(phrase.endswith("\u2026"))
+
+    def test_only_tool_and_node_starts_reach_the_window(self) -> None:
+        """Everything else in a trace is bookkeeping and stays in the file."""
+        from cs_agent.ui.app import _progress
+
+        self.assertEqual(
+            _progress(
+                {"event": "tool.start", "tool": "catalogue_map", "inputs": {"path_text": "MCB"}}
+            ),
+            "Searching the catalogue for MCB",
+        )
+        self.assertEqual(
+            _progress({"event": "node.start", "node": "specialist", "agent": "discovery"}),
+            "Discovery specialist — finding what C&S sells here",
+        )
+        # The specialist subgraph's report node arrives as a runnable, not a
+        # graph node, and is the longest generation in a turn.
+        self.assertEqual(
+            _progress({"event": "runnable.start", "name": "report", "agent": "comparison"}),
+            "Comparison specialist is writing its final evidence report",
+        )
+        self.assertIsNone(
+            _progress({"event": "runnable.start", "name": "agent", "agent": "comparison"})
+        )
+        self.assertEqual(
+            _progress({"event": "node.start", "node": "compose_final"}),
+            "Writing the answer",
+        )
+        for noise in ("runnable.start", "llm.end", "state.update", "tool.end"):
+            self.assertIsNone(_progress({"event": noise}), noise)
+
+
+class TraceListenerTests(unittest.TestCase):
+    """A second reader of the trace, for a frontend showing progress."""
+
+    def _trace(self, records: list) -> Any:
+        from cs_agent.observability import TraceLogger
+
+        return TraceLogger(
+            file_path=Path(os.devnull),
+            print_to_screen=False,
+            listener=records.append,
+        )
+
+    def test_the_listener_sees_every_event(self) -> None:
+        records: list = []
+        trace = self._trace(records)
+        try:
+            trace.event("tool.start", tool="catalogue_map")
+        finally:
+            trace.close()
+        self.assertEqual([r["event"] for r in records], ["tool.start"])
+        self.assertEqual(records[0]["tool"], "catalogue_map")
+
+    def test_notify_reaches_the_listener_but_not_the_file(self) -> None:
+        """Answer fragments would double the size of every trace."""
+        from cs_agent.observability import TraceLogger
+
+        records: list = []
+        import tempfile
+
+        path = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        trace = TraceLogger(
+            file_path=path / "t.jsonl", print_to_screen=False, listener=records.append
+        )
+        try:
+            trace.notify("answer.delta", text="hello")
+        finally:
+            trace.close()
+        self.assertEqual(records[0]["event"], "answer.delta")
+        self.assertEqual(records[0]["text"], "hello")
+        self.assertEqual((path / "t.jsonl").read_text().strip(), "")
+
+    def test_no_listener_is_the_normal_case_and_costs_nothing(self) -> None:
+        from cs_agent.observability import TraceLogger
+
+        trace = TraceLogger(file_path=Path(os.devnull), print_to_screen=False)
+        try:
+            self.assertIsNone(trace.listener)
+            trace.notify("answer.delta", text="ignored")  # must not raise
+        finally:
+            trace.close()
+
+
+class ChatTurnTests(unittest.TestCase):
+    """The chat window's turn loop, including the clarification handoff."""
+
+    def setUp(self) -> None:
+        # A turn builds its own TraceLogger from the environment, so point it
+        # somewhere disposable: these tests must not append to the trace the
+        # operator reads, nor scribble over the unittest output.
+        import tempfile
+
+        directory = self.enterContext(tempfile.TemporaryDirectory())
+        self.enterContext(
+            patch.dict(
+                os.environ,
+                {
+                    "CS_LOG_FILE": str(Path(directory) / "trace.jsonl"),
+                    "CS_LOG_TO_SCREEN": "false",
+                },
+            )
+        )
+
+    def _drain(self, message: str, state: dict) -> list:
+        from cs_agent.ui.app import respond
+
+        frames = list(respond(message, [], state))
+        return frames[-1] if frames else []
+
+    def test_a_finished_turn_shows_the_answer_and_keeps_the_session(self) -> None:
+        result = {"draft": "Five WiNtrip ranges.", "session": {"turns": [1]}}
+        state: dict = {}
+        with patch("cs_agent.ui.app.run_question", return_value=result) as run:
+            final = self._drain("what wintrip products?", state)
+        self.assertEqual(final[-1].content, "Five WiNtrip ranges.")
+        self.assertFalse(state["awaiting"])
+        self.assertEqual(state["session"], {"turns": [1]})
+        # The frontend never answers the clarify interrupt from inside the turn.
+        self.assertIsNone(run.call_args.kwargs["on_clarify"])
+
+    def test_a_clarifying_question_is_asked_in_the_chat(self) -> None:
+        """The turn parks on the checkpoint rather than blocking on stdin."""
+        interrupt = {"__interrupt__": [SimpleNamespace(value={"questions": ["Rating?"]})]}
+        state: dict = {}
+        with patch("cs_agent.ui.app.run_question", return_value=interrupt):
+            final = self._drain("I need a breaker", state)
+        self.assertIn("Rating?", final[-1].content)
+        self.assertTrue(state["awaiting"])
+        # The paused turn owns the session; overwriting it would lose the thread.
+        self.assertNotIn("session", state)
+
+    def test_the_next_message_resumes_the_parked_turn(self) -> None:
+        state = {"thread_id": "t-1", "awaiting": True}
+        result = {"draft": "A 250 A MCCB.", "session": {}}
+        with patch("cs_agent.ui.app.resume_question", return_value=result) as resume:
+            with patch("cs_agent.ui.app.run_question") as run:
+                final = self._drain("250 A at 415 V", state)
+        run.assert_not_called()
+        self.assertEqual(resume.call_args.kwargs["thread_id"], "t-1")
+        self.assertEqual(final[-1].content, "A 250 A MCCB.")
+        self.assertFalse(state["awaiting"])
+
+    def test_progress_steps_are_shown_then_marked_done(self) -> None:
+        def fake_run(question, **kwargs):
+            trace = kwargs["trace"]
+            trace.event("node.start", node="specialist", agent="discovery")
+            trace.event(
+                "tool.start", tool="catalogue_map", inputs={"path_text": "wintrip"}
+            )
+            trace.event("runnable.start", name="noise")
+            trace.event("runnable.start", name="report", agent="discovery")
+            trace.notify("answer.delta", text="Five ranges.")
+            return {"draft": "Five ranges.", "session": {}}
+
+        state: dict = {}
+        with patch("cs_agent.ui.app.run_question", side_effect=fake_run):
+            final = self._drain("what wintrip products?", state)
+        titles = [m.metadata["title"] for m in final if (m.metadata or {}).get("title")]
+        self.assertEqual(
+            titles,
+            [
+                "Discovery specialist — finding what C&S sells here",
+                "Searching the catalogue for wintrip",
+                "Discovery specialist is writing its final evidence report",
+            ],
+        )
+        self.assertTrue(all(m.metadata["status"] == "done" for m in final[:-1]))
+        self.assertEqual(final[-1].content, "Five ranges.")
+
+    def test_a_failed_turn_says_so_instead_of_hanging(self) -> None:
+        state: dict = {}
+        with patch("cs_agent.ui.app.run_question", side_effect=RuntimeError("ollama down")):
+            final = self._drain("what wintrip products?", state)
+        self.assertIn("ollama down", final[-1].content)
+
+    def test_a_cancelled_turn_says_so_rather_than_erroring(self) -> None:
+        from cs_agent.ui.app import TurnCancelled
+
+        state: dict = {}
+        with patch("cs_agent.ui.app.run_question", side_effect=TurnCancelled):
+            final = self._drain("what wintrip products?", state)
+        self.assertIn("Stopped", final[-1].content)
+
+    def test_stopping_only_takes_effect_at_the_next_boundary(self) -> None:
+        """LangChain drops what a handler raises unless it asks not to."""
+        import threading
+
+        from cs_agent.ui.app import _CancelOnDemand, TurnCancelled
+
+        flag = threading.Event()
+        handler = _CancelOnDemand(flag)
+        self.assertTrue(handler.raise_error)
+        handler.on_tool_start({}, "")  # not asked to stop: silent
+        flag.set()
+        for hook in ("on_chain_start", "on_llm_start", "on_tool_start"):
+            with self.subTest(hook=hook):
+                with self.assertRaises(TurnCancelled):
+                    getattr(handler, hook)({}, "")
+
+    def test_stop_sets_the_flag_the_running_turn_watches(self) -> None:
+        import threading
+
+        from cs_agent.ui.app import _stop
+
+        flag = threading.Event()
+        _stop({"cancel": flag})
+        self.assertTrue(flag.is_set())
+        _stop({})  # no turn running: must not raise
+
+    def test_a_new_chat_drops_the_thread_as_well_as_the_transcript(self) -> None:
+        """The checkpointer keys on thread_id, so reusing one lets it back in."""
+        from cs_agent.ui.app import _reset
+
+        history, state = _reset({"thread_id": "t-1", "session": {"turns": [1]}})
+        self.assertEqual(history, [])
+        self.assertEqual(state, {})
+
+    def test_a_second_turn_waits_for_an_abandoned_one(self) -> None:
+        """Two live turns would fight over the module-level active trace."""
+        import threading
+
+        from cs_agent.ui.app import _retire_previous
+
+        released = threading.Event()
+        flag = threading.Event()
+        worker = threading.Thread(target=lambda: released.wait(5), daemon=True)
+        worker.start()
+        threading.Timer(0.05, released.set).start()
+        _retire_previous({"worker": worker, "cancel": flag})
+        self.assertTrue(flag.is_set())
+        self.assertFalse(worker.is_alive())
+
+    def test_the_questions_a_turn_stopped_on_are_readable(self) -> None:
+        from cs_agent.run import interrupt_questions
+
+        self.assertEqual(interrupt_questions({"draft": "done"}), [])
+        self.assertEqual(
+            interrupt_questions(
+                {"__interrupt__": [SimpleNamespace(value={"questions": ["A?", "B?"]})]}
+            ),
+            ["A?", "B?"],
+        )
 
 
 if __name__ == "__main__":
