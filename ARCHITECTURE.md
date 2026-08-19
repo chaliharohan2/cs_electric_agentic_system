@@ -1221,6 +1221,117 @@ That trade is why the tools stay bound despite the occasional wasted call.
 metadata. It is optional and intended for offline benchmarking, not the
 default unit suite.
 
+### 10.3 The chat window
+
+`cs_agent/ui/` is a Gradio front end for showing the agent to people. It adds
+no path through the graph: a turn is `run_question`, called exactly as the CLI
+calls it, on a worker thread. Everything the CLI prints still prints and the
+JSONL trace is still written, because the window is a *reader* of the trace
+rather than a replacement for it.
+
+```
+   browser ── gr.ChatInterface ── respond() generator
+                                      │ drains
+                                      ▼
+                                 queue.Queue
+                                      ▲ puts
+   TraceLogger.event / .notify ── listener
+        │  (unchanged)
+        ├──▶ logs/*.jsonl
+        └──▶ stdout
+                ▲
+   worker thread ── run_question ── graph ── specialists ── tools
+```
+
+One hook carries it: `TraceLogger` takes an optional `listener`, called with
+each record *after* the file and the screen have had it, so attaching one
+cannot change what either sees. `notify()` is the same channel for output the
+trace deliberately does not log — streamed answer fragments, which `llm.end`
+already records whole and which would double the size of every trace if
+repeated per fragment.
+
+**Progress.** A turn takes around two minutes, so a window that shows nothing
+until the answer arrives looks broken. Three trace records drive the display,
+and `ui/phrases.py` turns each into a sentence a customer would recognise:
+
+| Record | Reads as |
+|---|---|
+| `node.start` with `agent` | *Comparison specialist — comparing the options* |
+| `runnable.start` named `report` | *Comparison specialist is writing its final evidence report* |
+| `tool.start` | *Searching the catalogue for MCB* |
+| `node.start` without `agent` | *Planning the work* |
+
+Specialists are named rather than described anonymously: five exist and a turn
+uses two or three, so which one is running is the interesting half. The report
+gets its own line because on a detailed brief it is the largest single
+generation in the turn — without it the window looks stalled for the longest
+stretch of the run. It arrives as a `runnable.start`, not a `node.start`,
+because it is a node of the specialist subgraph rather than of the main graph.
+
+The table lives in the backend because knowing that `path_text` is the
+interesting argument on `catalogue_map` and `text` on `product_search` is
+knowledge about the tools, and it should survive replacing the UI. Everything
+else in a trace is bookkeeping and stays in the file.
+
+Steps show a spinner until the next one starts, and no duration. A step lasts
+until the next begins, so the figure against *"Searching the catalogue"* would
+be mostly the specialist reading the result, and a viewer would read it as a
+slow database.
+
+**The input row is built directly rather than with `gr.ChatInterface`.**
+`ChatInterface` replaces the send button with a stop button for the duration of
+a turn, and a control that disappears reads as a fault. Here Send stays put and
+goes inactive, reading *Working…*, and Stop appears beside it.
+
+**Stopping a turn.** `graph.invoke` blocks on a worker thread and LangGraph
+offers no way to interrupt it from outside, so the only thing that can reach a
+running turn is a callback, which executes on that thread. `_CancelOnDemand`
+raises `TurnCancelled` from `on_chain_start`, `on_llm_start` and
+`on_tool_start` — and sets `raise_error`, without which LangChain catches
+whatever a handler raises and logs it as a handler fault. `run_question` and
+`resume_question` take a `callbacks` list for exactly this, and record the
+unwind as `run.end status=cancelled` rather than an error, because nothing went
+wrong. A turn is around sixty short steps, so this lands in a second or two;
+the worst case is one report generation, which cannot be broken into.
+
+Gradio's `cancels=` frees the page at once, which is why `_retire_previous`
+exists: a cancelled turn's worker is still inside `graph.invoke` until it
+reaches that boundary, and two live turns would fight over `set_active_trace`
+and write to one checkpointer thread from two places. The next turn sets the
+flag and joins before starting.
+
+**New chat** clears the transcript and issues a new `thread_id`. The
+checkpointer keys on that, so reusing one would let the old turns back into a
+conversation meant to be fresh.
+
+**Fonts** are a local sans stack, set on the theme and again in `CSS` for the
+places a theme font does not reach — rendered markdown and code spans. Nothing
+is fetched from a font CDN, because a demonstration machine may be offline and
+the fallback would be a serif.
+
+Gradio pins a step title to `--text-sm` with `!important` and fades the block to
+`0.8` opacity, which is too faint to read across a room; `CSS` in `ui/app.py`
+overrides both so the steps sit clearly below the answer in weight but stay
+legible.
+
+**Clarifying questions.** The clarify node raises a LangGraph `interrupt`, and
+the CLI answers it with `input()` — which would hang a browser. `run_question`
+now takes `on_clarify`; the default is the CLI prompt, and `None` hands the
+interrupt back untouched. The window shows the questions in the chat, and the
+next thing the user types goes to `resume_question`, which picks the paused
+turn off the checkpoint on the same `thread_id`. That needs the durable SQLite
+checkpointer; the fixtures backend keeps checkpoints in memory and loses them
+between calls.
+
+**One turn at a time.** `set_active_trace` is a module-level handle — one
+process, one turn — so the app runs with `default_concurrency_limit=1`. Fine
+for a demonstration, not for concurrent users.
+
+**Gradio is pinned below 6.** Gradio 6 requires `huggingface-hub>=1.16`, and
+the `transformers<5` that the GTE v1.5 embedding model needs forbids anything
+at or above 1.0. Installing Gradio 6 silently breaks `search_documents`; the
+vector suite catches it. Lift the pin when transformers 5 is usable here.
+
 ---
 
 ## 11. Tests and operations

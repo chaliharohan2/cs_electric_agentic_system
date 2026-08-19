@@ -6,6 +6,7 @@ import json
 import os
 import threading
 import uuid
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -234,7 +235,15 @@ class TraceLogger:
         run_id: str | None = None,
         file_path: str | Path | None = None,
         print_to_screen: bool | None = None,
+        listener: Callable[[dict[str, Any]], None] | None = None,
     ) -> None:
+        # A second reader of the same events, for a frontend that has to show
+        # progress while a two-minute turn runs. It is handed each record after
+        # the file and the screen have had it, so attaching one cannot change
+        # what either of those sees. It runs on the emitting thread, inside the
+        # lock that orders the screen, so it must be cheap — a queue put, not
+        # work. Nothing in the graph knows it exists.
+        self.listener = listener
         self.run_id = run_id or str(uuid.uuid4())
         configured_path = file_path or os.getenv(
             "CS_LOG_FILE", "logs/cs_agent_trace.jsonl"
@@ -262,6 +271,21 @@ class TraceLogger:
             self._stream.flush()
             if self.print_to_screen:
                 self._print_record(record)
+            if self.listener is not None:
+                self.listener(record)
+
+    def notify(self, event: str, **details: Any) -> None:
+        """Send a record to the listener alone — not to the file or the screen.
+
+        For output the trace deliberately does not log. Streamed answer text is
+        the case: `llm.end` already records it whole, and repeating it per
+        fragment would bloat every trace, but a chat window still needs the
+        fragments as they arrive.
+        """
+        if self.listener is None:
+            return
+        with self._lock:
+            self.listener({"run_id": self.run_id, "event": event, **details})
 
     def write(self, text: str, *, end: str = "\n") -> None:
         """Print streamed model output, if the screen is in use.
@@ -351,7 +375,8 @@ class TraceLogger:
             print("  ▶ Clarification received; resuming", flush=True)
         elif event == "run.end":
             status = record.get("status", "unknown")
-            symbol = "✓" if status == "completed" else "✗"
+            # A cancelled run is not a failed one; ✗ next to it reads as a bug.
+            symbol = {"completed": "✓", "cancelled": "⏹"}.get(status, "✗")
             print(f"{symbol} Run {status}", flush=True)
         # Intentionally suppress snapshots, full LLM payloads, runnable callbacks,
         # node start/end events, and duplicate agent.change events on the terminal.

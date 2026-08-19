@@ -14,3 +14,7 @@ rapidfuzz
 # GTE v1.5 custom modeling is not compatible with transformers 5.x yet.
 transformers>=4.44,<5
 sentence-transformers
+# Gradio 6 requires huggingface-hub>=1.16, which transformers 4.x forbids
+# (<1.0). Pinning to 5.x is what lets the chat frontend and the embedding
+# model share one environment; lift it when transformers 5 is usable here.
+gradio>=5.40,<6

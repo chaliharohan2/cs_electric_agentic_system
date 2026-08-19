@@ -53,6 +53,34 @@ python -m cs_agent.run --question "Compare two WiNmaster 3 ACB SKUs."
 python -m cs_agent.run --thread-id customer-42
 ```
 
+## Chat window
+
+```bash
+python -m cs_agent.ui.app          # http://127.0.0.1:7860
+```
+
+A Gradio chat front end for showing the agent to people. It runs a turn through
+the same `run_question` the CLI uses, on a worker thread, and reads the trace
+that turn already writes — so every terminal print and the JSONL trace continue
+unchanged.
+
+While a turn runs it shows which specialist is working — *"Comparison
+specialist — comparing the options"*, then *"Comparison specialist is writing
+its final evidence report"* — and its tool calls as plain sentences rather than
+JSON: `catalogue_map({"path_text": "MCB"})` shows as *"Searching the catalogue
+for MCB"*. The answer streams in as it is written. When the planner needs a
+clarification it is asked in the chat, and the next message resumes the paused
+turn off the checkpoint.
+
+**Stop** ends a running turn — it unwinds at the next model, tool or node
+boundary, usually within a second or two. **New chat** clears the transcript and
+starts a fresh thread, so nothing from the previous conversation carries over;
+no restart or reload is needed.
+
+`CS_UI_HOST`, `CS_UI_PORT` and `CS_UI_SHARE=true` override the defaults. One
+turn runs at a time, which is what a demonstration needs; it is not a
+multi-user server.
+
 Model routing is controlled by `cs_agent/config/endpoints.yaml`. Override with
 `CS_MODELS=all:qwen_27b` or `CS_MODELS=agent:qwen_a3b,composer:qwen_27b`.
 A profile's `provider` picks the client: `openai` for Anthropic and vLLM,

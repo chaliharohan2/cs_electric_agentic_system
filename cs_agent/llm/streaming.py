@@ -94,6 +94,9 @@ class _Sink:
             # Raw, chunk by chunk: this is the answer the user is reading, and
             # buffering it into lines would hold tokens back for no reason.
             self.trace.write(text, end="")
+            # A chat window is reading the same answer and wants it as it
+            # arrives; the trace deliberately does not log these fragments.
+            self.trace.notify("answer.delta", text=text)
             return
         self._pending += text
         while "\n" in self._pending:
