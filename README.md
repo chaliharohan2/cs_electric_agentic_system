@@ -87,6 +87,14 @@ before the next begins, and the composer performs a structured sufficiency pass 
 writing the answer. Missing evidence triggers only the named specialist, up to the
 configured revision cap.
 
+A specialist that knows a name but not where it sits calls `catalogue_map`, which
+fuzzy-matches the phrase against every catalogue path and returns the matching families
+with their SKU counts in one call — "what wintrip products do you have" costs one tool
+call instead of the four-step taxonomy walk it used to. The same tool filters on the
+catalogue's market-segment tag, which is assigned per division: `Residential` returns
+Final Distribution Products and nothing else, so the answer is exactly what C&S
+publishes rather than what the model reasons a home might use.
+
 The planner also sets each brief's **depth**. An `overview` answers at range level —
 which families exist and what each is for — and closes by asking what the user wants to
 narrow to; a `detailed` brief goes through to ordering codes and specifications.

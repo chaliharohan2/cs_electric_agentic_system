@@ -81,8 +81,14 @@ def structured(
     otherwise invisible until it is finished.
     """
     model = get_model(node)
+    tool_names: set[str] | None = None
     if tools:
         model = model.bind_tools(tools)
+        # Bound for the prompt prefix, never meant to be called — but the model
+        # sometimes calls one anyway, and a streamed parse can mangle the name.
+        tool_names = {
+            name for tool in tools if (name := getattr(tool, "name", None))
+        }
     msgs: list[BaseMessage] = list(messages)
     has_schema_hint = any(
         isinstance(m, (SystemMessage, HumanMessage))
@@ -95,7 +101,9 @@ def structured(
     last_raw: str | None = None
     for attempt in range(attempts + 1):
         shown = label if attempt == 0 else f"{label} retry {attempt}"
-        reply, _ = generate(model, msgs, label=shown if label else None)
+        reply, _ = generate(
+            model, msgs, label=shown if label else None, tool_names=tool_names
+        )
         raw = _content_text(reply.content)
         last_raw = raw
         try:

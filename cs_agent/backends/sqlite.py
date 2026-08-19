@@ -9,12 +9,14 @@ import re
 import sqlite3
 import struct
 import threading
+from collections.abc import Sequence
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 from rapidfuzz import fuzz, process
 
+from cs_agent.backends.matching import matches, matches_any, squash
 from cs_agent.backends.path_levels import LEVEL_COLUMNS, NA
 from cs_agent.backends.vec_support import try_load_sqlite_vec
 from cs_agent.config.limits import get_limits
@@ -72,6 +74,42 @@ def _fts_query(value: str) -> str:
     """Turn free text into a safe FTS5 MATCH query (no column operators)."""
     tokens = re.findall(r"[A-Za-z0-9_]+", value)
     return " ".join(tokens)
+
+
+# Below this, a suggestion is noise. Calibrated against the built catalogue:
+# "winbrek" scores 77 on MCCB – Winbreak and "distribushion board" 89 on
+# Distribution Boards, while "solar inverter" — which C&S does not make — tops
+# out at 72 against "Meter". A list of unrelated branches reads as an answer.
+_CLOSE_ENOUGH = 75
+
+
+def _closest(
+    wanted: str, branches: Sequence[dict[str, Any]], limit: int = 6
+) -> list[str]:
+    """Catalogue branches worth trying instead of one that matched nothing.
+
+    Scored on the family name rather than the whole path, because that is what
+    a customer types: against the full ``Low Voltage Products and Solutions >
+    Circuit Breakers > Moulded Case Circuit Breakers > MCCB – Winbreak`` a
+    seven-character typo is swamped by eighty characters it never mentioned,
+    and the right family scored below an unrelated one. Both sides are squashed
+    to alphanumerics first so an en dash or a curly quote cannot cost a match.
+
+    An empty result that says nothing is what makes a specialist re-issue the
+    same guess until its budget runs out.
+    """
+    names = {squash(b["family"]): b for b in branches if b["family"]}
+    hits = process.extract(
+        squash(wanted),
+        list(names),
+        scorer=fuzz.WRatio,
+        limit=limit,
+        score_cutoff=_CLOSE_ENOUGH,
+    )
+    return [
+        " > ".join(names[key]["path"]) or names[key]["family"]
+        for key, _score, _i in hits
+    ]
 
 
 def _serialize_vec(vector: list[float]) -> bytes:
@@ -422,6 +460,173 @@ class SqliteBackend:
         if canonical_only:
             rows = [row for row in rows if row.get("is_canonical_spec")]
         return rows
+
+    # ------------------------------------------------------------------ map
+
+    @lru_cache(maxsize=1)
+    def _catalogue_branches(self) -> tuple[dict[str, Any], ...]:
+        """Every populated branch of the taxonomy, with its SKU count.
+
+        Grouped on the level columns themselves — division, product_group,
+        product_subgroup, product_range — rather than on the rendered
+        ``path_text``, because those columns are what the rest of the toolchain
+        takes as arguments: a `taxonomy_browse` path is a list of literal level
+        values, and `product_search` filters on them. Grouping on the rendered
+        string and splitting it back would put a parsed value where the real one
+        was available. The two agree exactly on the built catalogue (66 groups
+        either way, and the levels reconstruct every path_text), so this is a
+        change of provenance rather than of result.
+
+        `family` stays in the key because it is the only thing separating the
+        eleven unplaced branches, which all share the same all-N/A level tuple.
+
+        Cached for the process because it is small and fixed: 56 published paths
+        plus a handful of unplaced families. Matching then runs over that in
+        Python rather than in SQL, because catalogue labels need the punctuation
+        folding in ``backends.matching`` — ``WiNtrip 'S' Modular MCB`` carries
+        curly quotes and ``ACB - AH-AHA`` an en dash, and a LIKE would miss both.
+        """
+        levels = ", ".join(LEVEL_COLUMNS)
+        rows = self._connect().execute(
+            f"""
+            SELECT {levels},
+                   family,
+                   max(market_segments_text) AS market_segments_text,
+                   count(DISTINCT sku_code)  AS sku_count
+            FROM sku_fact
+            GROUP BY {levels}, family
+            """
+        ).fetchall()
+        published = self._taxonomy_levels()
+        branches = []
+        for row in rows:
+            # 'N/A' is the padding the build writes for a level this branch does
+            # not reach, so it marks absence rather than naming a category.
+            named = {
+                column: row[column]
+                for column in LEVEL_COLUMNS
+                if row[column] and row[column] != NA
+            }
+            path = [named[column] for column in LEVEL_COLUMNS if column in named]
+            path_text = " > ".join(path)
+            page = published.get(path_text) or {}
+            segments = [
+                part
+                for part in (row["market_segments_text"] or "").split("|")
+                if part
+            ]
+            branches.append(
+                {
+                    **named,
+                    "family": row["family"],
+                    # The literal level values again as a list, because that is
+                    # the argument taxonomy_browse and product_search take.
+                    "path": path,
+                    "sku_count": row["sku_count"],
+                    "description": page.get("description"),
+                    "url": page.get("url"),
+                    "market_segments": segments,
+                    # A branch the pricelist named but the published taxonomy
+                    # never placed: `family` is set, every level is 'N/A'.
+                    "_uncategorised": not path,
+                    # Matched against, never returned: the path a customer would
+                    # recognise, or the family for an unplaced branch.
+                    "_haystack": path_text or row["family"] or "",
+                }
+            )
+        return tuple(branches)
+
+    def catalogue_map(self, **kw: Any) -> dict:
+        path_text = (kw.get("path_text") or "").strip()
+        market_segment = (kw.get("market_segment") or "").strip()
+        include_uncategorised = kw.get("include_uncategorised", True)
+        limit = max(1, min(int(kw.get("limit", 40)), 100))
+
+        placed: list[dict[str, Any]] = []
+        unplaced: list[dict[str, Any]] = []
+        for branch in self._catalogue_branches():
+            if branch["_uncategorised"] and not include_uncategorised:
+                continue
+            if path_text and not matches(branch["_haystack"], path_text):
+                continue
+            if market_segment and not matches_any(
+                branch["market_segments"], market_segment
+            ):
+                continue
+            bucket = unplaced if branch["_uncategorised"] else placed
+            bucket.append({k: v for k, v in branch.items() if not k.startswith("_")})
+
+        # Largest first: a family with 408 SKUs is what the customer meant more
+        # often than one with 6, and `limit` cuts from the bottom.
+        placed.sort(key=lambda b: (-b["sku_count"], b["family"]))
+        unplaced.sort(key=lambda b: (-b["sku_count"], b["family"]))
+
+        result: dict[str, Any] = {
+            "matched_on": {
+                key: value
+                for key, value in (
+                    ("path_text", path_text),
+                    ("market_segment", market_segment),
+                )
+                if value
+            },
+            "groups": placed[:limit],
+            "total_groups": len(placed),
+            "total_skus": sum(branch["sku_count"] for branch in placed),
+        }
+        if len(placed) > limit:
+            result["truncated"] = (
+                f"Showing {limit} of {len(placed)} matching branches, largest "
+                "first. Narrow path_text or raise limit for the rest."
+            )
+        if unplaced:
+            result["uncategorised"] = {
+                "groups": unplaced[:limit],
+                "total_skus": sum(branch["sku_count"] for branch in unplaced),
+                "note": (
+                    "These are pricelist section names, not published C&S "
+                    "categories, so they have no path, description or URL. "
+                    "product_search with family= still reaches their SKUs."
+                ),
+            }
+        if not placed and not unplaced:
+            result["no_match"] = self._map_miss(path_text, market_segment)
+        return result
+
+    def _map_miss(self, path_text: str, market_segment: str) -> dict[str, Any]:
+        """Why a map call came back empty, and what to try instead.
+
+        An empty result that says nothing is what makes a specialist re-issue
+        the same guess until its budget runs out, so both filters report the
+        vocabulary they actually accept.
+        """
+        miss: dict[str, Any] = {}
+        if path_text:
+            # Only when something actually scored: a list of unrelated branches
+            # reads as an answer and sends the agent down a wrong path.
+            if close := _closest(path_text, self._catalogue_branches()):
+                miss["closest_paths"] = close
+        if market_segment:
+            miss["known_market_segments"] = sorted(
+                {
+                    segment
+                    for branch in self._catalogue_branches()
+                    for segment in branch["market_segments"]
+                }
+            )
+        miss["note"] = (
+            "No catalogue branch matched. "
+            + (
+                "Nothing scored close to that name, so C&S may not publish it "
+                "under any path — try product_search, which also matches "
+                "ordering codes and descriptions, before concluding it does "
+                "not exist. "
+                if path_text and "closest_paths" not in miss
+                else ""
+            )
+            + "taxonomy_browse with path=[] lists the divisions."
+        )
+        return miss
 
     @lru_cache(maxsize=1)
     def _taxonomy_levels(self) -> dict[str, dict[str, Any]]:

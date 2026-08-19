@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class SpecFilter(BaseModel):
@@ -72,6 +72,34 @@ class SearchDocumentsArgs(BaseModel):
     sku_code: str | None = None
     chunk_types: list[str] | None = None
     k: int = Field(6, ge=1, le=20)
+
+
+class CatalogueMapArgs(BaseModel):
+    path_text: str | None = None
+    market_segment: str | None = None
+    include_uncategorised: bool = True
+    limit: int = Field(40, ge=1, le=100)
+
+    @model_validator(mode="after")
+    def _require_a_filter(self) -> "CatalogueMapArgs":
+        """Refuse a call with neither filter.
+
+        Unfiltered, this would dump the whole taxonomy, which `taxonomy_browse`
+        already does one level at a time and more usefully. Raising here turns
+        the mistake into a tool result naming the fix rather than a wasted call
+        the model has to interpret from an oversized payload.
+        """
+        if not (self.path_text or "").strip() and not (
+            self.market_segment or ""
+        ).strip():
+            raise ValueError(
+                "catalogue_map needs path_text, market_segment, or both. Pass "
+                "path_text for a product or category name ('wintrip', 'air "
+                "circuit breaker'), market_segment for an audience "
+                "('Residential'). To list the divisions instead, call "
+                "taxonomy_browse with path=[]."
+            )
+        return self
 
 
 class TaxonomyBrowseArgs(BaseModel):

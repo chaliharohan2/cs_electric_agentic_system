@@ -198,6 +198,9 @@ def make_agent_node(agent_name: str, tools: list[Any]):
                     HumanMessage(content=_budget_note(state)),
                 ],
                 label=agent_name,
+                # Streaming can split a tool name across chunks; these let
+                # `generate` notice and re-run the turn unstreamed.
+                tool_names={tool.name for tool in tools},
             )
         except Exception as exc:
             # Ollama (and similar) can 500 on a malformed tool-call XML payload.

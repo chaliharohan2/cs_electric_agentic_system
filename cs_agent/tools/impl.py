@@ -86,6 +86,20 @@ def list_canonical_specs(
     }
 
 
+def catalogue_map(
+    path_text: str | None = None,
+    market_segment: str | None = None,
+    include_uncategorised: bool = True,
+    limit: int = 40,
+) -> dict[str, Any]:
+    return backend().catalogue_map(
+        path_text=path_text,
+        market_segment=market_segment,
+        include_uncategorised=include_uncategorised,
+        limit=limit,
+    )
+
+
 def taxonomy_browse(
     path: list[str] | None = None,
     market_segment: str | None = None,

@@ -12,6 +12,9 @@ class CatalogBackend(Protocol):
     def list_canonical_specs(self, **kw: Any) -> list[dict]:
         """Return observed specification definitions and bounds."""
 
+    def catalogue_map(self, **kw: Any) -> dict:
+        """Return taxonomy branches whose path or market segment matches."""
+
     def taxonomy_browse(self, **kw: Any) -> dict:
         """Return the next level of the path hierarchy."""
 

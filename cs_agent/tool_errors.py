@@ -24,7 +24,7 @@ from cs_agent.config.limits import get_limits
 # calling tools and answers with whatever it already has.
 TOOL_FAILURE_LIMIT = get_limits().tool_failure_limit
 
-_NEXT_STEP = (
+NEXT_STEP = (
     "Fix the arguments and call the tool again, or call a different tool. "
     f"After {TOOL_FAILURE_LIMIT} failed tool calls no further tools run."
 )
@@ -53,7 +53,7 @@ _HINTS: tuple[tuple[re.Pattern[str], str], ...] = (
 def tool_error_message(exc: Exception) -> str:
     """Render ``exc`` as a tool result the model can act on."""
     detail = f"{type(exc).__name__}: {exc}".strip()
-    payload = {"error": detail, "next_step": _NEXT_STEP}
+    payload = {"error": detail, "next_step": NEXT_STEP}
     for pattern, hint in _HINTS:
         if pattern.search(detail):
             payload["hint"] = hint
