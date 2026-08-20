@@ -150,6 +150,23 @@ class ContextAwareChatOllama(ChatOllama):
             yield chunk
 
 
+def _keep_alive(override: str | None, configured: float | str | None) -> float | str | None:
+    """Resolve how long the server should hold the model, override winning.
+
+    An environment variable is always a string, and Ollama reads a *string*
+    keep_alive as a Go duration — so "300" is rejected outright ("missing unit
+    in duration") while the number 300 means five minutes. A bare number is
+    therefore converted, and anything else is passed through so "5m" and "-1s"
+    still work.
+    """
+    if not override:
+        return configured
+    try:
+        return float(override) if "." in override else int(override)
+    except ValueError:
+        return override
+
+
 def _build_ollama(ep: EndpointConfig, node: str) -> ChatOllama:
     kwargs: dict[str, Any] = {
         "model": ep.model,
@@ -166,8 +183,15 @@ def _build_ollama(ep: EndpointConfig, node: str) -> ChatOllama:
         kwargs["temperature"] = ep.temperature
     if ep.thinking is not None:
         kwargs["reasoning"] = ep.thinking
-    if ep.keep_alive is not None:
-        kwargs["keep_alive"] = ep.keep_alive
+    # `keep_alive: -1` pins a model in VRAM until Ollama restarts, which is what
+    # a long-lived server wants and exactly what a short-lived one does not: a
+    # benchmark or a one-off script that touches a second endpoint claims another
+    # model's worth of VRAM for good, and two 27B models resident at once starved
+    # this box badly enough to cut decode from 38 tok/s to 12.5. CS_KEEP_ALIVE
+    # overrides it so a transient caller can hand the memory back.
+    keep_alive = _keep_alive(os.getenv("CS_KEEP_ALIVE"), ep.keep_alive)
+    if keep_alive is not None:
+        kwargs["keep_alive"] = keep_alive
     return ContextAwareChatOllama(**kwargs)
 
 

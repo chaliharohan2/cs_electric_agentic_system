@@ -21,6 +21,17 @@ from cs_agent.config.limits import get_limits
 from cs_agent.contracts import AgentBrief, REPORT_SCHEMAS, brief_depth
 from cs_agent.graph.nodes.record_evidence import _extract
 from cs_agent.llm import generate, get_model, schema_instruction, structured
+from cs_agent.subgraphs.agents.report_modes import (
+    BACKFILLED,
+    needs_model_fallback,
+    HIDDEN_REPORT_FIELDS,
+    backfill_report,
+    derive_report,
+    findings_cap,
+    raw_bundle,
+    resolve_mode,
+    slim_reports,
+)
 from cs_agent.tool_errors import count_failures, trailing_tool_messages
 
 PROMPTS = Path(__file__).resolve().parents[2] / "prompts"
@@ -237,10 +248,57 @@ def record(state: SpecialistState) -> dict[str, Any]:
     }
 
 
+def _asked_for(schema: type[Any]) -> str:
+    """The schema the report node shows the model.
+
+    Trimmed by default. `sources` and the four rarely-populated SourceRef fields
+    are hidden and rebuilt in code afterwards, and `findings` carries a cap the
+    model can see. Together those were 61.8% of everything a detailed report
+    wrote, almost none of which needed a model. Hiding is what makes it stick:
+    the same saving asked for in prose cut output 23% on one question and raised
+    it 22% on the next.
+    """
+    if not slim_reports():
+        return schema_instruction(schema)
+    return schema_instruction(
+        schema,
+        hide={"SourceRef": BACKFILLED, "": HIDDEN_REPORT_FIELDS},
+        limits={"findings": findings_cap()},
+    )
+
+
 def make_report_node(agent_name: str, tools: list[Any] | None = None):
     schema = REPORT_SCHEMAS[agent_name]
 
     def report(state: SpecialistState) -> dict[str, Any]:
+        mode = resolve_mode(state["brief"], agent_name)
+        if mode in {"derived", "raw"}:
+            # No model call at all: the tool payloads and the evidence rows the
+            # specialist already produced carry everything these fields hold.
+            built = derive_report(
+                agent_name,
+                state["brief"],
+                state.get("messages", []),
+                state.get("evidence", []),
+            )
+            validated = schema.model_validate(built).model_dump()
+            if needs_model_fallback(mode, agent_name, validated):
+                # Derivation came back with nothing the gate or the composer can
+                # work from. Writing it with the model costs a generation; not
+                # writing it costs the revision rounds that follow an empty
+                # report, which is several generations and a worse answer.
+                return _generated(state, "llm")
+            validated["tool_calls_used"] = state.get("tool_calls_used", 0)
+            if mode == "raw":
+                # Outside the schema on purpose. The gate re-validates the report
+                # and would drop an unknown field; keeping it beside the report
+                # rather than inside it leaves every existing reader unchanged,
+                # and the composer, handed the dict whole, still sees it.
+                validated["raw_results"] = raw_bundle(state.get("messages", []))
+            return {"report": validated}
+        return _generated(state, mode)
+
+    def _generated(state: SpecialistState, mode: str) -> dict[str, Any]:
         # Continue the agent's own conversation rather than restating it as a
         # JSON payload. The old payload carried the transcript *and* an
         # `evidence` re-encoding of the same tool outputs — 407,618 chars on the
@@ -275,9 +333,7 @@ def make_report_node(agent_name: str, tools: list[Any] | None = None):
                 *_settled(state.get("messages", [])),
                 # Last, not first: `structured` would otherwise prepend the
                 # schema and break the prefix this node exists to reuse.
-                HumanMessage(
-                    content=f"{instruction}\n\n{schema_instruction(schema)}"
-                ),
+                HumanMessage(content=f"{instruction}\n\n{_asked_for(schema)}"),
             ],
             schema,
             # Bound, not offered: the server renders tool schemas into the
@@ -290,7 +346,14 @@ def make_report_node(agent_name: str, tools: list[Any] | None = None):
             label=f"{agent_name} report",
         )
         result.tool_calls_used = state.get("tool_calls_used", 0)
-        return {"report": result.model_dump()}
+        built = result.model_dump()
+        if slim_reports():
+            # Put back everything the slim schema did not ask for. The model was
+            # never shown these fields, so nothing here overwrites its work.
+            built = backfill_report(
+                built, state.get("messages", []), state.get("evidence", [])
+            )
+        return {"report": built}
 
     return report
 

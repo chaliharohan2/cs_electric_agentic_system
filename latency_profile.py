@@ -72,10 +72,12 @@ def _stage_of(messages: object) -> str:
     produced = "Produce the specialist report"
     if produced in system or produced in tail:
         return "specialist report"
-    # `structured` retries by appending its validation error, so a retry's last
-    # message is the error, not the instruction. Without this the retry — often
-    # the call that actually produces the report — lands in the loop's bucket.
-    if "Invalid output. Fix these errors" in tail:
+    # `structured` retries by appending either its validation error or, for a
+    # reply that called a tool instead of answering, a correction naming the
+    # call. Either way a retry's last message is the complaint, not the
+    # instruction. Without this the retry — often the call that actually
+    # produces the report — lands in the loop's bucket.
+    if "Invalid output. Fix these errors" in tail or "No tool will run" in tail:
         return "specialist report" if "You are one specialist" in system else "retry"
     if "You are one specialist" in system:
         return "specialist report" if "JSON Schema" in tail else "specialist loop"
