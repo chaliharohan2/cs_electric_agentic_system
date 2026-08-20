@@ -272,6 +272,14 @@ def _extract(payload: Any, tool: str, sku_code: str | None = None) -> list[Evide
         payload.get("error") and tool != "analytics_query"
     ):
         return []
+    if tool == "list_canonical_specs" and "specs" in payload:
+        # The tool answers a multi-family scope now, so its rows arrive wrapped
+        # in an envelope naming that scope. Index the rows, which are the same
+        # per-(family, spec_id) records this used to be handed as a bare list.
+        # Letting the envelope fall through to the generic path instead files
+        # every spec *definition* as a SKU fact and replaces 150 quotable
+        # counts and observed bounds with one 26,855-char blob.
+        return _extract(payload["specs"], tool, sku_code)
 
     current_sku = payload.get("sku_code", sku_code)
     evidence: list[Evidence] = []

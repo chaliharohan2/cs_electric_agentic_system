@@ -6,7 +6,7 @@ from functools import lru_cache
 from typing import Any
 
 from cs_agent.backends import CatalogBackend, get_backend
-from cs_agent.backends.matching import normalize, squash
+from cs_agent.backends.matching import family_terms, normalize, squash, unmatched_family_terms
 
 
 @lru_cache(maxsize=1)
@@ -37,9 +37,7 @@ def _known_families() -> tuple[str, ...]:
     specialist re-issuing the same guessed family name until its budget ran out.
     """
     names = {
-        row.get("family")
-        for row in backend().list_canonical_specs()
-        if row.get("family")
+        row.get("family") for row in backend().spec_rows() if row.get("family")
     }
     return tuple(sorted(names))
 
@@ -60,30 +58,65 @@ def _closest_families(wanted: str, limit: int = 6) -> list[str]:
     return [name for _, name in scored[:limit]]
 
 
+def _unmatched_families(family: str | list[str] | None) -> list[str]:
+    if not family_terms(family):
+        return []
+    return unmatched_family_terms(family, _known_families())
+
+
+def _closest_for_terms(wanted: list[str], limit: int = 6) -> list[str]:
+    seen: set[str] = set()
+    closest: list[str] = []
+    for term in wanted:
+        for name in _closest_families(term, limit=limit):
+            if name in seen:
+                continue
+            seen.add(name)
+            closest.append(name)
+            if len(closest) >= limit:
+                return closest
+    return closest
+
+
+def _annotate_family_misses(
+    result: dict[str, Any], family: str | list[str] | None
+) -> dict[str, Any]:
+    missed = list(result.get("families_not_found") or []) or _unmatched_families(family)
+    if not missed:
+        return result
+    result = dict(result)
+    result["families_not_found"] = missed
+    if isinstance(family, str):
+        result["family_not_found"] = family
+    result["closest_families"] = _closest_for_terms(missed)
+    has_payload = bool(
+        result.get("specs") or result.get("hits") or result.get("groups")
+    )
+    if not has_payload:
+        named = ", ".join(repr(term) for term in missed)
+        result["hint"] = (
+            f"No family is named {named}. Try one of closest_families, or "
+            "call taxonomy_browse to see what C&S actually publishes. Calling "
+            "this again with the same family will return the same nothing."
+        )
+    return result
+
+
 def list_canonical_specs(
-    family: str | None = None,
+    family: str | list[str] | None = None,
     spec_id_contains: str | None = None,
     canonical_only: bool = False,
-) -> list[dict[str, Any]] | dict[str, Any]:
-    rows = backend().list_canonical_specs(
+    path: list[str] | None = None,
+    group_by: str | None = None,
+) -> dict[str, Any]:
+    result = backend().list_canonical_specs(
         family=family,
         spec_id_contains=spec_id_contains,
         canonical_only=canonical_only,
+        path=path,
+        group_by=group_by,
     )
-    if rows or not family:
-        return rows
-    # An empty list reads as "this family has no specs recorded", which sends
-    # the caller back with the same argument. Naming the miss ends that loop.
-    return {
-        "specs": [],
-        "family_not_found": family,
-        "closest_families": _closest_families(family),
-        "hint": (
-            f"No family is named {family!r}. Try one of closest_families, or "
-            "call taxonomy_browse to see what C&S actually publishes. Calling "
-            "this again with the same family will return the same nothing."
-        ),
-    }
+    return _annotate_family_misses(result, family)
 
 
 def catalogue_map(
@@ -114,7 +147,7 @@ def taxonomy_browse(
 
 def product_search(
     path: list[str] | None = None,
-    family: str | None = None,
+    family: str | list[str] | None = None,
     facets: dict[str, str] | None = None,
     filters: list[Any] | None = None,
     market_segment: str | None = None,
@@ -123,14 +156,15 @@ def product_search(
     text: str | None = None,
     return_specs: list[str] | None = None,
     limit: int = 20,
-) -> list[dict[str, Any]] | dict[str, Any]:
+    group_by: str | None = None,
+) -> dict[str, Any]:
     normalized = []
     for item in filters or []:
         data = item.model_dump() if hasattr(item, "model_dump") else dict(item)
         normalized.append(data)
     if isinstance(price_status, str):
         price_status = [price_status]
-    return backend().product_search(
+    result = backend().product_search(
         path=path,
         family=family,
         facets=facets,
@@ -141,7 +175,11 @@ def product_search(
         text=text,
         return_specs=return_specs or [],
         limit=limit,
+        group_by=group_by,
     )
+    if isinstance(result, dict) and family_terms(family):
+        return _annotate_family_misses(result, family)
+    return result
 
 
 def get_sku(
