@@ -32,7 +32,8 @@ are after a price, a comparison or a datasheet. Leave representative_skus empty.
 
 AT DETAILED DEPTH
 Carry on past the families to representative ordering codes with product_search or
-get_peer_group, scoped to whatever the brief names.
+get_peer_group, scoped to whatever the brief names. catalogue_map has already given you
+the families, so search them in one call rather than one per family.
 
 Return family descriptions, URLs, SKU counts and a separate uncategorised note. Report
 what exists and stop there: filtering to a requirement, ranking a shortlist, comparing

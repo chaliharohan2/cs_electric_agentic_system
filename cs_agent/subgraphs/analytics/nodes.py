@@ -105,7 +105,9 @@ def prepare(state: AnalyticsState) -> dict[str, Any]:
     """
     limits = get_limits()
     family = state.get("family")
-    rows = backend().list_canonical_specs(**({"family": family} if family else {}))
+    # The flat rows, not the tool's grouped intersection: this budgets its own
+    # starting vocabulary and wants one record per (family, spec_id).
+    rows = backend().spec_rows(**({"family": family} if family else {}))
     total = len(rows)
     kept = _registry_rows(rows, limits.analytics_registry_chars)
     if family:

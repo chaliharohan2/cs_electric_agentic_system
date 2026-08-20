@@ -37,7 +37,30 @@ TAXONOMY
   literal string 'N/A', which means "this branch has no such level" — not missing data.
 - The deepest level of a path IS the family, so the family name also appears in
   product_subgroup or product_range depending on how deep that branch runs. Always
-  filter families on the `family` column, never on a level column.
+  filter families on the `family` column, never on a level column. On
+  list_canonical_specs and product_search, family may be a string or a list of
+  names; a list is OR. path is still one prefix, AND down the tree, not an OR of
+  levels.
+- When you already know several families, ask about them in ONE call: pass the whole
+  list, or a path prefix that covers them. That call REPLACES the per-family walk —
+  it has covered every family in the list, so do not follow it with one call each.
+  Looping spends a sequential model round per family and re-reads the whole
+  transcript every time, for a scope the database answers at once.
+- Asking about several families at once asks what they have IN COMMON.
+  list_canonical_specs returns only the spec IDs every family in scope publishes,
+  each with per-family counts and bounds under by_group, and product_search attaches
+  only shared specifications to its hits. That is what makes a comparison honest: a
+  blank cell for a spec only one family records would read as a product difference
+  when it is a gap in the catalogue.
+- What was left out is never silent. not_shared and specs_not_shared name each
+  excluded spec ID against the families that do publish it. If you need one of them,
+  call again with that single family — do not conclude the specification does not
+  exist.
+- For "how many / which of these have X", use product_search with group_by (family or
+  a level column). It returns every group in scope including the zeros, so a zero
+  reads as searched-and-none rather than a family nobody asked about.
+- Ask for return_specs and filters only by IDs a list_canonical_specs result actually
+  named. A guessed ID matches nothing and costs a call.
 - Products under division '_no_category' have no published category; their lower levels
   are pricelist section names. Never present those as C&S categories.
 - A path segment is only ever a literal value of division, product_group,

@@ -131,14 +131,19 @@ def _preflight(pg) -> dict[str, Any]:
         chunk_with_product = int(cur.fetchone()["n"])
         cur.execute(
             """
-            SELECT count(DISTINCT product_id) AS n FROM in_use.product_chunks
+            SELECT count(DISTINCT product->>'sku_code') AS n
+            FROM in_use.product_chunks
             WHERE is_active AND product_id IS NOT NULL
+              AND product->>'sku_code' IS NOT NULL
             """
         )
         distinct_products = int(cur.fetchone()["n"])
+        # mv_sku is one row per ordering code. Comparing against distinct
+        # product_id instead hid 544 codes that share one: the counts differed
+        # and the warning read as a rounding quirk rather than dropped products.
         if sku_count != distinct_products:
             logger.warning(
-                "mv_sku count %s != distinct active product_id %s",
+                "mv_sku count %s != distinct active sku_code %s",
                 sku_count,
                 distinct_products,
             )
@@ -320,58 +325,62 @@ def _load_side_tables(pg) -> tuple[
     dict[int, list[dict[str, Any]]],
     dict[int, list[str]],
 ]:
-    prices: dict[int, list[dict[str, Any]]] = defaultdict(list)
-    sources: dict[int, list[dict[str, Any]]] = defaultdict(list)
-    chunk_types: dict[int, list[str]] = defaultdict(list)
+    # Keyed on sku_code, not product_id: sibling ordering codes share a
+    # product_id but are separate products with their own prices and chunks.
+    prices: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    sources: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    chunk_types: dict[str, list[str]] = defaultdict(list)
     with pg.cursor() as cur:
         cur.execute(
             """
-            SELECT product_id, price, price_list, source_pdf, source_page,
+            SELECT sku_code, price, price_list, source_pdf, source_page,
                    effective_date, observation_status, context, price_column,
                    context_names_own_code, context_sibling_code
             FROM in_use.mv_price
-            ORDER BY product_id, source_pdf, source_page
+            ORDER BY sku_code, source_pdf, source_page
             """
         )
         for row in cur:
-            prices[int(row["product_id"])].append(dict(row))
+            prices[str(row["sku_code"])].append(dict(row))
         cur.execute(
             """
-            SELECT product_id, ref_type, ref_name, page
+            SELECT sku_code, ref_type, ref_name, page
             FROM in_use.mv_source
-            ORDER BY product_id, ref_type, ref_name
+            ORDER BY sku_code, ref_type, ref_name
             """
         )
         for row in cur:
-            sources[int(row["product_id"])].append(dict(row))
+            sources[str(row["sku_code"])].append(dict(row))
         cur.execute(
             """
-            SELECT product_id, chunk_type
+            SELECT sku_code, chunk_type
             FROM in_use.mv_chunk_index
-            ORDER BY product_id, chunk_type
+            WHERE sku_code IS NOT NULL
+            ORDER BY sku_code, chunk_type
             """
         )
         for row in cur:
-            pid = int(row["product_id"])
+            code = str(row["sku_code"])
             ctype = row["chunk_type"]
-            if ctype not in chunk_types[pid]:
-                chunk_types[pid].append(ctype)
+            if ctype not in chunk_types[code]:
+                chunk_types[code].append(ctype)
     return prices, sources, chunk_types
 
 
 def _sku_base_row(
     sku: dict[str, Any],
-    prices: dict[int, list[dict[str, Any]]],
-    sources: dict[int, list[dict[str, Any]]],
-    chunk_types: dict[int, list[str]],
+    prices: dict[str, list[dict[str, Any]]],
+    sources: dict[str, list[dict[str, Any]]],
+    chunk_types: dict[str, list[str]],
 ) -> dict[str, Any]:
     product_id = int(sku["product_id"])
+    code = str(sku["sku_code"])
     path = _as_path(sku.get("path"))
     levels = path_to_levels(path)
     depth = int(sku.get("depth") or len(path))
-    observations = prices.get(product_id, [])
+    observations = prices.get(code, [])
     price_summary = _summarize_price(sku.get("price_status"), observations)
-    src_rows = sources.get(product_id, [])
+    src_rows = sources.get(code, [])
     brochure_md = next(
         (s["ref_name"] for s in src_rows if s["ref_type"] == "brochure_md"), None
     )
@@ -412,7 +421,7 @@ def _sku_base_row(
         "sources": _json_dump(sku.get("sources")),
         "headings": _json_dump(sku.get("headings")),
         "spec_ids": _json_dump(sku.get("spec_ids")),
-        "chunk_types": _json_dump(chunk_types.get(product_id, [])),
+        "chunk_types": _json_dump(chunk_types.get(code, [])),
         "extraction_missing": _json_dump(sku.get("extraction_missing")),
         "extraction_confidence": sku.get("extraction_confidence"),
         "fact_count": int(sku.get("fact_count") or 0),
@@ -487,22 +496,20 @@ def _insert_sku_facts(conn: sqlite3.Connection, pg, side) -> dict[str, Any]:
     insert_sql = f"INSERT INTO sku_fact ({col_sql}) VALUES ({placeholders})"
 
     with pg.cursor() as cur:
-        cur.execute("SELECT * FROM in_use.mv_sku ORDER BY product_id")
+        cur.execute("SELECT * FROM in_use.mv_sku ORDER BY sku_code")
         skus = [dict(row) for row in cur.fetchall()]
 
-    sku_by_product = {int(s["product_id"]): s for s in skus}
-    # uniqueness checks
-    codes_by_product: dict[int, set[str]] = defaultdict(set)
-    for sku in skus:
-        codes_by_product[int(sku["product_id"])].add(sku["sku_code"])
-    non_unique = {
-        pid: sorted(codes)
-        for pid, codes in codes_by_product.items()
-        if len(codes) > 1
-    }
-    if non_unique:
+    # Keyed on the ordering code. Sibling codes such as `CE20113` and
+    # `CE20113NR` share a product_id while carrying different content, so
+    # keying on product_id silently kept one and dropped the other.
+    sku_by_code = {str(s["sku_code"]): s for s in skus}
+    if len(sku_by_code) != len(skus):
+        seen: dict[str, int] = defaultdict(int)
+        for sku in skus:
+            seen[str(sku["sku_code"])] += 1
         raise RuntimeError(
-            f"sku_code not unique per product_id for {len(non_unique)} products"
+            "mv_sku returned the same sku_code twice: "
+            + ", ".join(c for c, n in seen.items() if n > 1)
         )
 
     alias_to_products: dict[str, set[str]] = defaultdict(set)
@@ -521,28 +528,28 @@ def _insert_sku_facts(conn: sqlite3.Connection, pg, side) -> dict[str, Any]:
     }
 
     bases = {
-        pid: _sku_base_row(sku, prices, sources, chunk_types)
-        for pid, sku in sku_by_product.items()
+        code: _sku_base_row(sku, prices, sources, chunk_types)
+        for code, sku in sku_by_code.items()
     }
     # fix price_status onto base (from sku)
-    for pid, sku in sku_by_product.items():
-        bases[pid]["price_status"] = sku.get("price_status")
+    for code, sku in sku_by_code.items():
+        bases[code]["price_status"] = sku.get("price_status")
 
-    facts_by_product: dict[int, list[dict[str, Any]]] = defaultdict(list)
+    facts_by_code: dict[str, list[dict[str, Any]]] = defaultdict(list)
     with pg.cursor(name="mv_fact_stream") as cur:
         cur.itersize = 5000
         cur.execute(
             """
-            SELECT product_id, spec_id, spec_label, unit, is_canonical_spec,
+            SELECT sku_code, spec_id, spec_label, unit, is_canonical_spec,
                    value_num, value_min, value_max, value_display, value_kind,
                    source_of_truth, source_pdf, source_page, source_heading,
                    fact_sentence
             FROM in_use.mv_fact
-            ORDER BY product_id, spec_id
+            ORDER BY sku_code, spec_id
             """
         )
         for row in cur:
-            facts_by_product[int(row["product_id"])].append(dict(row))
+            facts_by_code[str(row["sku_code"])].append(dict(row))
 
     factless: list[dict[str, str]] = []
     composite_by_family: dict[str, int] = defaultdict(int)
@@ -558,7 +565,7 @@ def _insert_sku_facts(conn: sqlite3.Connection, pg, side) -> dict[str, Any]:
             conn.executemany(insert_sql, batch)
             batch = []
 
-    for pid, base in bases.items():
+    for code, base in bases.items():
         if base["is_no_category"]:
             no_category_count += 1
         if base.get("price_quotable"):
@@ -571,7 +578,7 @@ def _insert_sku_facts(conn: sqlite3.Connection, pg, side) -> dict[str, Any]:
                     "price_status": base.get("price_status") or "",
                 }
             )
-        facts = facts_by_product.get(pid, [])
+        facts = facts_by_code.get(code, [])
         if not facts:
             factless.append(
                 {
@@ -780,7 +787,9 @@ def _embedding_blob(value: Any) -> bytes | None:
     return struct.pack(f"{len(floats)}f", *floats)
 
 
-def _insert_chunks(conn: sqlite3.Connection, pg, brochure_by_product: dict[int, str | None]) -> dict[str, Any]:
+def _insert_chunks(
+    conn: sqlite3.Connection, pg, brochure_by_code: dict[str, str | None]
+) -> dict[str, Any]:
     level_cols = ",".join(LEVEL_COLUMNS)
     placeholders = ",".join(
         "?"
@@ -856,7 +865,7 @@ def _insert_chunks(conn: sqlite3.Connection, pg, brochure_by_product: dict[int, 
                     content,
                     hashlib.md5(content.encode("utf-8")).hexdigest(),
                     len(content),
-                    brochure_by_product.get(pid),
+                    brochure_by_code.get(row["sku_code"]),
                     emb,
                 )
             )
@@ -976,12 +985,12 @@ def build(output: Path, database_url: str, embedding_model: str) -> int:
         preflight = _preflight(pg)
         logger.info("Pre-flight: %s", preflight)
         side = _load_side_tables(pg)
-        brochure_by_product = {
-            pid: next(
+        brochure_by_code = {
+            code: next(
                 (s["ref_name"] for s in rows if s["ref_type"] == "brochure_md"),
                 None,
             )
-            for pid, rows in side[1].items()
+            for code, rows in side[1].items()
         }
 
         conn = sqlite3.connect(output)
@@ -1026,7 +1035,7 @@ def build(output: Path, database_url: str, embedding_model: str) -> int:
             logger.info("Taxonomy levels: %s", taxonomy_stats)
 
             logger.info("Writing chunks")
-            chunk_stats = _insert_chunks(conn, pg, brochure_by_product)
+            chunk_stats = _insert_chunks(conn, pg, brochure_by_code)
             if chunk_stats["null_embeddings"]:
                 logger.warning(
                     "Chunks with NULL embedding: %s (lexical-only until loaded)",

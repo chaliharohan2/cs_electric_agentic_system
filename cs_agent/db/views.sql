@@ -68,8 +68,16 @@ DROP MATERIALIZED VIEW IF EXISTS in_use.mv_fact;
 DROP MATERIALIZED VIEW IF EXISTS in_use.mv_code_alias;
 DROP MATERIALIZED VIEW IF EXISTS in_use.mv_sku;
 
+-- One row per ORDERING CODE, not per product_id. Several distinct sku_codes
+-- can share a product_id -- `CE20113` and `CE20113NR` do, and they carry
+-- different content, different chunk counts and different facts. Keying on
+-- product_id kept whichever code owned the lowest chunk id and silently
+-- dropped the other: 544 codes collapsed that way, and 261 that used to be
+-- addressable stopped resolving. A different ordering code is a different
+-- product, so it gets its own row; product_id stays as an attribute that
+-- relates the variants, and is no longer unique here.
 CREATE MATERIALIZED VIEW in_use.mv_sku AS
-SELECT DISTINCT ON (product_id)
+SELECT DISTINCT ON (product->>'sku_code')
   product_id,
   product->>'sku_code' AS sku_code,
   COALESCE(product->>'canonical_code', product->>'sku_code') AS canonical_code,
@@ -112,10 +120,10 @@ SELECT DISTINCT ON (product_id)
     CASE WHEN jsonb_typeof(details->'facts') = 'array' THEN details->'facts' ELSE '[]'::jsonb END
   ) AS fact_count
 FROM in_use.product_chunks
-WHERE is_active AND product_id IS NOT NULL
-ORDER BY product_id, id;
+WHERE is_active AND product_id IS NOT NULL AND product->>'sku_code' IS NOT NULL
+ORDER BY product->>'sku_code', id;
 
-CREATE UNIQUE INDEX mv_sku_product_id_idx ON in_use.mv_sku (product_id);
+CREATE INDEX mv_sku_product_id_idx ON in_use.mv_sku (product_id);
 CREATE UNIQUE INDEX mv_sku_sku_code_idx ON in_use.mv_sku (sku_code);
 CREATE INDEX mv_sku_family_idx ON in_use.mv_sku (family);
 CREATE INDEX mv_sku_path_idx ON in_use.mv_sku (path_l1, path_l2, path_l3);
@@ -128,14 +136,14 @@ CREATE INDEX mv_sku_market_segments_idx
   );
 
 CREATE MATERIALIZED VIEW in_use.mv_code_alias AS
-SELECT product_id, sku_code AS code, 'sku'::text AS role
+SELECT product_id, sku_code, sku_code AS code, 'sku'::text AS role
 FROM in_use.mv_sku
 UNION
-SELECT product_id, canonical_code, 'canonical'
+SELECT product_id, sku_code, canonical_code, 'canonical'
 FROM in_use.mv_sku
 WHERE canonical_code IS DISTINCT FROM sku_code
 UNION
-SELECT s.product_id, alias.code, 'alias'
+SELECT s.product_id, s.sku_code, alias.code, 'alias'
 FROM in_use.mv_sku s
 CROSS JOIN LATERAL jsonb_array_elements_text(
   CASE
@@ -148,6 +156,7 @@ CREATE INDEX mv_code_alias_code_idx ON in_use.mv_code_alias (code);
 CREATE INDEX mv_code_alias_code_trgm_idx
   ON in_use.mv_code_alias USING gin (code gin_trgm_ops);
 CREATE INDEX mv_code_alias_product_id_idx ON in_use.mv_code_alias (product_id);
+CREATE INDEX mv_code_alias_sku_code_idx ON in_use.mv_code_alias (sku_code);
 -- Drives mv_price's pricelist-header lookup; without it that becomes a scan of
 -- every alias for every price observation.
 CREATE INDEX mv_code_alias_norm_code_idx
@@ -178,17 +187,19 @@ SELECT
        THEN f->>'source' END AS source_heading,
   f->>'fact_sentence' AS fact_sentence
 FROM in_use.mv_sku s
-JOIN in_use.product_chunks pc ON pc.product_id = s.product_id
+JOIN in_use.product_chunks pc ON pc.product->>'sku_code' = s.sku_code
 CROSS JOIN LATERAL jsonb_array_elements(
   CASE
     WHEN jsonb_typeof(pc.details->'facts') = 'array' THEN pc.details->'facts'
     ELSE '[]'::jsonb
   END
 ) AS f
+-- The earliest chunk *for this ordering code*. Scoping this to product_id
+-- instead handed one code's facts to its sibling variant.
 WHERE pc.id = (
   SELECT min(x.id)
   FROM in_use.product_chunks x
-  WHERE x.product_id = s.product_id AND x.is_active
+  WHERE x.product->>'sku_code' = s.sku_code AND x.is_active
 );
 
 CREATE INDEX mv_fact_spec_value_idx ON in_use.mv_fact (spec_id, value_num);
@@ -256,8 +267,8 @@ SELECT
 FROM observation ob
 LEFT JOIN LATERAL (
   SELECT
-    bool_or(a.product_id = ob.product_id) AS names_self,
-    min(a.code) FILTER (WHERE a.product_id <> ob.product_id) AS other_code
+    bool_or(a.sku_code = ob.sku_code) AS names_self,
+    min(a.code) FILTER (WHERE a.sku_code <> ob.sku_code) AS other_code
   FROM in_use.mv_code_alias a
   WHERE in_use.norm_code(a.code) = ob.context_head
 ) AS head ON true;
@@ -268,6 +279,7 @@ CREATE INDEX mv_price_sku_code_idx ON in_use.mv_price (sku_code);
 CREATE MATERIALIZED VIEW in_use.mv_source AS
 SELECT
   s.product_id,
+  s.sku_code,
   CASE
     WHEN src LIKE 'Brochure:%' THEN 'brochure_md'
     WHEN src LIKE 'Product page:%' THEN 'product_page'
@@ -294,6 +306,7 @@ CROSS JOIN LATERAL jsonb_array_elements_text(
 ) AS source(src);
 
 CREATE INDEX mv_source_product_id_idx ON in_use.mv_source (product_id);
+CREATE INDEX mv_source_sku_code_idx ON in_use.mv_source (sku_code);
 CREATE INDEX mv_source_type_idx ON in_use.mv_source (ref_type);
 
 CREATE MATERIALIZED VIEW in_use.mv_spec_registry AS
@@ -304,7 +317,7 @@ SELECT
   mode() WITHIN GROUP (ORDER BY unit) AS unit,
   mode() WITHIN GROUP (ORDER BY value_kind) AS value_kind,
   bool_or(is_canonical_spec) AS is_canonical_spec,
-  count(DISTINCT product_id) AS sku_count,
+  count(DISTINCT sku_code) AS sku_count,
   count(*) FILTER (WHERE value_kind = 'composite') AS composite_count,
   min(COALESCE(value_min, value_num)) AS observed_min,
   max(COALESCE(value_max, value_num)) AS observed_max
@@ -346,4 +359,6 @@ WHERE is_active;
 
 CREATE INDEX mv_chunk_index_product_type_idx
   ON in_use.mv_chunk_index (product_id, chunk_type);
+CREATE INDEX mv_chunk_index_sku_type_idx
+  ON in_use.mv_chunk_index (sku_code, chunk_type);
 CREATE INDEX mv_chunk_index_type_idx ON in_use.mv_chunk_index (chunk_type);

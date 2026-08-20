@@ -834,10 +834,30 @@ every SKU in the branch, **at any depth** — including the deepest level, where
 there are no children left to list. Browsing alone is never a product answer.
 
 **`list_canonical_specs`**
-Family-level vocabulary from `mv_spec_registry`: spec IDs, units, value kinds,
-canonical flag, SKU counts, composite counts, observed min/max.
-`spec_id_contains` lets compliance discover topics (`standard`, `test`, `ip`)
-at runtime instead of hardcoding names.
+Vocabulary for a path prefix and/or one or more families from `mv_spec_registry`:
+spec IDs, units, value kinds, canonical flag, SKU counts, composite counts,
+observed min/max. Specialists were calling this once per family, which spent
+sequential LLM rounds on a rollup the database already has. `family` is a string
+or a list (OR); `path` is one prefix (AND down the tree), not an OR of levels.
+Asking about several families asks what they have **in common**. `specs` holds
+one row per spec id **every group in scope publishes**, with `by_group` giving
+each group its own `sku_count` and observed min/max — so a comparison keeps the
+fact that WiNmaster 3 reaches 4000 A where WiNmaster 2 stops at 2500 A. Ids only
+some groups publish are named in `not_shared` against the groups that hold them,
+never returned in full.
+
+The intersection is the point rather than a saving, though it is a large one:
+across the two ACB ranges the union came to 110 spec ids and 31,354 characters
+where the shared vocabulary is 18 ids and 8,404. The 92 excluded ids are mostly
+per-family naming debris the extractor left behind — `3p_n` in one range and
+`3pn` in the other, `1000_1600a`, `415v_ac`, `a2`…`a5` — none of which can be
+compared across the scope. `group_by` defaults to `family` and takes a level
+column to intersect across divisions or product groups instead. The groups are
+read from the catalogue, not from the matched rows, so a family publishing none
+of the requested specs still counts against the intersection. Empty `specs` with
+a populated `not_shared` means the scope shares no vocabulary; a name that
+matches no family is `families_not_found`. `spec_id_contains` lets compliance discover topics
+(`standard`, `test`, `ip`) at runtime instead of hardcoding names.
 
 **`product_search`**
 Primary structured finder. Filters by path prefix, family, facets, market
@@ -848,8 +868,25 @@ segment, price status, chunk presence, free text, and typed spec predicates:
 | gte / lte / eq | Range-aware numeric predicates on min/max/value |
 | contains | Substring on `value_display` |
 
-Response envelope always includes `hits`, `total_matched`,
-`composite_excluded`, `filters_applied`, and `widening_hint` on empty results.
+`family` is a string or a list (OR); `path` remains one prefix. A multi-family
+shortlist is still a hit list, and every hit carries its own `family` and `path`
+so a specification is always attributable to a group; `limit` caps that list
+globally. When the scope spans several groups `return_specs` attaches only the
+specifications **all** of them publish, with the rest named in
+`specs_not_shared` — an empty cell would otherwise read as a product difference
+rather than a gap in the catalogue. For "how many of
+these families are 3-pole", `group_by` (family or a level column) returns every
+in-scope group including zeros: `spec_present` true and `matched` 0 means the
+spec is published but no SKU satisfied the predicate; `spec_present` false means
+the fact does not belong to that group. Spec filters affect `matched` only;
+in-scope groups come from path, family, text, market_segment, price_status,
+chunk, and facet filters. Out-of-scope families do not appear as catalogue-wide
+zero rows. `group_by` without family or path is refused, same idea as
+`catalogue_map` refusing an unfiltered dump. A family term that matches nothing
+is `families_not_found`, not a zero group. `limit` in grouped mode is the sample
+per group. Default (no `group_by`) envelope is unchanged: `hits`,
+`total_matched`, `composite_excluded`, `filters_applied`, and `widening_hint` on
+empty results.
 **Composite values cannot satisfy numeric predicates**; they are counted as
 unknown, not ruled out.
 
