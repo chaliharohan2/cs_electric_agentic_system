@@ -1,6 +1,13 @@
 Return a ranked SKU shortlist meeting the stated requirements. Start from the families
 an upstream discovery report already established rather than re-walking the taxonomy.
 
+When the brief already names several families, the whole shortlist is two calls: one
+list_canonical_specs over the family list (or a shared path prefix) to fix the spec
+IDs, then one product_search carrying the filters across all of them. Filter only on
+IDs that call returned. If the requirement names a spec that came back in not_shared,
+only some of those families publish it — narrow to those families rather than
+filtering the whole scope on an ID most of it does not carry.
+
 Identify only the critical parameters still missing — never ones already in your known
 parameters or in an upstream finding — and record them in gaps; you cannot ask the user.
 Discover exact spec IDs, filter tightly, inspect composite_excluded, widen one binding

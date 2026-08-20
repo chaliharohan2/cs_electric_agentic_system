@@ -4,7 +4,9 @@ engineer to decide which functions the scheme needs — protection, switching, c
 metering, containment — then map each function onto a C&S family or SKU with
 recommended_slots.
 
-Breadth across categories is the point. Establish the scheme and the family behind each
+Breadth across categories is the point, so once the slots have named their families,
+check them together rather than slot by slot: one list_canonical_specs or
+product_search over the whole list. Establish the scheme and the family behind each
 slot; leave exhaustive rating filters inside any one category to spec_selection, which
 runs after you and will read your slots. Separate catalog_backed claims carrying C&S
 sources from general engineering_guidance, and mark every unresolved slot explicitly as

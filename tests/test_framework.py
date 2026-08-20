@@ -17,6 +17,16 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from pydantic import ValidationError
 
 from cs_agent.backends.fixtures import FixturesBackend
+from cs_agent.graph.nodes.gate import _violations
+from cs_agent.subgraphs.agents.nodes import _asked_for
+from cs_agent.subgraphs.agents.report_modes import (
+    backfill_report,
+    derive_report,
+    needs_model_fallback,
+    raw_bundle,
+    report_mode,
+    resolve_mode,
+)
 from cs_agent.backends.read_only_sql import read_only_sql_error
 from cs_agent.config.limits import clear_limits_cache, get_limits
 from cs_agent.contracts import (
@@ -34,6 +44,7 @@ from cs_agent.contracts import (
 )
 from cs_agent.config.contact import clear_contact_cache, get_contact
 from cs_agent.embeddings.factory import resolve_embedding
+from cs_agent.llm.factory import _keep_alive
 from cs_agent.graph.build import (
     _after_composer,
     _after_gate,
@@ -68,6 +79,7 @@ from cs_agent.tool_errors import count_failures, trailing_tool_messages
 from cs_agent.tools.registry import TOOLS_BY_NAME, tools_for_agent
 from cs_agent.tools.schemas import (
     CatalogueMapArgs,
+    ListCanonicalSpecsArgs,
     ProductSearchArgs,
     SearchDocumentsArgs,
 )
@@ -454,7 +466,9 @@ class AnswerDepthTests(unittest.TestCase):
             return schema(agent="discovery", status="complete", summary="s")
 
         node = make_report_node("discovery")
-        with patch(
+        # Pinned: the default `auto` mode skips the model entirely on an
+        # overview brief, so the instruction under test is never built.
+        with patch.dict(os.environ, {"CS_REPORT_MODE": "llm"}), patch(
             "cs_agent.subgraphs.agents.nodes.structured", side_effect=_structured
         ):
             node({"brief": self._brief(), "agent_name": "discovery", "messages": []})
@@ -850,16 +864,29 @@ class LatencyShapeTests(unittest.TestCase):
         """An empty list reads as 'no specs here' and invites the same call."""
         from cs_agent.tools import impl
 
-        result = impl.list_canonical_specs(family="Switch Sockets")
+        with patch.object(impl, "backend", return_value=FixturesBackend()):
+            impl._known_families.cache_clear()
+            result = impl.list_canonical_specs(family="Switch Sockets")
         self.assertIsInstance(result, dict)
         self.assertEqual("Switch Sockets", result["family_not_found"])
+        self.assertEqual(["Switch Sockets"], result["families_not_found"])
         self.assertIn("taxonomy_browse", result["hint"])
 
-    def test_a_family_that_exists_returns_plain_rows(self) -> None:
+    def test_a_family_that_exists_returns_an_envelope(self) -> None:
         from cs_agent.tools import impl
 
-        family = impl._known_families()[0]
-        self.assertIsInstance(impl.list_canonical_specs(family=family), list)
+        with patch.object(impl, "backend", return_value=FixturesBackend()):
+            impl._known_families.cache_clear()
+            family = impl._known_families()[0]
+            result = impl.list_canonical_specs(family=family)
+        self.assertIsInstance(result, dict)
+        self.assertIn("specs", result)
+        self.assertNotIn("by_spec_id", result)
+        # One family in scope, so every spec it publishes is trivially shared.
+        self.assertEqual([family], result["scope"]["groups"])
+        self.assertTrue(
+            all(family in row["by_group"] for row in result["specs"])
+        )
 
     def test_the_final_answer_streams(self) -> None:
         """~35s of silence at the end of every run, at 12 tok/s."""
@@ -1118,7 +1145,7 @@ class AnalyticsRegistryTests(unittest.TestCase):
         ]
 
     def _prepare(self, rows, state):
-        fake = SimpleNamespace(list_canonical_specs=lambda **kw: rows)
+        fake = SimpleNamespace(spec_rows=lambda **kw: rows)
         with patch.object(analytics_nodes, "backend", return_value=fake):
             return analytics_nodes.prepare(state)
 
@@ -1149,7 +1176,7 @@ class AnalyticsRegistryTests(unittest.TestCase):
             seen.update(kw)
             return self._rows(3)
 
-        fake = SimpleNamespace(list_canonical_specs=list_specs)
+        fake = SimpleNamespace(spec_rows=list_specs)
         with patch.object(analytics_nodes, "backend", return_value=fake):
             result = analytics_nodes.prepare({"family": "MCCB"})
         self.assertEqual({"family": "MCCB"}, seen)
@@ -1427,7 +1454,9 @@ class FixtureToolTests(unittest.TestCase):
         result = self.backend.taxonomy_browse(path=["protection", "mccb"])
         self.assertTrue(result["children"])
         specs = self.backend.list_canonical_specs(family="WIN2-125")
-        self.assertTrue(any(row["spec_id"] == "rated_current_a" for row in specs))
+        self.assertTrue(
+            any(row["spec_id"] == "rated_current_a" for row in specs["specs"])
+        )
 
     def test_product_search_v2_envelope(self) -> None:
         result = self.backend.product_search(
@@ -1484,6 +1513,132 @@ class FixtureToolTests(unittest.TestCase):
         comparison_names = {tool.name for tool in tools_for_agent("comparison")}
         self.assertIn("compare_skus", comparison_names)
         self.assertIn("analytics_query", comparison_names)
+
+    def test_family_accepts_str_or_list_and_group_by_validates(self) -> None:
+        self.assertEqual("WIN2-125", ListCanonicalSpecsArgs(family="WIN2-125").family)
+        self.assertEqual(
+            ["WIN2-125", "DP09"],
+            ListCanonicalSpecsArgs(family=["WIN2-125", "DP09"]).family,
+        )
+        self.assertIsNone(ListCanonicalSpecsArgs(family=[]).family)
+        self.assertEqual("WIN2", ProductSearchArgs(family="WIN2").family)
+        self.assertEqual(
+            ["WIN2-125", "WIN2-250"],
+            ProductSearchArgs(family=["WIN2-125", "WIN2-250"]).family,
+        )
+        scoped = ProductSearchArgs(group_by="family", family="WIN2")
+        self.assertEqual("family", scoped.group_by)
+        with self.assertRaises(ValidationError):
+            ProductSearchArgs(group_by="sku")
+        with self.assertRaises(ValidationError) as caught:
+            ProductSearchArgs(group_by="family")
+        message = str(caught.exception)
+        self.assertIn("family", message.lower())
+        self.assertIn("path", message.lower())
+        refused = self.backend.product_search(group_by="family")
+        self.assertIn("error", refused)
+        empty = self.backend.list_canonical_specs(
+            family="WIN2-125", spec_id_contains="no_such_spec"
+        )
+        self.assertEqual([], empty["specs"])
+        self.assertNotIn("families_not_found", empty)
+
+    def test_a_spec_only_one_family_has_is_named_not_returned(self) -> None:
+        """`poles` is a WIN2-125 spec; DP09 does not carry it."""
+        result = self.backend.list_canonical_specs(
+            family=["WIN2-125", "DP09"], spec_id_contains="pole"
+        )
+        self.assertEqual(["DP09", "WIN2-125"], result["scope"]["groups"])
+        self.assertEqual([], result["specs"], "not shared, so not returned")
+        self.assertEqual(
+            {"poles": ["WIN2-125"]}, result["not_shared"]["spec_ids"]
+        )
+
+    def test_list_canonical_specs_path_prefix_excludes_contactors(self) -> None:
+        result = self.backend.list_canonical_specs(
+            path=["protection", "mccb"], spec_id_contains="pole"
+        )
+        self.assertEqual(
+            ["WIN2-125", "WIN2-250", "WIN2-400E"], result["scope"]["groups"]
+        )
+        poles = next(row for row in result["specs"] if row["spec_id"] == "poles")
+        # All three publish it, so it is comparable — and each keeps its own
+        # counts rather than a total merged across the three.
+        self.assertEqual(
+            {"WIN2-125", "WIN2-250", "WIN2-400E"}, set(poles["by_group"])
+        )
+
+    def test_list_canonical_specs_string_family_still_finds_rated_current(self) -> None:
+        result = self.backend.list_canonical_specs(family="WIN2-125")
+        self.assertTrue(
+            any(row["spec_id"] == "rated_current_a" for row in result["specs"])
+        )
+        self.assertEqual(
+            {"path": None, "family": "WIN2-125", "group_by": "family",
+             "groups": ["WIN2-125"]},
+            result["scope"],
+        )
+
+    def test_product_search_family_list_and_string_prefix(self) -> None:
+        listed = self.backend.product_search(
+            family=["WIN2-125", "WIN2-250"],
+            filters=[{"spec_id": "poles", "op": "eq", "value": 3}],
+        )
+        self.assertGreater(listed["total_matched"], 0)
+        self.assertTrue(all(hit["family"] == "WIN2-125" for hit in listed["hits"]))
+        prefixed = self.backend.product_search(family="WIN2")
+        families = {hit["family"] for hit in prefixed["hits"]}
+        self.assertTrue({"WIN2-125", "WIN2-250", "WIN2-400E"} <= families)
+
+    def test_product_search_group_by_family_distinguishes_zeros(self) -> None:
+        result = self.backend.product_search(
+            family=["WIN2-125", "WIN2-250", "DP09"],
+            filters=[{"spec_id": "poles", "op": "eq", "value": 3}],
+            group_by="family",
+        )
+        groups = {group["family"]: group for group in result["groups"]}
+        self.assertEqual({"WIN2-125", "WIN2-250", "DP09"}, set(groups))
+        self.assertGreater(groups["WIN2-125"]["matched"], 0)
+        self.assertTrue(groups["WIN2-125"]["spec_present"])
+        self.assertEqual(0, groups["WIN2-250"]["matched"])
+        self.assertTrue(groups["WIN2-250"]["spec_present"])
+        self.assertEqual(0, groups["DP09"]["matched"])
+        self.assertFalse(groups["DP09"]["spec_present"])
+        self.assertEqual(
+            sum(group["matched"] for group in result["groups"]),
+            result["total_matched"],
+        )
+
+    def test_product_search_group_by_level_uses_path_scope(self) -> None:
+        result = self.backend.product_search(
+            path=["protection"],
+            filters=[{"spec_id": "poles", "op": "eq", "value": 3}],
+            group_by="product_group",
+        )
+        self.assertEqual(["mccb"], [group["product_group"] for group in result["groups"]])
+        group = result["groups"][0]
+        self.assertTrue(group["spec_present"])
+        self.assertGreater(group["matched"], 0)
+        self.assertGreater(group["total_in_scope"], group["matched"])
+        self.assertTrue(all(hit["path"][0] == "protection" for hit in group["sample_hits"]))
+
+    def test_unknown_family_is_not_a_zero_group(self) -> None:
+        result = self.backend.product_search(
+            family=["WIN2-125", "NoSuchFamily"],
+            filters=[{"spec_id": "poles", "op": "eq", "value": 3}],
+            group_by="family",
+        )
+        self.assertEqual(["WIN2-125"], [group["family"] for group in result["groups"]])
+        self.assertEqual(["NoSuchFamily"], result["families_not_found"])
+
+    def test_known_families_reads_the_flat_spec_rows(self) -> None:
+        from cs_agent.tools import impl
+
+        with patch.object(impl, "backend", return_value=self.backend):
+            impl._known_families.cache_clear()
+            names = impl._known_families()
+        self.assertIn("WIN2-125", names)
+        self.assertIn("DP09", names)
 
 
 class MangledStreamTests(unittest.TestCase):
@@ -2545,3 +2700,1013 @@ class ChatTurnTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReportModeTests(unittest.TestCase):
+    """The specialist report, built without a model call."""
+
+    @staticmethod
+    def _tool(name: str, payload: Any) -> ToolMessage:
+        return ToolMessage(
+            content=json.dumps(payload, default=str),
+            tool_call_id=name,
+            name=name,
+        )
+
+    MAP = {
+        "matched_on": {"path_text": "wintrip"},
+        "groups": [
+            {
+                "path": ["Final Distribution Products", "MCB & Isolators", "WiNtrip2 MCB & Isolator"],
+                "name": "WiNtrip2 MCB & Isolator",
+                "sku_count": 408,
+                "description": "With breaking Capacity of 10kA",
+                "url": "https://example.invalid/wintrip2",
+            },
+            {
+                "path": ["Final Distribution Products", "MCB & Isolators", "WiNtrip MCB & Isolator"],
+                "name": "WiNtrip MCB & Isolator",
+                "sku_count": 172,
+                "description": "MCB upto 125A",
+                "url": "https://example.invalid/wintrip",
+            },
+        ],
+    }
+    BROWSE = {
+        "path": ["Final Distribution Products"],
+        "children": [
+            {"name": "Industrial Plugs and Sockets", "sku_count": 62, "is_leaf": True},
+            {"name": "MCB & Isolators", "sku_count": 900, "is_leaf": False},
+        ],
+    }
+
+    def _brief(self, agent: str = "discovery", depth: str = "overview") -> dict[str, Any]:
+        return {
+            "agent": agent,
+            "objective": "Name the WiNtrip ranges.",
+            "depth": depth,
+            "must_return": ["families"],
+            "parameters": {},
+        }
+
+    def test_mode_defaults_to_auto(self) -> None:
+        """`auto` is the shipped default: derive on overview, model on detailed."""
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("CS_REPORT_MODE", None)
+            self.assertEqual(report_mode(), "auto")
+        with patch.dict(os.environ, {"CS_REPORT_MODE": "nonsense"}):
+            self.assertEqual(report_mode(), "auto")
+        with patch.dict(os.environ, {"CS_REPORT_MODE": "lean"}):
+            # Removed after benchmarking: asking the model for a shorter report
+            # cut output 23% on one question and raised it 22% on the next.
+            self.assertEqual(report_mode(), "auto")
+
+    def test_auto_reads_the_briefs_depth(self) -> None:
+        with patch.dict(os.environ, {"CS_REPORT_MODE": "auto"}):
+            self.assertEqual(resolve_mode(self._brief(depth="overview"), "discovery"), "raw")
+            self.assertEqual(resolve_mode(self._brief(depth="detailed"), "discovery"), "llm")
+
+    def test_advisory_keeps_its_model_call_in_every_mode(self) -> None:
+        """A recommendation is not in any payload, so there is nothing to derive."""
+        for mode in ("derived", "raw", "auto"):
+            with patch.dict(os.environ, {"CS_REPORT_MODE": mode}):
+                self.assertEqual(
+                    resolve_mode(self._brief("solution_advisory", "detailed"), "solution_advisory"),
+                    "llm",
+                )
+
+    def test_derived_discovery_report_passes_its_own_gate(self) -> None:
+        report = derive_report(
+            "discovery", self._brief(), [self._tool("catalogue_map", self.MAP)], []
+        )
+        DiscoveryReport.model_validate(report)
+        self.assertEqual(
+            [family["name"] for family in report["families"]],
+            ["WiNtrip2 MCB & Isolator", "WiNtrip MCB & Isolator"],
+        )
+        self.assertIn("580", report["summary"])
+        # An overview is gated on asking something back, never on ordering codes.
+        self.assertTrue(report["follow_up_questions"])
+        self.assertEqual(report["representative_skus"], [])
+        self.assertFalse(_violations("discovery", report, "overview"))
+
+    def test_a_listing_never_widens_what_a_search_found(self) -> None:
+        """taxonomy_browse returns a node's whole contents, matched or not."""
+        report = derive_report(
+            "discovery",
+            self._brief(),
+            [self._tool("catalogue_map", self.MAP), self._tool("taxonomy_browse", self.BROWSE)],
+            [],
+        )
+        names = [family["name"] for family in report["families"]]
+        self.assertNotIn("Industrial Plugs and Sockets", names)
+        # A category is not a family; only a leaf child is one.
+        self.assertNotIn("MCB & Isolators", names)
+
+    def test_a_listing_is_used_when_nothing_targeted_ran(self) -> None:
+        report = derive_report(
+            "discovery", self._brief(), [self._tool("taxonomy_browse", self.BROWSE)], []
+        )
+        self.assertEqual(
+            [family["name"] for family in report["families"]],
+            ["Industrial Plugs and Sockets"],
+        )
+
+    def test_every_specification_finding_carries_its_sku(self) -> None:
+        """The gate's one universal rule, satisfied by construction rather than prompt."""
+        evidence = [
+            {
+                "tool": "get_sku",
+                "sku_code": "CSMBL1C10",
+                "spec_id": "rated_current_a",
+                "value_display": "10",
+                "unit": "A",
+                "source_of_truth": "code_grammar",
+            },
+            {"tool": "taxonomy_browse", "sku_code": None, "spec_id": None, "text": "a category"},
+        ]
+        report = derive_report(
+            "spec_selection",
+            self._brief("spec_selection", "detailed"),
+            [self._tool("catalogue_map", self.MAP)],
+            evidence,
+        )
+        SpecSelectionReport.model_validate(report)
+        for finding in report["findings"]:
+            if finding["kind"] == "specification":
+                self.assertTrue(finding["source"]["sku_code"])
+        self.assertFalse(_violations("spec_selection", report, "detailed"))
+
+    def test_findings_are_capped(self) -> None:
+        evidence = [
+            {"tool": "get_sku", "sku_code": f"SKU{i}", "spec_id": "poles", "value_display": "4"}
+            for i in range(60)
+        ]
+        with patch.dict(os.environ, {"CS_REPORT_MAX_FINDINGS": "5"}):
+            report = derive_report(
+                "discovery", self._brief(), [self._tool("catalogue_map", self.MAP)], evidence
+            )
+        self.assertEqual(len(report["findings"]), 5)
+
+    def test_a_comparison_table_is_copied_not_retyped(self) -> None:
+        payload = {
+            "sku_codes": ["A", "B"],
+            "axes": ["rated_current_a", "poles"],
+            "rows": {
+                "rated_current_a": {"A": "400", "B": "630"},
+                "poles": {"A": "4", "B": "4"},
+            },
+            "peer_group_match": True,
+        }
+        report = derive_report(
+            "comparison",
+            self._brief("comparison", "detailed"),
+            [self._tool("compare_skus", payload)],
+            [],
+        )
+        ComparisonReport.model_validate(report)
+        self.assertEqual(report["table"]["rows"], payload["rows"])
+        self.assertTrue(report["peer_group_match"])
+        self.assertFalse(_violations("comparison", report, "detailed"))
+
+    def test_an_errored_call_contributes_nothing(self) -> None:
+        bad = ToolMessage(
+            content=json.dumps({"error": "no such family"}),
+            tool_call_id="x",
+            name="taxonomy_browse",
+            status="error",
+        )
+        report = derive_report("discovery", self._brief(), [bad], [])
+        self.assertEqual(report["status"], "no_result")
+        self.assertEqual(report["families"], [])
+
+    def test_raw_bundle_says_when_it_dropped_something(self) -> None:
+        messages = [self._tool("get_sku", {"sku_code": f"S{i}", "facts": ["x" * 400]}) for i in range(6)]
+        bundle = raw_bundle(messages, budget=1200)
+        self.assertLess(len(bundle), 7)
+        self.assertEqual(bundle[-1]["tool"], "__truncated__")
+        # Newest first, because the last call is the one that answered.
+        kept = [entry["result"]["sku_code"] for entry in bundle if entry["tool"] == "get_sku"]
+        self.assertIn("S5", kept)
+        self.assertNotIn("S0", kept)
+
+    def test_raw_bundle_keeps_everything_inside_budget(self) -> None:
+        messages = [self._tool("catalogue_map", self.MAP)]
+        bundle = raw_bundle(messages, budget=100_000)
+        self.assertEqual([entry["tool"] for entry in bundle], ["catalogue_map"])
+
+    def test_the_slim_schema_never_shows_a_backfilled_field(self) -> None:
+        """A field the model is not shown is one it cannot spend tokens on.
+
+        Three of SourceRef's six fields were populated under 4% of the time
+        across 503 measured references while being written as an explicit null
+        in nearly all of them.
+        """
+        asked = _asked_for(SpecSelectionReport)
+        for field in ("brochure_md", "pricelist_pdf", "pricelist_page", "product_page_url"):
+            self.assertNotIn(field, asked)
+        self.assertNotIn('"sources"', asked)
+        self.assertIn("maxItems", asked)
+        # The fields it still needs are still there.
+        self.assertIn("sku_code", asked)
+        self.assertIn("source_of_truth", asked)
+
+    def test_turning_slimming_off_restores_the_whole_schema(self) -> None:
+        with patch.dict(os.environ, {"CS_REPORT_SLIM": "0"}):
+            asked = _asked_for(SpecSelectionReport)
+        self.assertIn("brochure_md", asked)
+        self.assertIn('"sources"', asked)
+
+    def test_hiding_a_field_does_not_stop_the_model_accepting_it(self) -> None:
+        """Pruning changes the asking, never the contract."""
+        report = SpecSelectionReport.model_validate({
+            "agent": "spec_selection",
+            "status": "complete",
+            "summary": "x",
+            "sources": [{"sku_code": "A", "pricelist_page": 42}],
+        })
+        self.assertEqual(report.sources[0].pricelist_page, 42)
+
+
+class BackfillTests(unittest.TestCase):
+    """Restoring what the slim schema did not ask the model to write."""
+
+    @staticmethod
+    def _tool(name: str, payload: Any) -> ToolMessage:
+        return ToolMessage(
+            content=json.dumps(payload, default=str), tool_call_id=name, name=name
+        )
+
+    PRICES = {
+        "prices": [
+            {
+                "sku_code": "CSCS400DM4CO",
+                "observations": [
+                    {"source_pdf": "LV-Pricelist-WEF-1st-June26.pdf", "source_page": 42}
+                ],
+            }
+        ]
+    }
+    SEARCH = {
+        "hits": [
+            {"sku_code": "CSCS400DM4CO", "url": "https://example.invalid/changeover"}
+        ]
+    }
+
+    def test_a_reference_gains_the_documents_its_payload_recorded(self) -> None:
+        report = {
+            "findings": [
+                {
+                    "statement": "400 A",
+                    "kind": "specification",
+                    "source": {"sku_code": "CSCS400DM4CO", "source_of_truth": "pricelist_table"},
+                }
+            ],
+            "sources": [],
+        }
+        filled = backfill_report(
+            report,
+            [self._tool("get_price_detail", self.PRICES), self._tool("product_search", self.SEARCH)],
+            [],
+        )
+        source = filled["findings"][0]["source"]
+        self.assertEqual(source["pricelist_pdf"], "LV-Pricelist-WEF-1st-June26.pdf")
+        self.assertEqual(source["pricelist_page"], 42)
+        self.assertEqual(source["product_page_url"], "https://example.invalid/changeover")
+        # What the model did write is left exactly as it wrote it.
+        self.assertEqual(source["source_of_truth"], "pricelist_table")
+
+    def test_a_reference_the_payloads_do_not_know_is_left_alone(self) -> None:
+        report = {"findings": [{"statement": "x", "source": {"sku_code": "UNKNOWN"}}], "sources": []}
+        filled = backfill_report(report, [self._tool("get_price_detail", self.PRICES)], [])
+        self.assertIsNone(filled["findings"][0]["source"].get("pricelist_pdf"))
+
+    def test_sources_indexes_what_the_report_references(self) -> None:
+        """Provenance for the SKUs the report names, not a log of the retrieval.
+
+        Rebuilding from every payload produced 20 entries where the model had
+        chosen 4 — prompt weight the composer reads past for no gain.
+        """
+        report = {
+            "findings": [
+                {"statement": "x", "source": {"sku_code": "CSCS400DM4CO"}}
+            ],
+            "sources": [],
+        }
+        filled = backfill_report(
+            report, [self._tool("get_price_detail", self.PRICES)], []
+        )
+        self.assertTrue(
+            any(ref.get("pricelist_page") == 42 for ref in filled["sources"])
+        )
+
+    def test_a_report_that_references_nothing_cites_nothing(self) -> None:
+        report = {"findings": [], "sources": []}
+        filled = backfill_report(
+            report, [self._tool("get_price_detail", self.PRICES)], []
+        )
+        self.assertEqual(filled["sources"], [])
+
+    def test_a_pricelist_page_is_read_off_the_fact_that_carried_it(self) -> None:
+        """The shape that actually appears when `get_price_detail` is never called.
+
+        Provenance rides on individual facts inside a `get_sku` payload. Reading
+        only the price-lookup shape lost the citation "LV-Pricelist-WEF-1st-June26
+        .pdf, p. 42" on a run whose payloads plainly contained it.
+        """
+        payload = {
+            "sku_code": "CSCS400DM4CO",
+            "facts": [
+                {
+                    "spec_id": "price_inr",
+                    "value_display": "₹60,910",
+                    "source_of_truth": "pricelist_table",
+                    "source_pdf": "LV-Pricelist-WEF-1st-June26.pdf",
+                    "source_page": 42,
+                },
+                {
+                    "spec_id": "position_indication",
+                    "source_of_truth": "brochure",
+                    "source_pdf": None,
+                    "source_page": None,
+                },
+            ],
+        }
+        report = {
+            "findings": [
+                {
+                    "statement": "MRP ₹60,910",
+                    "kind": "price",
+                    "source": {"sku_code": "CSCS400DM4CO", "source_of_truth": "pricelist_table"},
+                }
+            ],
+            "sources": [],
+        }
+        filled = backfill_report(report, [self._tool("get_sku", payload)], [])
+        source = filled["findings"][0]["source"]
+        self.assertEqual(source["pricelist_pdf"], "LV-Pricelist-WEF-1st-June26.pdf")
+        self.assertEqual(source["pricelist_page"], 42)
+
+    def test_a_sources_list_the_model_did_supply_is_kept(self) -> None:
+        report = {"findings": [], "sources": [{"sku_code": "MINE"}]}
+        filled = backfill_report(report, [self._tool("get_price_detail", self.PRICES)], [])
+        self.assertEqual(filled["sources"], [{"sku_code": "MINE"}])
+
+    def test_findings_are_trimmed_when_the_cap_is_ignored(self) -> None:
+        report = {"findings": [{"statement": str(i)} for i in range(40)], "sources": []}
+        with patch.dict(os.environ, {"CS_REPORT_FINDINGS_CAP": "6"}):
+            filled = backfill_report(report, [], [])
+        self.assertEqual(len(filled["findings"]), 6)
+
+
+class CandidateProvenanceTests(unittest.TestCase):
+    """A derived candidate may only claim the filters that returned it.
+
+    A specialist runs several searches. Collecting every ordering code and every
+    filter from the whole transcript and pairing them afterwards produced a
+    report asserting that `CSCOS2P25A`, a 25 A two-pole device, matched
+    `rated_current_a eq 400, poles eq 4` — a fabricated specification claim that
+    the gate passes, because its shape is valid and only its meaning is wrong.
+    """
+
+    @staticmethod
+    def _tool(name: str, payload: Any) -> ToolMessage:
+        return ToolMessage(
+            content=json.dumps(payload, default=str), tool_call_id=name, name=name
+        )
+
+    BRIEF = {
+        "agent": "spec_selection",
+        "objective": "Find a 400 A 4-pole changeover switch.",
+        "depth": "detailed",
+        "must_return": ["sku_code"],
+        "parameters": {},
+    }
+
+    def _report(self) -> dict[str, Any]:
+        empty = {"hits": [], "filters_applied": ["rated_current_a eq 400.0", "poles eq 4.0"]}
+        wide = {"hits": [{"sku_code": "CSCOS2P25A", "family": "WiNtrip"}], "filters_applied": []}
+        return derive_report("spec_selection", self.BRIEF, [
+            self._tool("product_search", empty),
+            self._tool("product_search", wide),
+        ], [])
+
+    def test_a_code_never_inherits_another_searchs_filters(self) -> None:
+        report = self._report()
+        why = {entry["sku_code"]: entry["why_it_fits"] for entry in report["candidates"]}
+        self.assertIn("CSCOS2P25A", why)
+        self.assertNotIn("400", why["CSCOS2P25A"])
+        self.assertNotIn("poles", why["CSCOS2P25A"])
+
+    def test_a_code_keeps_the_filters_that_did_return_it(self) -> None:
+        hit = {
+            "hits": [{"sku_code": "CSCS400DM4CO", "family": "New Changeover Switches"}],
+            "filters_applied": ["rated_current_a eq 400.0", "poles eq 4.0"],
+        }
+        report = derive_report(
+            "spec_selection", self.BRIEF, [self._tool("product_search", hit)], []
+        )
+        self.assertEqual(
+            report["candidates"][0]["why_it_fits"],
+            "Matches rated_current_a eq 400.0, poles eq 4.0",
+        )
+
+    def test_the_first_provenance_survives_a_later_unfiltered_sweep(self) -> None:
+        filtered = {
+            "hits": [{"sku_code": "CSCS400DM4CO"}],
+            "filters_applied": ["rated_current_a eq 400.0"],
+        }
+        sweep = {"hits": [{"sku_code": "CSCS400DM4CO"}], "filters_applied": []}
+        report = derive_report("spec_selection", self.BRIEF, [
+            self._tool("product_search", filtered),
+            self._tool("product_search", sweep),
+        ], [])
+        self.assertIn("400", report["candidates"][0]["why_it_fits"])
+
+    def test_a_directly_fetched_code_claims_no_filter_at_all(self) -> None:
+        report = derive_report("spec_selection", self.BRIEF, [
+            self._tool("get_sku", {"sku_code": "CSCS400DM4CO", "family": "New Changeover"}),
+        ], [])
+        self.assertEqual(
+            report["candidates"][0]["why_it_fits"], "Retrieved directly by ordering code"
+        )
+
+
+class EmptyCoreFallbackTests(unittest.TestCase):
+    """When derivation finds nothing, writing the report with the model is cheaper.
+
+    An empty derived report is not merely thin. The gate accepts it as a valid
+    `no_result`, and the composer's sufficiency check then spends revision rounds
+    chasing a gap no retry can close: one measured comparison ran 1,156s across
+    three specialist rounds and 38 tool calls, and refused to answer.
+    """
+
+    @staticmethod
+    def _tool(name: str, payload: Any) -> ToolMessage:
+        return ToolMessage(
+            content=json.dumps(payload, default=str), tool_call_id=name, name=name
+        )
+
+    def test_a_comparison_with_no_table_falls_back(self) -> None:
+        self.assertTrue(
+            needs_model_fallback("derived", "comparison", {"table": {"rows": {}}})
+        )
+
+    def test_a_comparison_with_a_table_does_not(self) -> None:
+        report = {"table": {"rows": {"poles": {"A": "4"}}}}
+        self.assertFalse(needs_model_fallback("derived", "comparison", report))
+
+    def test_raw_never_falls_back(self) -> None:
+        """Its payloads are the fallback: 426s against the model's 500s."""
+        self.assertFalse(
+            needs_model_fallback("raw", "comparison", {"table": {"rows": {}}})
+        )
+
+    def test_each_agent_is_judged_on_the_field_it_exists_to_produce(self) -> None:
+        self.assertTrue(needs_model_fallback("derived", "discovery", {"families": []}))
+        self.assertFalse(
+            needs_model_fallback("derived", "discovery", {"families": [{"name": "x"}]})
+        )
+        self.assertTrue(
+            needs_model_fallback("derived", "spec_selection", {"candidates": []})
+        )
+
+    def test_advisory_has_no_core_to_judge(self) -> None:
+        """It never derives in the first place, so there is nothing to fall back from."""
+        self.assertFalse(needs_model_fallback("derived", "solution_advisory", {}))
+
+    def test_the_node_writes_with_the_model_when_the_core_is_empty(self) -> None:
+        from cs_agent.subgraphs.agents.nodes import make_report_node
+
+        called: dict[str, Any] = {}
+
+        def _structured(node, messages, schema, **kw):
+            called["hit"] = True
+            return schema(agent="comparison", status="complete", summary="s")
+
+        node = make_report_node("comparison")
+        brief = {
+            "agent": "comparison",
+            "objective": "Compare two ranges.",
+            "depth": "detailed",
+            "parameters": {},
+        }
+        # A payload with no `compare_skus` in it: derivation yields no table.
+        state = {
+            "brief": brief,
+            "agent_name": "comparison",
+            "messages": [self._tool("product_search", {"hits": [{"sku_code": "A"}]})],
+            "evidence": [],
+        }
+        with patch.dict(os.environ, {"CS_REPORT_MODE": "derived"}), patch(
+            "cs_agent.subgraphs.agents.nodes.structured", side_effect=_structured
+        ):
+            node(state)
+        self.assertTrue(called.get("hit"), "expected the model to write the report")
+
+
+class StructuredToolCallTests(unittest.TestCase):
+    """A schema request answered with a tool call has to be corrected as one.
+
+    The failure is invisible from the content alone — a tool-calling reply
+    carries no text, so the validator only ever sees an empty string.
+    """
+
+    class _Model:
+        def __init__(self, name: str) -> None:
+            self.name = name
+            self.bound: list[object] | None = None
+
+        def bind_tools(self, tools):
+            clone = StructuredToolCallTests._Model(self.name)
+            clone.bound = list(tools)
+            return clone
+
+    @staticmethod
+    def _tool_reply(*names: str) -> AIMessage:
+        return AIMessage(
+            content="",
+            tool_calls=[
+                {"name": n, "args": {}, "id": f"call_{i}"}
+                for i, n in enumerate(names)
+            ],
+        )
+
+    @contextmanager
+    def _run(self, replies: list[AIMessage]):
+        """Drive `structured` through ``replies``, recording each request."""
+        # `cs_agent.llm` re-exports the function under this name, so the
+        # module itself has to be fetched by path.
+        mod = importlib.import_module("cs_agent.llm.structured")
+
+        seen: list[dict[str, Any]] = []
+        queue = list(replies)
+
+        def _generate(model, messages, *, label=None, tool_names=None, **kw):
+            seen.append(
+                {"model": model, "messages": list(messages), "tools": tool_names}
+            )
+            return queue.pop(0), False
+
+        with patch.object(mod, "get_model", lambda node: self._Model(node)), patch.object(
+            mod, "generate", _generate
+        ):
+            yield seen
+
+    def _schema(self):
+        from pydantic import BaseModel
+
+        class Tiny(BaseModel):
+            ok: bool
+
+        return Tiny
+
+    def test_a_tool_call_is_named_back_to_the_model(self) -> None:
+        from cs_agent.llm.structured import structured
+
+        schema = self._schema()
+        replies = [self._tool_reply("product_search"), AIMessage(content='{"ok": true}')]
+        with self._run(replies) as seen:
+            result = structured(
+                "agent", [HumanMessage(content="JSON Schema go")], schema,
+                tools=[SimpleNamespace(name="product_search")],
+            )
+        self.assertTrue(result.ok)
+        correction = seen[1]["messages"][-1]
+        self.assertIn("product_search", correction.content)
+        self.assertNotIn("EOF", correction.content)
+
+    def test_the_empty_reply_is_kept_out_of_the_transcript(self) -> None:
+        """An empty assistant turn teaches the model that empty is acceptable."""
+        from cs_agent.llm.structured import structured
+
+        schema = self._schema()
+        replies = [self._tool_reply("get_sku"), AIMessage(content='{"ok": true}')]
+        with self._run(replies) as seen:
+            structured(
+                "agent", [HumanMessage(content="JSON Schema go")], schema,
+                tools=[SimpleNamespace(name="get_sku")],
+            )
+        added = seen[1]["messages"][len(seen[0]["messages"]):]
+        self.assertEqual(len(added), 1, "only the correction should be appended")
+        self.assertFalse(
+            any(isinstance(m, AIMessage) and not m.content for m in added)
+        )
+
+    def test_one_tool_call_takes_the_tools_away(self) -> None:
+        """Telling it not to does not work; removing the option does."""
+        from cs_agent.llm.structured import structured
+
+        schema = self._schema()
+        replies = [self._tool_reply("product_search"), AIMessage(content='{"ok": true}')]
+        with self._run(replies) as seen:
+            structured(
+                "agent", [HumanMessage(content="JSON Schema go")], schema,
+                tools=[SimpleNamespace(name="product_search")],
+            )
+        self.assertIsNotNone(seen[0]["tools"], "tools bound on the first ask")
+        self.assertIsNone(seen[1]["tools"], "unbound on the very next attempt")
+        self.assertIsNone(seen[1]["model"].bound)
+
+    def test_a_later_validation_failure_keeps_the_tools_off(self) -> None:
+        """The retry that follows the unbinding must not re-bind them."""
+        from cs_agent.llm.structured import structured
+
+        schema = self._schema()
+        replies = [
+            self._tool_reply("product_search"),
+            AIMessage(content="still not JSON"),
+            AIMessage(content='{"ok": true}'),
+        ]
+        with self._run(replies) as seen:
+            structured(
+                "agent", [HumanMessage(content="JSON Schema go")], schema,
+                tools=[SimpleNamespace(name="product_search")],
+            )
+        self.assertEqual(
+            [s["tools"] is None for s in seen], [False, True, True]
+        )
+
+    def test_unparseable_text_still_gets_the_validation_error(self) -> None:
+        from cs_agent.llm.structured import structured
+
+        schema = self._schema()
+        replies = [AIMessage(content="sorry, no"), AIMessage(content='{"ok": true}')]
+        with self._run(replies) as seen:
+            structured("agent", [HumanMessage(content="JSON Schema go")], schema)
+        added = seen[1]["messages"][len(seen[0]["messages"]):]
+        self.assertEqual([type(m) for m in added], [AIMessage, HumanMessage])
+        self.assertIn("Invalid output", added[1].content)
+
+    def test_it_still_gives_up_when_nothing_works(self) -> None:
+        from cs_agent.llm.structured import StructuredOutputError, structured
+
+        schema = self._schema()
+        replies = [self._tool_reply("get_sku") for _ in range(3)]
+        with self._run(replies):
+            with self.assertRaises(StructuredOutputError):
+                structured(
+                    "agent", [HumanMessage(content="JSON Schema go")], schema,
+                    tools=[SimpleNamespace(name="get_sku")],
+                )
+
+
+class BatchedScopeTests(unittest.TestCase):
+    """The four things the multi-family widening got wrong on its first pass."""
+
+    def _specs_payload(self) -> dict[str, Any]:
+        return {
+            "specs": [
+                {
+                    "family": "ACB – WiNmaster 2",
+                    "spec_id": "rated_current_a",
+                    "spec_label": "Rated current",
+                    "unit": "A",
+                    "value_kind": "scalar",
+                    "is_canonical_spec": 1,
+                    "sku_count": 101,
+                    "composite_count": 0,
+                    "observed_min": 630.0,
+                    "observed_max": 2500.0,
+                },
+                {
+                    "family": "ACB – WiNmaster 3",
+                    "spec_id": "rated_current_a",
+                    "spec_label": "Rated current",
+                    "unit": "A",
+                    "value_kind": "scalar",
+                    "is_canonical_spec": 1,
+                    "sku_count": 157,
+                    "composite_count": 0,
+                    "observed_min": 630.0,
+                    "observed_max": 4000.0,
+                },
+            ],
+            "scope": {"path": None, "family": ["ACB – WiNmaster 2", "ACB – WiNmaster 3"]},
+        }
+
+    def test_the_envelope_is_indexed_row_by_row(self) -> None:
+        """The rows are evidence; the envelope around them is not."""
+        from cs_agent.graph.nodes.record_evidence import _extract
+
+        records = _extract(self._specs_payload(), "list_canonical_specs")
+        counts = [r for r in records if r.get("source_of_truth") == "catalogue_index"]
+        self.assertTrue(counts, "per-spec counts and bounds must survive the envelope")
+        self.assertTrue(
+            any(r.get("value_num") == 4000.0 for r in counts),
+            "WiNmaster 3's observed_max is quotable evidence",
+        )
+        self.assertTrue(any(r.get("value_kind") == "name" for r in records))
+        # The whole payload as one blob is what the envelope caused before.
+        self.assertLess(max(len(r.get("text") or "") for r in records), 1000)
+
+    def test_spec_rows_are_not_filed_as_sku_facts(self) -> None:
+        from cs_agent.graph.nodes.record_evidence import _extract
+
+        records = _extract(self._specs_payload(), "list_canonical_specs")
+        self.assertFalse(
+            [r for r in records if r.get("spec_id") and r.get("source_of_truth") is None],
+            "a spec definition is not a fact about a SKU",
+        )
+
+    def test_the_payload_carries_the_rows_and_the_scope_only(self) -> None:
+        """No second copy of the rows: a rollup alongside them doubled the payload."""
+        from cs_agent.backends.spec_envelope import group_specs
+
+        payload = group_specs(
+            self._specs_payload()["specs"],
+            groups=["ACB – WiNmaster 2", "ACB – WiNmaster 3"],
+            group_by="family", path=None, family=["A", "B"],
+        )
+        self.assertEqual({"specs", "scope"}, set(payload))
+        self.assertNotIn("by_spec_id", payload)
+
+    def test_a_level_group_reports_the_group_path_not_a_members(self) -> None:
+        from cs_agent.backends.grouped_search import group_path
+
+        hit = {
+            "family": "MCCB – Winbreak1",
+            "path": [
+                "Low Voltage Products and Solutions",
+                "Circuit Breakers",
+                "Moulded Case Circuit Breakers",
+                "MCCB – Winbreak1",
+            ],
+        }
+        self.assertEqual(
+            ["Low Voltage Products and Solutions", "Circuit Breakers"],
+            group_path(hit, "product_group"),
+        )
+        self.assertEqual(
+            ["Low Voltage Products and Solutions"], group_path(hit, "division")
+        )
+        # A family is a leaf, so its own path is the group's path.
+        self.assertEqual(hit["path"], group_path(hit, "family"))
+
+    def test_grouped_hits_reach_the_derived_report(self) -> None:
+        from cs_agent.subgraphs.agents.report_modes import _candidates, _skus
+
+        grouped = {
+            "group_by": "family",
+            "groups": [
+                {
+                    "family": "ACB – WiNmaster 3",
+                    "path": [],
+                    "total_in_scope": 157,
+                    "matched": 156,
+                    "spec_present": True,
+                    "sample_hits": [{"sku_code": "WX306L3P1MDOA", "family": "ACB – WiNmaster 3"}],
+                },
+                {
+                    "family": "2 & 4 Pole Contactors",
+                    "path": [],
+                    "total_in_scope": 63,
+                    "matched": 0,
+                    "spec_present": False,
+                    "sample_hits": [],
+                },
+            ],
+            "filters_applied": ["rated_current_a gte 400.0"],
+        }
+        items = [("product_search", grouped)]
+        self.assertEqual(["WX306L3P1MDOA"], _skus(items))
+        candidate = _candidates(items)[0]
+        self.assertEqual("WX306L3P1MDOA", candidate["sku_code"])
+        self.assertIn("rated_current_a gte 400.0", candidate["why_it_fits"])
+
+    def test_every_agent_holding_the_tools_is_told_to_batch(self) -> None:
+        """The syntax alone changed nothing; the instruction is what does."""
+        from cs_agent.tools.registry import AGENT_TOOL_NAMES, SHARED_TOOL_NAMES
+
+        common = Path("cs_agent/prompts/agent_common.md").read_text(encoding="utf-8")
+        self.assertIn("ONE call", common)
+        self.assertIn("group_by", common)
+        for agent, names in AGENT_TOOL_NAMES.items():
+            held = set(names) | set(SHARED_TOOL_NAMES)
+            if not held & {"product_search", "list_canonical_specs"}:
+                continue
+            raw = Path(f"cs_agent/prompts/agents/{agent}.md").read_text(encoding="utf-8")
+            # These files are hard-wrapped, so a phrase can straddle a newline.
+            text = " ".join(raw.lower().split())
+            self.assertTrue(
+                any(
+                    phrase in text
+                    for phrase in ("one call", "one list_canonical_specs", "together")
+                ),
+                f"{agent} holds the widened tools but is not told to batch",
+            )
+
+
+class CompactFactTests(unittest.TestCase):
+    """Dropping a null must lose no meaning, and no consumer may KeyError on it."""
+
+    ROW = {
+        "sku_code": "CSCS400DM4CO",
+        "product_id": 102363,
+        "spec_id": "rated_current_a",
+        "spec_label": "Rated current",
+        "unit": None,
+        "value_num": None,
+        "value_min": None,
+        "value_max": None,
+        "value_display": "400 A",
+        "value_kind": "text",
+        "source_of_truth": "pricelist_table",
+        "source_pdf": None,
+        "source_page": None,
+    }
+
+    def test_nulls_go_and_values_stay(self) -> None:
+        from cs_agent.backends.spec_envelope import compact_fact
+
+        out = compact_fact(dict(self.ROW))
+        self.assertNotIn("unit", out)
+        self.assertNotIn("value_num", out)
+        self.assertEqual("400 A", out["value_display"])
+        self.assertEqual("pricelist_table", out["source_of_truth"])
+        # spec_label is not recoverable from spec_id on 41% of the catalogue
+        # (`1_no_1_nc` is published as `1 NO + 1 NC`), so it is never dropped.
+        self.assertEqual("Rated current", out["spec_label"])
+
+    def test_a_falsy_value_is_not_a_missing_one(self) -> None:
+        """`is_canonical_spec: 0` and `sku_count: 0` are answers, not absences."""
+        from cs_agent.backends.spec_envelope import compact_fact
+
+        out = compact_fact({"spec_id": "x", "is_canonical_spec": 0, "sku_count": 0,
+                            "value_num": 0.0, "unit": "", "gone": None})
+        self.assertEqual(0, out["is_canonical_spec"])
+        self.assertEqual(0, out["sku_count"])
+        self.assertEqual(0.0, out["value_num"])
+        self.assertEqual("", out["unit"])
+        self.assertNotIn("gone", out)
+
+    def test_nested_rows_shed_what_the_parent_hit_already_says(self) -> None:
+        from cs_agent.backends.spec_envelope import NESTED_REDUNDANT, compact_fact
+
+        out = compact_fact(dict(self.ROW), drop=NESTED_REDUNDANT)
+        self.assertNotIn("sku_code", out)
+        self.assertNotIn("product_id", out)
+
+    def test_evidence_survives_a_compacted_row(self) -> None:
+        """A compacted row must still produce a fully-keyed Evidence record."""
+        from cs_agent.backends.spec_envelope import NESTED_REDUNDANT, compact_fact
+        from cs_agent.graph.nodes.record_evidence import _empty, _fact_record
+
+        compact = compact_fact(dict(self.ROW), drop=NESTED_REDUNDANT)
+        record = _fact_record("product_search", compact, "CSCS400DM4CO")
+        self.assertEqual(set(_empty("product_search")), set(record))
+        self.assertEqual("CSCS400DM4CO", record["sku_code"])
+        self.assertEqual("400 A", record["value_display"])
+        self.assertIsNone(record["unit"])
+
+    def test_a_price_citation_survives_compaction(self) -> None:
+        """The fix for this morning's citation regression must not be undone."""
+        from cs_agent.backends.spec_envelope import NESTED_REDUNDANT, compact_fact
+        from cs_agent.subgraphs.agents.report_modes import _reference_index
+
+        priced = {**self.ROW, "source_pdf": "LV-Pricelist-WEF-1st-June26.pdf",
+                  "source_page": 42}
+        hit = {"sku_code": "CSCS400DM4CO",
+               "specs": [compact_fact(priced, drop=NESTED_REDUNDANT)]}
+        index = _reference_index([("product_search", {"hits": [hit]})])
+        self.assertEqual(42, index["CSCS400DM4CO"]["pricelist_page"])
+        self.assertEqual(
+            "LV-Pricelist-WEF-1st-June26.pdf",
+            index["CSCS400DM4CO"]["pricelist_pdf"],
+        )
+
+
+class SharedScopeTests(unittest.TestCase):
+    """Several families asked about at once means: what do they have in common?"""
+
+    def setUp(self) -> None:
+        self.backend = FixturesBackend()
+
+    def test_only_specs_every_group_publishes_come_back(self) -> None:
+        from cs_agent.backends.spec_envelope import group_specs
+
+        rows = [
+            {"family": "A", "spec_id": "poles", "sku_count": 2, "observed_max": 4},
+            {"family": "B", "spec_id": "poles", "sku_count": 3, "observed_max": 3},
+            {"family": "A", "spec_id": "only_a", "sku_count": 1},
+        ]
+        out = group_specs(rows, groups=["A", "B"], group_by="family",
+                          path=None, family=["A", "B"])
+        self.assertEqual(["poles"], [row["spec_id"] for row in out["specs"]])
+        self.assertEqual({"only_a": ["A"]}, out["not_shared"]["spec_ids"])
+
+    def test_per_group_bounds_are_never_merged(self) -> None:
+        """WiNmaster 3 reaching 4000 A where 2 stops at 2500 A is the answer."""
+        from cs_agent.backends.spec_envelope import group_specs
+
+        rows = [
+            {"family": "W2", "spec_id": "rated_current_a", "sku_count": 101,
+             "observed_min": 630.0, "observed_max": 2500.0},
+            {"family": "W3", "spec_id": "rated_current_a", "sku_count": 157,
+             "observed_min": 630.0, "observed_max": 4000.0},
+        ]
+        out = group_specs(rows, groups=["W2", "W3"], group_by="family",
+                          path=None, family=["W2", "W3"])
+        by_group = out["specs"][0]["by_group"]
+        self.assertEqual(2500.0, by_group["W2"]["observed_max"])
+        self.assertEqual(4000.0, by_group["W3"]["observed_max"])
+
+    def test_a_group_holding_nothing_still_counts_against_the_intersection(self) -> None:
+        """Otherwise one family out of three reads as shared by all three."""
+        from cs_agent.backends.spec_envelope import group_specs
+
+        rows = [{"family": "A", "spec_id": "poles", "sku_count": 1}]
+        out = group_specs(rows, groups=["A", "B", "C"], group_by="family",
+                          path=None, family=["A", "B", "C"])
+        self.assertEqual([], out["specs"])
+        self.assertEqual({"poles": ["A"]}, out["not_shared"]["spec_ids"])
+
+    def test_one_family_shares_everything_with_itself(self) -> None:
+        result = self.backend.list_canonical_specs(family="WIN2-125")
+        self.assertTrue(result["specs"])
+        self.assertNotIn("not_shared", result)
+        self.assertEqual(["WIN2-125"], result["scope"]["groups"])
+
+    def test_product_search_attaches_only_shared_specs(self) -> None:
+        kept, dropped = self.backend._shared_return_specs(
+            {"family": ["WIN2-125", "DP09"]}, ["poles", "rated_current_a"]
+        )
+        self.assertNotIn("poles", kept, "DP09 does not publish poles")
+        self.assertEqual(["WIN2-125"], dropped["poles"])
+
+    def test_a_single_group_scope_attaches_everything_asked_for(self) -> None:
+        """The intersection must not narrow an ordinary one-family search."""
+        kept, dropped = self.backend._shared_return_specs(
+            {"family": "WIN2-125"}, ["poles", "rated_current_a"]
+        )
+        self.assertEqual(["poles", "rated_current_a"], kept)
+        self.assertEqual({}, dropped)
+
+    def test_the_excluded_ids_are_always_named(self) -> None:
+        """Silence would read as 'the catalogue does not publish this'."""
+        result = self.backend.list_canonical_specs(family=["WIN2-125", "DP09"])
+        self.assertIn("not_shared", result)
+        self.assertIn("spec_ids", result["not_shared"])
+        self.assertTrue(result["not_shared"]["note"])
+        for holders in result["not_shared"]["spec_ids"].values():
+            self.assertTrue(holders, "each excluded id names who does publish it")
+
+
+class SkuIdentityTests(unittest.TestCase):
+    """The ordering code is the identity. `product_id` must not stand in for it.
+
+    Several distinct ordering codes share one `product_id` in the build source
+    -- `CE20113` and `CE20113NR` do, with different content, chunk counts and
+    facts. Keying anything on `product_id` collapses them: 544 codes were lost
+    that way, 261 of which had previously resolved, and `mv_fact` handed one
+    code's specifications to its sibling.
+    """
+
+    def test_no_tool_payload_leaks_product_id(self) -> None:
+        """It identifies nothing the caller can act on, and invites grouping."""
+        import inspect
+        from cs_agent.backends import sqlite as backend
+
+        source = inspect.getsource(backend)
+        emitted = [
+            line.strip()
+            for line in source.splitlines()
+            if '"product_id"' in line and not line.strip().startswith("#")
+        ]
+        self.assertEqual([], emitted, "product_id must not reach a tool payload")
+
+    def test_the_views_key_on_the_ordering_code(self) -> None:
+        sql = Path("cs_agent/db/views.sql").read_text(encoding="utf-8")
+        self.assertIn("SELECT DISTINCT ON (product->>'sku_code')", sql)
+        self.assertNotIn("SELECT DISTINCT ON (product_id)", sql)
+        # A unique index on product_id is what forced the collapse.
+        self.assertNotIn("CREATE UNIQUE INDEX mv_sku_product_id_idx", sql)
+        self.assertIn("CREATE UNIQUE INDEX mv_sku_sku_code_idx", sql)
+        # Facts belong to the code's own chunk.
+        self.assertIn("pc.product->>'sku_code' = s.sku_code", sql)
+        self.assertIn("x.product->>'sku_code' = s.sku_code", sql)
+        # Counting products means counting ordering codes.
+        self.assertIn("count(DISTINCT sku_code) AS sku_count", sql)
+
+    def test_the_build_keys_on_the_ordering_code(self) -> None:
+        build = Path("scripts/build_sqlite.py").read_text(encoding="utf-8")
+        self.assertIn("sku_by_code", build)
+        self.assertIn("facts_by_code", build)
+        self.assertNotIn("sku_by_product", build)
+        self.assertNotIn("facts_by_product", build)
+        self.assertIn('cur.execute("SELECT * FROM in_use.mv_sku ORDER BY sku_code")', build)
+
+    def test_a_hit_and_a_sku_carry_no_product_id(self) -> None:
+        from cs_agent.tools.impl import get_sku, product_search
+
+        backend = FixturesBackend()
+        with patch("cs_agent.tools.impl.backend", return_value=backend):
+            hits = product_search(family=None, limit=3).get("hits") or []
+            self.assertTrue(hits)
+            for hit in hits:
+                self.assertNotIn("product_id", hit)
+                self.assertTrue(hit.get("sku_code"))
+                for spec in hit.get("specs") or []:
+                    self.assertNotIn("product_id", spec)
+            sku = get_sku(sku_code=hits[0]["sku_code"], include=["facts"])
+            self.assertNotIn("product_id", sku)
