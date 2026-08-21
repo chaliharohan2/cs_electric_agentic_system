@@ -1,0 +1,314 @@
+{
+  "group_by": "family",
+  "groups": [
+    {
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "total_in_scope": 101,
+      "matched": 28,
+      "spec_present": true,
+      "sample_hits": [
+        {
+          "sku_code": "WX06N4PMDOA(S)",
+          "family": "ACB – WiNmaster 2",
+          "path": [
+            "Low Voltage Products and Solutions",
+            "Circuit Breakers",
+            "Air Circuit Breakers",
+            "ACB – WiNmaster 2"
+          ],
+          "description": null,
+          "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+          "price_status": "listed",
+          "price_inr": 415270.0,
+          "price_quotable": true,
+          "decoded": {
+            "poles": 4,
+            "release": {
+              "brochure": "Basic Release",
+              "pricelist": "MicroPro2 3.1 (LSIG)"
+            },
+            "acb_type": "Manual Drawout",
+            "breaking": {
+              "ka": 50,
+              "note": "Icu=Ics=Icw(1s) per pricelist",
+              "volts": 415
+            },
+            "rating_idx": 630,
+            "std_accessories": "supplied with standard accessories"
+          }
+        },
+        {
+          "sku_code": "WX08N4PMDOA(S)",
+          "family": "ACB – WiNmaster 2",
+          "path": [
+            "Low Voltage Products and Solutions",
+            "Circuit Breakers",
+            "Air Circuit Breakers",
+            "ACB – WiNmaster 2"
+          ],
+          "description": null,
+          "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+          "price_status": "listed",
+          "price_inr": 415270.0,
+          "price_quotable": true,
+          "decoded": {
+            "poles": 4,
+            "release": {
+              "brochure": "Basic Release",
+              "pricelist": "MicroPro2 3.1 (LSIG)"
+            },
+            "acb_type": "Manual Drawout",
+            "breaking": {
+              "ka": 50,
+              "note": "Icu=Ics=Icw(1s) per pricelist",
+              "volts": 415
+            },
+            "rating_idx": 800,
+            "std_accessories": "supplied with standard accessories"
+          }
+        },
+        {
+          "sku_code": "WX10N4PMDOA(S)",
+          "family": "ACB – WiNmaster 2",
+          "path": [
+            "Low Voltage Products and Solutions",
+            "Circuit Breakers",
+            "Air Circuit Breakers",
+            "ACB – WiNmaster 2"
+          ],
+          "description": null,
+          "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+          "price_status": "listed",
+          "price_inr": 439050.0,
+          "price_quotable": true,
+          "decoded": {
+            "poles": 4,
+            "release": {
+              "brochure": "Basic Release",
+              "pricelist": "MicroPro2 3.1 (LSIG)"
+            },
+            "acb_type": "Manual Drawout",
+            "breaking": {
+              "ka": 50,
+              "note": "Icu=Ics=Icw(1s) per pricelist",
+              "volts": 415
+            },
+            "rating_idx": 1000,
+            "std_accessories": "supplied with standard accessories"
+          }
+        },
+        {
+          "sku_code": "WX12N4PMDOA(S)",
+          "family": "ACB – WiNmaster 2",
+          "path": [
+            "Low Voltage Products and Solutions",
+            "Circuit Breakers",
+            "Air Circuit Breakers",
+            "ACB – WiNmaster 2"
+          ],
+          "description": null,
+          "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+          "price_status": "listed",
+          "price_inr": 467960.0,
+          "price_quotable": true,
+          "decoded": {
+            "poles": 4,
+            "release": {
+              "brochure": "Basic Release",
+              "pricelist": "MicroPro2 3.1 (LSIG)"
+            },
+            "acb_type": "Manual Drawout",
+            "breaking": {
+              "ka": 50,
+              "note": "Icu=Ics=Icw(1s) per pricelist",
+              "volts": 415
+            },
+            "rating_idx": 1250,
+            "std_accessories": "supplied with standard accessories"
+          }
+        },
+        {
+          "sku_code": "WX06N4PEDOA(S)",
+          "family": "ACB – WiNmaster 2",
+          "path": [
+            "Low Voltage Products and Solutions",
+            "Circuit Breakers",
+            "Air Circuit Breakers",
+            "ACB – WiNmaster 2"
+          ],
+          "description": null,
+          "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+          "price_status": "listed",
+          "price_inr": 501970.0,
+          "price_quotable": true,
+          "decoded": {
+            "poles": 4,
+            "release": {
+              "brochure": "Basic Release",
+              "pricelist": "MicroPro2 3.1 (LSIG)"
+            },
+            "acb_type": "Electrical Drawout",
+            "breaking": {
+              "ka": 50,
+              "note": "Icu=Ics=Icw(1s) per pricelist",
+              "volts": 415
+            },
+            "rating_idx": 630,
+            "std_accessories": "supplied with standard accessories"
+          }
+        }
+      ]
+    },
+    {
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "total_in_scope": 157,
+      "matched": 79,
+      "spec_present": true,
+      "sample_hits": [
+        {
+          "sku_code": "MP3-3.1",
+          "family": "ACB – WiNmaster 3",
+          "path": [
+            "Low Voltage Products and Solutions",
+            "Circuit Breakers",
+            "Air Circuit Breakers",
+            "ACB – WiNmaster 3"
+          ],
+          "description": null,
+          "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+          "price_status": "listed",
+          "price_inr": 10730.0,
+          "price_quotable": true
+        },
+        {
+          "sku_code": "WX306L4P1MDOA(S)",
+          "family": "ACB – WiNmaster 3",
+          "path": [
+            "Low Voltage Products and Solutions",
+            "Circuit Breakers",
+            "Air Circuit Breakers",
+            "ACB – WiNmaster 3"
+          ],
+          "description": null,
+          "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+          "price_status": "por",
+          "price_inr": null,
+          "price_quotable": false,
+          "decoded": {
+            "frame": "I Frame",
+            "poles": 4,
+            "release": "Micropro3-3.1",
+            "acb_type": "Manual Draw Out Type",
+            "breaking": {
+              "ka": 80,
+              "volts": 415
+            },
+            "rating_idx": 630,
+            "std_accessories": "supplied with standard accessories"
+          }
+        },
+        {
+          "sku_code": "WX306L4P1MFA(S)",
+          "family": "ACB – WiNmaster 3",
+          "path": [
+            "Low Voltage Products and Solutions",
+            "Circuit Breakers",
+            "Air Circuit Breakers",
+            "ACB – WiNmaster 3"
+          ],
+          "description": null,
+          "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+          "price_status": "por",
+          "price_inr": null,
+          "price_quotable": false,
+          "decoded": {
+            "frame": "I Frame",
+            "poles": 4,
+            "release": "Micropro3-3.1",
+            "acb_type": "Manual Fixed Type",
+            "breaking": {
+              "ka": 80,
+              "volts": 415
+            },
+            "rating_idx": 630,
+            "std_accessories": "supplied with standard accessories"
+          }
+        },
+        {
+          "sku_code": "WX306MC4P1MDOA(S)",
+          "family": "ACB – WiNmaster 3",
+          "path": [
+            "Low Voltage Products and Solutions",
+            "Circuit Breakers",
+            "Air Circuit Breakers",
+            "ACB – WiNmaster 3"
+          ],
+          "description": null,
+          "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+          "price_status": "por",
+          "price_inr": null,
+          "price_quotable": false,
+          "decoded": {
+            "frame": "I Frame",
+            "poles": 4,
+            "release": "Micropro3-3.1",
+            "acb_type": "Manual Draw Out Type",
+            "breaking": {
+              "ka": 42,
+              "volts": 800,
+              "source": "pricelist_only"
+            },
+            "rating_idx": 630,
+            "std_accessories": "supplied with standard accessories"
+          }
+        },
+        {
+          "sku_code": "WX306MC4P1MFA(S)",
+          "family": "ACB – WiNmaster 3",
+          "path": [
+            "Low Voltage Products and Solutions",
+            "Circuit Breakers",
+            "Air Circuit Breakers",
+            "ACB – WiNmaster 3"
+          ],
+          "description": null,
+          "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+          "price_status": "por",
+          "price_inr": null,
+          "price_quotable": false,
+          "decoded": {
+            "frame": "I Frame",
+            "poles": 4,
+            "release": "Micropro3-3.1",
+            "acb_type": "Manual Fixed Type",
+            "breaking": {
+              "ka": 42,
+              "volts": 800,
+              "source": "pricelist_only"
+            },
+            "rating_idx": 630,
+            "std_accessories": "supplied with standard accessories"
+          }
+        }
+      ]
+    }
+  ],
+  "total_matched": 107,
+  "composite_excluded": 0,
+  "filters_applied": [
+    "poles eq 4"
+  ],
+  "widening_hint": null
+}

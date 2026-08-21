@@ -54,6 +54,7 @@ from typing import Any
 
 from langchain_core.messages import AnyMessage, ToolMessage
 
+from cs_agent.backends.payload_shape import merge_scope
 from cs_agent.contracts import brief_depth
 
 MODES = ("llm", "derived", "raw", "auto")
@@ -175,6 +176,10 @@ def _reference_index(items: list[tuple[str, Any]]) -> dict[str, dict[str, Any]]:
     def read_one(payload: dict[str, Any]) -> None:
         sku = payload.get("sku_code")
         note(sku, product_page_url=payload.get("url"))
+        # A hoisted `url` belongs to every hit in the payload, so it is the
+        # product page for whichever of them is being read here.
+        if not payload.get("url"):
+            note(sku, product_page_url=(payload.get("scope") or {}).get("url"))
         read_facts(payload.get("facts"), sku)
         read_facts(payload.get("specs"), sku)
         price = payload.get("price")
@@ -489,8 +494,9 @@ def _sources(items: list[tuple[str, Any]], evidence: list[dict[str, Any]]) -> li
                         "source_of_truth": "pricelist_table",
                     }
                 )
-        if payload.get("url"):
-            refs.append({"sku_code": payload.get("sku_code"), "product_page_url": payload["url"]})
+        url = payload.get("url") or (payload.get("scope") or {}).get("url")
+        if url:
+            refs.append({"sku_code": payload.get("sku_code"), "product_page_url": url})
         for row in (payload.get("groups") or []) + (payload.get("children") or []):
             if isinstance(row, dict) and row.get("url"):
                 refs.append({"product_page_url": row["url"]})
@@ -536,6 +542,12 @@ def _search_hits(payload: dict[str, Any]) -> list[dict[str, Any]]:
     A grouped search answers "which of these families have X" and puts its rows
     under `groups[].sample_hits` instead of `hits`, so reading `hits` alone
     sees an empty result where the payload in fact carries every group.
+
+    Each row is returned with the payload's `scope` merged back underneath it.
+    `product_search` hoists `family`, `path` and `url` out of the hits when all
+    of them agree, which scoped to one family is always — and a derived report
+    indexes hits by exactly those three. The row's own value wins where it has
+    one, so this reads correctly whether or not the hoist fired.
     """
     rows = list(payload.get("hits") or [])
     for group in payload.get("groups") or []:
@@ -543,7 +555,7 @@ def _search_hits(payload: dict[str, Any]) -> list[dict[str, Any]]:
             rows.extend(
                 row for row in group.get("sample_hits") or [] if isinstance(row, dict)
             )
-    return rows
+    return [merge_scope(payload, row) for row in rows]
 
 
 def _candidates(items: list[tuple[str, Any]]) -> list[dict[str, Any]]:

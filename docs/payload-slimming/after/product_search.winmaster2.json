@@ -1,0 +1,787 @@
+{
+  "hits": [
+    {
+      "sku_code": "CS-WM3-DOOR-INT-DRAB",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 1600.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster3 ACB accessory"
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 0.2,
+          "value_min": 0.2,
+          "value_max": 0.2,
+          "value_display": "0.2 ......... 1, OFF",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "unit": "min",
+          "value_num": 300.0,
+          "value_min": 300.0,
+          "value_max": 300.0,
+          "value_display": "300 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-MIP-AB",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 2610.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 0.2,
+          "value_min": 0.2,
+          "value_max": 0.2,
+          "value_display": "0.2 ......... 1, OFF",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "unit": "min",
+          "value_num": 300.0,
+          "value_min": 300.0,
+          "value_max": 300.0,
+          "value_display": "300 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-RTC-ABC",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 2610.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": [
+        {
+          "spec_id": "thermal_memory",
+          "unit": "m",
+          "value_min": 1.0,
+          "value_max": 45.0,
+          "value_display": "Instantaneous, 10m, 20m, 30m, 45m, 1h, 2h, 3h",
+          "value_kind": "set",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-PB-3P",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 3290.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-PDLF-AB",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 3450.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 0.2,
+          "value_min": 0.2,
+          "value_max": 0.2,
+          "value_display": "0.2 ......... 1, OFF",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "unit": "min",
+          "value_num": 300.0,
+          "value_min": 300.0,
+          "value_max": 300.0,
+          "value_display": "300 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-PBF-3P",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 3660.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-PDL-AB",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 3730.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 0.2,
+          "value_min": 0.2,
+          "value_max": 0.2,
+          "value_display": "0.2 ......... 1, OFF",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "unit": "min",
+          "value_num": 300.0,
+          "value_min": 300.0,
+          "value_max": 300.0,
+          "value_display": "300 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-PB-4P",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 4620.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-ASC-ABC",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 4800.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": [
+        {
+          "spec_id": "thermal_memory",
+          "unit": "m",
+          "value_min": 1.0,
+          "value_max": 45.0,
+          "value_display": "Instantaneous, 10m, 20m, 30m, 45m, 1h, 2h, 3h",
+          "value_kind": "set",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-PBF-4P",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 5190.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AVH-CC-ABC-BD",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 6520.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AVH-CC-ABC-ED",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 6520.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AVH-CC-ABC-F",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 6520.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AVH-CC-ABC-M",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 6520.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AVH-CC-ABC-N",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 6520.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AVH-SC-ABC-BD",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 6520.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AVH-SC-ABC-ED",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 6520.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AVH-SC-ABC-F",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 6520.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AVH-SC-ABC-M",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 6520.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AVH-SC-ABC-N",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 6520.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AXH-6A6B",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 7400.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 0.2,
+          "value_min": 0.2,
+          "value_max": 0.2,
+          "value_display": "0.2 ......... 1, OFF",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "unit": "min",
+          "value_num": 300.0,
+          "value_min": 300.0,
+          "value_max": 300.0,
+          "value_display": "300 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-ALB-AB",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 7790.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 0.2,
+          "value_min": 0.2,
+          "value_max": 0.2,
+          "value_display": "0.2 ......... 1, OFF",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "unit": "min",
+          "value_num": 300.0,
+          "value_min": 300.0,
+          "value_max": 300.0,
+          "value_display": "300 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-AKI-2-AB",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 8370.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 0.2,
+          "value_min": 0.2,
+          "value_max": 0.2,
+          "value_display": "0.2 ......... 1, OFF",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "unit": "min",
+          "value_num": 300.0,
+          "value_min": 300.0,
+          "value_max": 300.0,
+          "value_display": "300 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-AKI-AB",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 10490.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 0.2,
+          "value_min": 0.2,
+          "value_max": 0.2,
+          "value_display": "0.2 ......... 1, OFF",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "unit": "min",
+          "value_num": 300.0,
+          "value_min": 300.0,
+          "value_max": 300.0,
+          "value_display": "300 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-AKI-1-AB",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 10960.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 0.2,
+          "value_min": 0.2,
+          "value_max": 0.2,
+          "value_display": "0.2 ......... 1, OFF",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "unit": "min",
+          "value_num": 300.0,
+          "value_min": 300.0,
+          "value_max": 300.0,
+          "value_display": "300 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-AUH-V-ABC-FA",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 13050.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_min": 0.2,
+          "value_max": 0.8,
+          "value_display": "0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, OFF",
+          "value_kind": "set",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "unit": "min",
+          "value_num": 30.0,
+          "value_min": 30.0,
+          "value_max": 30.0,
+          "value_display": "30 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-AUH-V-ABC-FD",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 13050.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AUH-V-ABC-MA",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 13050.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_min": 0.2,
+          "value_max": 0.8,
+          "value_display": "0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, OFF",
+          "value_kind": "set",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "unit": "min",
+          "value_num": 30.0,
+          "value_min": 30.0,
+          "value_max": 30.0,
+          "value_display": "30 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-AUH-V-ABC-MD",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 13050.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AUH-V-ABC-NA",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 13050.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_min": 0.2,
+          "value_max": 0.8,
+          "value_display": "0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, OFF",
+          "value_kind": "set",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "unit": "min",
+          "value_num": 30.0,
+          "value_min": 30.0,
+          "value_max": 30.0,
+          "value_display": "30 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-AUH-D-ABC-FA",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 14260.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_min": 0.2,
+          "value_max": 0.8,
+          "value_display": "0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, OFF",
+          "value_kind": "set",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "unit": "min",
+          "value_num": 30.0,
+          "value_min": 30.0,
+          "value_max": 30.0,
+          "value_display": "30 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-AUH-D-ABC-FD",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 14260.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AUH-D-ABC-MA",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 14260.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_min": 0.2,
+          "value_max": 0.8,
+          "value_display": "0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, OFF",
+          "value_kind": "set",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "unit": "min",
+          "value_num": 30.0,
+          "value_min": 30.0,
+          "value_max": 30.0,
+          "value_display": "30 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-AUH-D-ABC-MD",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 14260.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AUH-D-ABC-NA",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 14260.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_min": 0.2,
+          "value_max": 0.8,
+          "value_display": "0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, OFF",
+          "value_kind": "set",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "unit": "min",
+          "value_num": 30.0,
+          "value_min": 30.0,
+          "value_max": 30.0,
+          "value_display": "30 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM3-CVRIP54-FR1",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 18270.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM3-CVRIP54-FR2",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 23290.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-MIL-HF",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 47680.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AMH-AS-A1-F",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 57790.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AMH-AU-A1-N",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 57790.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": "WiNmaster2 / WiNmaster3 ACB accessory"
+      },
+      "specs": []
+    }
+  ],
+  "total_matched": 101,
+  "composite_excluded": 0,
+  "filters_applied": [],
+  "widening_hint": null,
+  "scope": {
+    "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+    "path": [
+      "Low Voltage Products and Solutions",
+      "Circuit Breakers",
+      "Air Circuit Breakers",
+      "ACB – WiNmaster 2"
+    ],
+    "family": "ACB – WiNmaster 2"
+  }
+}

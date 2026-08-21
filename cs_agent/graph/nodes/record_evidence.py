@@ -51,6 +51,14 @@ def _fact_record(tool: str, fact: dict[str, Any], sku_code: str | None) -> Evide
             "value_kind": fact.get("value_kind"),
             "unit": fact.get("unit"),
             "source_of_truth": fact.get("source_of_truth"),
+            # `fact_sentence` is no longer sent by `get_sku` or `product_search`,
+            # so this is now None for a catalogue fact and the composer's
+            # evidence row prints `text=null`. Nothing is lost: the sentence was
+            # a template restating the label and the value, and the row already
+            # prints the spec, the value, the unit and the source beside it.
+            # The read stays because a payload that does carry one — an older
+            # trace replayed, a backend that still writes it — should still use
+            # it rather than silently drop it.
             "text": fact.get("fact_sentence"),
         }
     )

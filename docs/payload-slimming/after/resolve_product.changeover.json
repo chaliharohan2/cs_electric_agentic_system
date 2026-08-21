@@ -1,0 +1,77 @@
+{
+  "resolution": "descriptive",
+  "hits": [
+    {
+      "sku_code": "CSCONM1AUX10",
+      "family": "New Changeover Switches",
+      "path_text": "Low Voltage Products and Solutions > Switches > Onload Changeover Switches > New Changeover Switches",
+      "match_role": "description",
+      "score": 0.2,
+      "description": null,
+      "alias_reason": null
+    },
+    {
+      "sku_code": "CSCONM2AUX10",
+      "family": "New Changeover Switches",
+      "path_text": "Low Voltage Products and Solutions > Switches > Onload Changeover Switches > New Changeover Switches",
+      "match_role": "description",
+      "score": 0.2,
+      "description": null,
+      "alias_reason": null
+    },
+    {
+      "sku_code": "CSCS1000P4CO",
+      "family": "New Changeover Switches",
+      "path_text": "Low Voltage Products and Solutions > Switches > Onload Changeover Switches > New Changeover Switches",
+      "match_role": "description",
+      "score": 0.2,
+      "description": null,
+      "alias_reason": null
+    },
+    {
+      "sku_code": "CSCS1000SB4CO",
+      "family": "New Changeover Switches",
+      "path_text": "Low Voltage Products and Solutions > Switches > Onload Changeover Switches > New Changeover Switches",
+      "match_role": "description",
+      "score": 0.2,
+      "description": null,
+      "alias_reason": null
+    },
+    {
+      "sku_code": "CSCS100NM4CO",
+      "family": "New Changeover Switches",
+      "path_text": "Low Voltage Products and Solutions > Switches > Onload Changeover Switches > New Changeover Switches",
+      "match_role": "description",
+      "score": 0.2,
+      "description": null,
+      "alias_reason": null
+    },
+    {
+      "sku_code": "CSCS100NM4CORE",
+      "family": "New Changeover Switches",
+      "path_text": "Low Voltage Products and Solutions > Switches > Onload Changeover Switches > New Changeover Switches",
+      "match_role": "description",
+      "score": 0.2,
+      "description": null,
+      "alias_reason": null
+    },
+    {
+      "sku_code": "CSCS1250P4CO",
+      "family": "New Changeover Switches",
+      "path_text": "Low Voltage Products and Solutions > Switches > Onload Changeover Switches > New Changeover Switches",
+      "match_role": "description",
+      "score": 0.2,
+      "description": null,
+      "alias_reason": null
+    },
+    {
+      "sku_code": "CSCS125NM4CO",
+      "family": "New Changeover Switches",
+      "path_text": "Low Voltage Products and Solutions > Switches > Onload Changeover Switches > New Changeover Switches",
+      "match_role": "description",
+      "score": 0.2,
+      "description": null,
+      "alias_reason": null
+    }
+  ]
+}

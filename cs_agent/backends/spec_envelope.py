@@ -22,6 +22,14 @@ from typing import Any
 
 # Fields that describe the specification itself and are therefore the same
 # whichever group publishes it; everything else is stated per group.
+#
+# `is_canonical_spec` is deliberately not among them, and is published on no
+# payload at all. It splits the catalogue almost evenly — 123,800 rows true
+# against 139,828 false — so it is a real signal, and it was read by nothing:
+# it reached neither of two captured specialist reports, no prompt mentions it,
+# and no consumer outside the catalogue itself touched it. It survives in the
+# built artifact, where the `canonical_only` filter and the analytics
+# vocabulary ordering still use it; it just stopped being sent to a model.
 SHARED_FIELDS = ("spec_label", "unit", "value_kind")
 # Fields whose value belongs to one group and must not be merged across them:
 # WiNmaster 3 reaching 4000 A where WiNmaster 2 stops at 2500 A is exactly the
@@ -58,8 +66,6 @@ def group_specs(
         for field in SHARED_FIELDS:
             if row.get(field) is not None and field not in entry:
                 entry[field] = row[field]
-        if row.get("is_canonical_spec"):
-            entry["is_canonical_spec"] = True
         detail = {
             field: row[field]
             for field in PER_GROUP_FIELDS
@@ -124,12 +130,17 @@ def compact_fact(row: dict[str, Any], *, drop: tuple[str, ...] = ()) -> dict[str
     own field on every one of its rows, and `product_id` is an internal row id
     the model has no use for and must not quote.
 
-    What stays is everything that carries meaning, including the fields that
-    look repetitive but are not: `spec_label` differs from `spec_id` in a way no
-    transformation recovers on 41% of the catalogue's 1,112 label pairs
-    (`1_no_1_nc` is published as `1 NO + 1 NC`), and `source_of_truth` takes
-    three distinct values here, one of which — `pricelist_table` — is what a
-    price citation is built from.
+    What stays is everything that carries meaning, including `source_of_truth`,
+    which takes three distinct values here, one of which — `pricelist_table` —
+    is what a price citation is built from.
+
+    `spec_label` used to be defended here too, on the grounds that it differs
+    from `spec_id` irrecoverably on 41% of the catalogue's 1,112 label pairs
+    (`1_no_1_nc` is published as `1 NO + 1 NC`). That is still true, and it is
+    still why `list_canonical_specs` publishes labels. It stopped being an
+    argument for repeating one on every attached spec row: a `return_specs`
+    block asks for specifications the caller has already named by id, and on one
+    measured call the seven ids it named carried seven labels across 274 rows.
     """
     return {
         key: value

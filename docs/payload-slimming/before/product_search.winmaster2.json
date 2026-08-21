@@ -1,0 +1,1449 @@
+{
+  "hits": [
+    {
+      "sku_code": "CS-WM3-DOOR-INT-DRAB",
+      "canonical_code": "CS-WM3-DOOR-INT-DRAB",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 1600.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM3",
+          "meaning": "WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "DOOR-INT-DRAB",
+          "meaning": "unknown"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 0.2,
+          "value_min": 0.2,
+          "value_max": 0.2,
+          "value_display": "0.2 ......... 1, OFF",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "unit": "min",
+          "value_num": 300.0,
+          "value_min": 300.0,
+          "value_max": 300.0,
+          "value_display": "300 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-MIP-AB",
+      "canonical_code": "CS-WM2-MIP-AB",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 2610.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "MIP-AB",
+          "meaning": "unknown"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 0.2,
+          "value_min": 0.2,
+          "value_max": 0.2,
+          "value_display": "0.2 ......... 1, OFF",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "unit": "min",
+          "value_num": 300.0,
+          "value_min": 300.0,
+          "value_max": 300.0,
+          "value_display": "300 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-RTC-ABC",
+      "canonical_code": "CS-WM2-RTC-ABC",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 2610.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "RTC-ABC",
+          "meaning": "unknown"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal Memory",
+          "unit": "m",
+          "value_min": 1.0,
+          "value_max": 45.0,
+          "value_display": "Instantaneous, 10m, 20m, 30m, 45m, 1h, 2h, 3h",
+          "value_kind": "set",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-PB-3P",
+      "canonical_code": "CS-WM2-PB-3P",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 3290.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "PB-3P",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-PDLF-AB",
+      "canonical_code": "CS-WM2-PDLF-AB",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 3450.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "PDLF-AB",
+          "meaning": "unknown"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 0.2,
+          "value_min": 0.2,
+          "value_max": 0.2,
+          "value_display": "0.2 ......... 1, OFF",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "unit": "min",
+          "value_num": 300.0,
+          "value_min": 300.0,
+          "value_max": 300.0,
+          "value_display": "300 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-PBF-3P",
+      "canonical_code": "CS-WM2-PBF-3P",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 3660.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "PBF-3P",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-PDL-AB",
+      "canonical_code": "CS-WM2-PDL-AB",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 3730.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "PDL-AB",
+          "meaning": "unknown"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 0.2,
+          "value_min": 0.2,
+          "value_max": 0.2,
+          "value_display": "0.2 ......... 1, OFF",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "unit": "min",
+          "value_num": 300.0,
+          "value_min": 300.0,
+          "value_max": 300.0,
+          "value_display": "300 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-PB-4P",
+      "canonical_code": "CS-WM2-PB-4P",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 4620.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "PB-4P",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-ASC-ABC",
+      "canonical_code": "CS-WM2-ASC-ABC",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 4800.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "ASC-ABC",
+          "meaning": "unknown"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal Memory",
+          "unit": "m",
+          "value_min": 1.0,
+          "value_max": 45.0,
+          "value_display": "Instantaneous, 10m, 20m, 30m, 45m, 1h, 2h, 3h",
+          "value_kind": "set",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-PBF-4P",
+      "canonical_code": "CS-WM2-PBF-4P",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 5190.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "PBF-4P",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AVH-CC-ABC-BD",
+      "canonical_code": "CS-WM2-AVH-CC-ABC-BD",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 6520.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AVH-CC-ABC-BD",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AVH-CC-ABC-ED",
+      "canonical_code": "CS-WM2-AVH-CC-ABC-ED",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 6520.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AVH-CC-ABC-ED",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AVH-CC-ABC-F",
+      "canonical_code": "CS-WM2-AVH-CC-ABC-F",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 6520.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AVH-CC-ABC-F",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AVH-CC-ABC-M",
+      "canonical_code": "CS-WM2-AVH-CC-ABC-M",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 6520.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AVH-CC-ABC-M",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AVH-CC-ABC-N",
+      "canonical_code": "CS-WM2-AVH-CC-ABC-N",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 6520.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AVH-CC-ABC-N",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AVH-SC-ABC-BD",
+      "canonical_code": "CS-WM2-AVH-SC-ABC-BD",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 6520.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AVH-SC-ABC-BD",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AVH-SC-ABC-ED",
+      "canonical_code": "CS-WM2-AVH-SC-ABC-ED",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 6520.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AVH-SC-ABC-ED",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AVH-SC-ABC-F",
+      "canonical_code": "CS-WM2-AVH-SC-ABC-F",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 6520.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AVH-SC-ABC-F",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AVH-SC-ABC-M",
+      "canonical_code": "CS-WM2-AVH-SC-ABC-M",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 6520.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AVH-SC-ABC-M",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AVH-SC-ABC-N",
+      "canonical_code": "CS-WM2-AVH-SC-ABC-N",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 6520.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AVH-SC-ABC-N",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AXH-6A6B",
+      "canonical_code": "CS-WM2-AXH-6A6B",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 7400.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AXH-6A6B",
+          "meaning": "unknown"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 0.2,
+          "value_min": 0.2,
+          "value_max": 0.2,
+          "value_display": "0.2 ......... 1, OFF",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "unit": "min",
+          "value_num": 300.0,
+          "value_min": 300.0,
+          "value_max": 300.0,
+          "value_display": "300 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-ALB-AB",
+      "canonical_code": "CS-WM2-ALB-AB",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 7790.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "ALB-AB",
+          "meaning": "unknown"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 0.2,
+          "value_min": 0.2,
+          "value_max": 0.2,
+          "value_display": "0.2 ......... 1, OFF",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "unit": "min",
+          "value_num": 300.0,
+          "value_min": 300.0,
+          "value_max": 300.0,
+          "value_display": "300 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-AKI-2-AB",
+      "canonical_code": "CS-WM2-AKI-2-AB",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 8370.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AKI-2-AB",
+          "meaning": "unknown"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 0.2,
+          "value_min": 0.2,
+          "value_max": 0.2,
+          "value_display": "0.2 ......... 1, OFF",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "unit": "min",
+          "value_num": 300.0,
+          "value_min": 300.0,
+          "value_max": 300.0,
+          "value_display": "300 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-AKI-AB",
+      "canonical_code": "CS-WM2-AKI-AB",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 10490.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AKI-AB",
+          "meaning": "unknown"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 0.2,
+          "value_min": 0.2,
+          "value_max": 0.2,
+          "value_display": "0.2 ......... 1, OFF",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "unit": "min",
+          "value_num": 300.0,
+          "value_min": 300.0,
+          "value_max": 300.0,
+          "value_display": "300 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-AKI-1-AB",
+      "canonical_code": "CS-WM2-AKI-1-AB",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 10960.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AKI-1-AB",
+          "meaning": "unknown"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 0.2,
+          "value_min": 0.2,
+          "value_max": 0.2,
+          "value_display": "0.2 ......... 1, OFF",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "unit": "min",
+          "value_num": 300.0,
+          "value_min": 300.0,
+          "value_max": 300.0,
+          "value_display": "300 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-AUH-V-ABC-FA",
+      "canonical_code": "CS-WM2-AUH-V-ABC-FA",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 13050.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AUH-V-ABC-FA",
+          "meaning": "unknown"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_min": 0.2,
+          "value_max": 0.8,
+          "value_display": "0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, OFF",
+          "value_kind": "set",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "unit": "min",
+          "value_num": 30.0,
+          "value_min": 30.0,
+          "value_max": 30.0,
+          "value_display": "30 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-AUH-V-ABC-FD",
+      "canonical_code": "CS-WM2-AUH-V-ABC-FD",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 13050.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AUH-V-ABC-FD",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AUH-V-ABC-MA",
+      "canonical_code": "CS-WM2-AUH-V-ABC-MA",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 13050.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AUH-V-ABC-MA",
+          "meaning": "unknown"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_min": 0.2,
+          "value_max": 0.8,
+          "value_display": "0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, OFF",
+          "value_kind": "set",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "unit": "min",
+          "value_num": 30.0,
+          "value_min": 30.0,
+          "value_max": 30.0,
+          "value_display": "30 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-AUH-V-ABC-MD",
+      "canonical_code": "CS-WM2-AUH-V-ABC-MD",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 13050.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AUH-V-ABC-MD",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AUH-V-ABC-NA",
+      "canonical_code": "CS-WM2-AUH-V-ABC-NA",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 13050.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AUH-V-ABC-NA",
+          "meaning": "unknown"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_min": 0.2,
+          "value_max": 0.8,
+          "value_display": "0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, OFF",
+          "value_kind": "set",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "unit": "min",
+          "value_num": 30.0,
+          "value_min": 30.0,
+          "value_max": 30.0,
+          "value_display": "30 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-AUH-D-ABC-FA",
+      "canonical_code": "CS-WM2-AUH-D-ABC-FA",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 14260.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AUH-D-ABC-FA",
+          "meaning": "unknown"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_min": 0.2,
+          "value_max": 0.8,
+          "value_display": "0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, OFF",
+          "value_kind": "set",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "unit": "min",
+          "value_num": 30.0,
+          "value_min": 30.0,
+          "value_max": 30.0,
+          "value_display": "30 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-AUH-D-ABC-FD",
+      "canonical_code": "CS-WM2-AUH-D-ABC-FD",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 14260.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AUH-D-ABC-FD",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AUH-D-ABC-MA",
+      "canonical_code": "CS-WM2-AUH-D-ABC-MA",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 14260.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AUH-D-ABC-MA",
+          "meaning": "unknown"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_min": 0.2,
+          "value_max": 0.8,
+          "value_display": "0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, OFF",
+          "value_kind": "set",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "unit": "min",
+          "value_num": 30.0,
+          "value_min": 30.0,
+          "value_max": 30.0,
+          "value_display": "30 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM2-AUH-D-ABC-MD",
+      "canonical_code": "CS-WM2-AUH-D-ABC-MD",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 14260.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AUH-D-ABC-MD",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AUH-D-ABC-NA",
+      "canonical_code": "CS-WM2-AUH-D-ABC-NA",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 14260.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AUH-D-ABC-NA",
+          "meaning": "unknown"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_min": 0.2,
+          "value_max": 0.8,
+          "value_display": "0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, OFF",
+          "value_kind": "set",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "unit": "min",
+          "value_num": 30.0,
+          "value_min": 30.0,
+          "value_max": 30.0,
+          "value_display": "30 min",
+          "value_kind": "scalar",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "CS-WM3-CVRIP54-FR1",
+      "canonical_code": "CS-WM3-CVRIP54-FR1",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 18270.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM3",
+          "meaning": "WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "CVRIP54-FR1",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM3-CVRIP54-FR2",
+      "canonical_code": "CS-WM3-CVRIP54-FR2",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 23290.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM3",
+          "meaning": "WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "CVRIP54-FR2",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-MIL-HF",
+      "canonical_code": "CS-WM2-MIL-HF",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 47680.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "MIL-HF",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AMH-AS-A1-F",
+      "canonical_code": "CS-WM2-AMH-AS-A1-F",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 57790.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AMH-AS-A1-F",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    },
+    {
+      "sku_code": "CS-WM2-AMH-AU-A1-N",
+      "canonical_code": "CS-WM2-AMH-AU-A1-N",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "price_status": "listed",
+      "price_inr": 57790.0,
+      "price_quotable": true,
+      "decoded": {
+        "group": {
+          "code": "WM2",
+          "meaning": "WiNmaster2 / WiNmaster3 ACB accessory"
+        },
+        "detail": {
+          "code": "AMH-AU-A1-N",
+          "meaning": "unknown"
+        }
+      },
+      "specs": []
+    }
+  ],
+  "total_matched": 101,
+  "composite_excluded": 0,
+  "filters_applied": [],
+  "widening_hint": null
+}

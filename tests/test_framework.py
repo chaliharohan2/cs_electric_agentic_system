@@ -1493,8 +1493,12 @@ class FixtureToolTests(unittest.TestCase):
             k=3,
         )
         self.assertTrue(hits)
-        self.assertEqual("lexical", hits[0]["mode"])
         self.assertIn("chunk_type", hits[0])
+        # `mode` and `chunk_id` are retrieval internals: which index answered is
+        # not something the model should reason about, and the chunk id is a
+        # build-source row number it could quote at a customer.
+        self.assertNotIn("mode", hits[0])
+        self.assertNotIn("chunk_id", hits[0])
 
     def test_tool_schemas_and_role_registry(self) -> None:
         args = ProductSearchArgs(
@@ -1587,10 +1591,15 @@ class FixtureToolTests(unittest.TestCase):
             filters=[{"spec_id": "poles", "op": "eq", "value": 3}],
         )
         self.assertGreater(listed["total_matched"], 0)
-        self.assertTrue(all(hit["family"] == "WIN2-125" for hit in listed["hits"]))
+        # One family answered, so it is stated once in scope instead of on
+        # every hit — and the hits stop carrying it at all.
+        self.assertEqual("WIN2-125", listed["scope"]["family"])
+        self.assertTrue(all("family" not in hit for hit in listed["hits"]))
+        # Several families answered, so it stays on the hits where it differs.
         prefixed = self.backend.product_search(family="WIN2")
         families = {hit["family"] for hit in prefixed["hits"]}
         self.assertTrue({"WIN2-125", "WIN2-250", "WIN2-400E"} <= families)
+        self.assertNotIn("family", prefixed.get("scope") or {})
 
     def test_product_search_group_by_family_distinguishes_zeros(self) -> None:
         result = self.backend.product_search(
@@ -1622,7 +1631,10 @@ class FixtureToolTests(unittest.TestCase):
         self.assertTrue(group["spec_present"])
         self.assertGreater(group["matched"], 0)
         self.assertGreater(group["total_in_scope"], group["matched"])
-        self.assertTrue(all(hit["path"][0] == "protection" for hit in group["sample_hits"]))
+        # Every sample hit sat under the same path, so it is hoisted; the group
+        # keeps its own path, which is the prefix the level names.
+        self.assertEqual("protection", result["scope"]["path"][0])
+        self.assertEqual(["protection", "mccb"], group["path"])
 
     def test_unknown_family_is_not_a_zero_group(self) -> None:
         result = self.backend.product_search(
@@ -1944,8 +1956,17 @@ class CatalogueMapTests(unittest.TestCase):
         self.assertIn("Industries", segment["no_match"]["known_market_segments"])
 
     def test_matched_on_reports_only_the_filters_used(self) -> None:
+        """`market_segment` is validated against a closed list, `path_text` is not.
+
+        Reading back a free-text argument the caller wrote one line earlier told
+        it nothing, so it is gone. Seeing which of seven segment values actually
+        took effect is an answer, so that one stays.
+        """
         result = self.backend.catalogue_map(path_text="mccb")
-        self.assertEqual({"path_text": "mccb"}, result["matched_on"])
+        self.assertNotIn("matched_on", result)
+        self.assertTrue(result["groups"])
+        segment = self.backend.catalogue_map(market_segment="Industries")
+        self.assertEqual({"market_segment": "Industries"}, segment["matched_on"])
 
     def test_limit_caps_the_rows_not_the_totals(self) -> None:
         capped = self.backend.catalogue_map(path_text="protection", limit=1)
@@ -3365,7 +3386,6 @@ class BatchedScopeTests(unittest.TestCase):
                     "spec_label": "Rated current",
                     "unit": "A",
                     "value_kind": "scalar",
-                    "is_canonical_spec": 1,
                     "sku_count": 101,
                     "composite_count": 0,
                     "observed_min": 630.0,
@@ -3377,7 +3397,6 @@ class BatchedScopeTests(unittest.TestCase):
                     "spec_label": "Rated current",
                     "unit": "A",
                     "value_kind": "scalar",
-                    "is_canonical_spec": 1,
                     "sku_count": 157,
                     "composite_count": 0,
                     "observed_min": 630.0,
@@ -3526,17 +3545,21 @@ class CompactFactTests(unittest.TestCase):
         self.assertNotIn("value_num", out)
         self.assertEqual("400 A", out["value_display"])
         self.assertEqual("pricelist_table", out["source_of_truth"])
-        # spec_label is not recoverable from spec_id on 41% of the catalogue
-        # (`1_no_1_nc` is published as `1 NO + 1 NC`), so it is never dropped.
+        # compact_fact drops nulls, not fields: a caller that hands it a label
+        # keeps the label. `product_search` stopped handing it one, because a
+        # `return_specs` block repeats the same handful of labels on every hit;
+        # `list_canonical_specs`, which publishes the vocabulary itself, still
+        # does — `1_no_1_nc` is published as `1 NO + 1 NC` and no rule recovers
+        # that from the id.
         self.assertEqual("Rated current", out["spec_label"])
 
     def test_a_falsy_value_is_not_a_missing_one(self) -> None:
-        """`is_canonical_spec: 0` and `sku_count: 0` are answers, not absences."""
+        """`sku_count: 0` and `composite_count: 0` are answers, not absences."""
         from cs_agent.backends.spec_envelope import compact_fact
 
-        out = compact_fact({"spec_id": "x", "is_canonical_spec": 0, "sku_count": 0,
+        out = compact_fact({"spec_id": "x", "composite_count": 0, "sku_count": 0,
                             "value_num": 0.0, "unit": "", "gone": None})
-        self.assertEqual(0, out["is_canonical_spec"])
+        self.assertEqual(0, out["composite_count"])
         self.assertEqual(0, out["sku_count"])
         self.assertEqual(0.0, out["value_num"])
         self.assertEqual("", out["unit"])
@@ -3813,3 +3836,195 @@ class FamilyScopedSourceTests(unittest.TestCase):
         self.assertNotIn("family", BACKFILLED)
         asked = _asked_for(SpecSelectionReport)
         self.assertIn("family", asked)
+
+
+class PayloadShapeTests(unittest.TestCase):
+    """What the tools stopped sending, and what has to still arrive.
+
+    Measured against the two captured specialist report calls: five `get_sku`
+    payloads were 63.5% of one report's input and three `product_search`
+    payloads 91% of the other's, on an input already at 98% of the usable
+    window. Every cut below is a field whose content the payload states
+    somewhere else, so these tests pin both halves — the bytes are gone, the
+    facts are not.
+    """
+
+    def setUp(self) -> None:
+        from cs_agent.backends import get_backend
+
+        self.backend = get_backend()
+
+    # ---------------------------------------------------------- flatten
+
+    def test_a_decoded_axis_keeps_its_meaning_and_sheds_its_code(self) -> None:
+        """The code half is a substring of the ordering code on the same row."""
+        from cs_agent.backends.payload_shape import flatten_decoded
+
+        out = flatten_decoded(
+            {"acb_type": {"code": "MDO", "meaning": "Manual Draw Out Type"}}
+        )
+        self.assertEqual({"acb_type": "Manual Draw Out Type"}, out)
+
+    def test_a_meaning_carrying_several_facts_survives_whole(self) -> None:
+        """`breaking` decodes to a kA rating AND a voltage. Both are facts."""
+        from cs_agent.backends.payload_shape import flatten_decoded
+
+        out = flatten_decoded(
+            {"breaking": {"code": "L", "meaning": {"ka": 80, "volts": 415}}}
+        )
+        self.assertEqual({"breaking": {"ka": 80, "volts": 415}}, out)
+
+    def test_a_meaning_restating_its_own_axis_is_unwrapped(self) -> None:
+        from cs_agent.backends.payload_shape import flatten_decoded
+
+        out = flatten_decoded({"poles": {"code": "3P", "meaning": {"poles": 3}}})
+        self.assertEqual({"poles": 3}, out)
+
+    def test_an_undecoded_axis_is_left_out_rather_than_named_unknown(self) -> None:
+        """Saying "we could not read this" costs bytes; absence says it free."""
+        from cs_agent.backends.payload_shape import flatten_decoded
+
+        out = flatten_decoded(
+            {
+                "detail": {"code": "DOOR-INT-DRAB", "meaning": "unknown"},
+                "frame": {"code": "1", "meaning": "I Frame"},
+            }
+        )
+        self.assertEqual({"frame": "I Frame"}, out)
+
+    # ------------------------------------------------------------ hoist
+
+    def test_a_field_that_differs_between_rows_stays_on_the_rows(self) -> None:
+        """This is what keeps a grouped search honest about which family is which."""
+        from cs_agent.backends.payload_shape import hoist_scope
+
+        payload = {"hits": [{"family": "A"}, {"family": "B"}]}
+        out = hoist_scope(payload, payload["hits"], ("family",))
+        self.assertNotIn("scope", out)
+        self.assertEqual(["A", "B"], [hit["family"] for hit in out["hits"]])
+
+    def test_a_field_uniformly_absent_is_dropped_rather_than_hoisted(self) -> None:
+        from cs_agent.backends.payload_shape import hoist_scope
+
+        payload = {"hits": [{"url": None}, {"url": None}]}
+        out = hoist_scope(payload, payload["hits"], ("url",))
+        self.assertNotIn("scope", out)
+        self.assertTrue(all("url" not in hit for hit in out["hits"]))
+
+    def test_a_row_is_read_back_with_its_scope_underneath_it(self) -> None:
+        """Code that consumes payloads must not lose what the model gained."""
+        from cs_agent.backends.payload_shape import merge_scope
+
+        payload = {"scope": {"family": "F", "url": "u"}}
+        self.assertEqual(
+            {"family": "F", "url": "u", "sku_code": "X"},
+            merge_scope(payload, {"sku_code": "X"}),
+        )
+
+    def test_a_rows_own_value_beats_the_scope(self) -> None:
+        from cs_agent.backends.payload_shape import merge_scope
+
+        payload = {"scope": {"family": "F"}}
+        self.assertEqual("OWN", merge_scope(payload, {"family": "OWN"})["family"])
+
+    # ------------------------------------------------------------ get_sku
+
+    def test_a_fact_states_its_value_once(self) -> None:
+        """`fact_sentence` restated the label and the value in a sentence.
+
+        Across 200,000 catalogue rows 87.9% of those sentences contained both
+        the label and the value display verbatim, and not one of the 141 in a
+        captured run reached the report or the answer.
+        """
+        sku = self.backend.get_sku("WIN2-125-3P-63", ["facts"])
+        self.assertTrue(sku["facts"])
+        for fact in sku["facts"]:
+            self.assertNotIn("fact_sentence", fact)
+            self.assertNotIn("spec_label", fact)
+            self.assertNotIn("is_canonical_spec", fact)
+            self.assertIn("spec_id", fact)
+            self.assertIn("value_display", fact)
+
+    # ----------------------------------------------------- product_search
+
+    def test_a_search_scoped_to_one_family_names_it_once(self) -> None:
+        result = self.backend.product_search(family="WIN2-125")
+        self.assertTrue(result["hits"])
+        self.assertEqual("WIN2-125", result["scope"]["family"])
+        self.assertTrue(all("family" not in hit for hit in result["hits"]))
+        self.assertIn("path", result["scope"])
+
+    def test_a_hit_is_addressed_by_the_code_you_order_by(self) -> None:
+        """`canonical_code` repeated `sku_code` on 11,217 of 11,250 codes."""
+        result = self.backend.product_search(family="WIN2-125")
+        self.assertTrue(all("canonical_code" not in hit for hit in result["hits"]))
+        self.assertTrue(all(hit["sku_code"] for hit in result["hits"]))
+
+    def test_an_attached_spec_is_keyed_by_the_id_you_asked_for(self) -> None:
+        """Seven requested ids carried seven labels across 274 rows."""
+        result = self.backend.product_search(
+            family="WIN2-125", return_specs=["poles"]
+        )
+        attached = [spec for hit in result["hits"] for spec in hit.get("specs") or []]
+        self.assertTrue(attached)
+        for spec in attached:
+            self.assertNotIn("spec_label", spec)
+            self.assertEqual("poles", spec["spec_id"])
+
+    # ----------------------------------------------------- other payloads
+
+    def test_a_peer_group_names_its_family_once(self) -> None:
+        anchor = self.backend.product_search(family="WIN2-125")["hits"][0]
+        peers = self.backend.get_peer_group(anchor["sku_code"])
+        self.assertTrue(peers["peers"])
+        self.assertEqual("WIN2-125", peers["scope"]["family"])
+        self.assertTrue(all("family" not in peer for peer in peers["peers"]))
+
+    def test_a_resolution_answers_with_one_code(self) -> None:
+        result = self.backend.resolve_product(query="WIN2")
+        self.assertTrue(result["hits"])
+        for hit in result["hits"]:
+            self.assertNotIn("canonical_code", hit)
+            self.assertIn("match_role", hit)
+
+    def test_a_document_hit_carries_no_retrieval_internals(self) -> None:
+        hits = self.backend.search_documents(
+            query="electronic trip", family="WIN2", k=3
+        )
+        self.assertTrue(hits)
+        for hit in hits:
+            self.assertNotIn("mode", hit)
+            self.assertNotIn("chunk_id", hit)
+            self.assertIn("score", hit)
+
+    def test_a_map_does_not_read_back_the_caller_own_words(self) -> None:
+        result = self.backend.catalogue_map(path_text="mccb")
+        self.assertNotIn("matched_on", result)
+        self.assertTrue(result["groups"])
+
+    def test_the_spec_registry_publishes_no_canonical_flag(self) -> None:
+        """A 50/50 signal that no prompt, report or consumer ever read."""
+        result = self.backend.list_canonical_specs(family="WIN2-125")
+        self.assertTrue(result["specs"])
+        for spec in result["specs"]:
+            self.assertNotIn("is_canonical_spec", spec)
+            self.assertIn("spec_id", spec)
+
+    # --------------------------------------------------- the consumers
+
+    def test_a_derived_report_still_finds_the_family_after_the_hoist(self) -> None:
+        """The hoist moved family out of the hits; derivation reads it anyway."""
+        from cs_agent.subgraphs.agents.report_modes import _search_hits
+
+        payload = self.backend.product_search(family="WIN2-125")
+        rows = _search_hits(payload)
+        self.assertTrue(rows)
+        self.assertTrue(all(row["family"] == "WIN2-125" for row in rows))
+
+    def test_a_code_that_decodes_to_nothing_carries_no_decoded_key(self) -> None:
+        """An empty object spends bytes announcing it has nothing to say."""
+        from cs_agent.backends.payload_shape import flatten_decoded
+
+        self.assertEqual({}, flatten_decoded({}))
+        result = self.backend.product_search(family="WIN2-125")
+        self.assertTrue(all("decoded" not in hit for hit in result["hits"]))

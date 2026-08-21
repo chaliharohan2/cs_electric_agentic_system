@@ -85,3 +85,8 @@ IDs a family publishes, how many of its SKUs carry one, its observed bounds, how
 members a filter matched — cites the family instead, because no single member is its
 source. Never pick one member's code to stand in for the range: that turns a count over
 316 SKUs into a claim about one of them.
+
+A tool result states once, in a `scope` object, whatever holds for every row it
+returned — the family a search was scoped to, its path, its product page. A row carries
+only what is its own. So when a row names no family, the family is the one in `scope`,
+and citing it is right rather than a guess; when a row names its own, that one wins.

@@ -410,8 +410,8 @@ class SqliteBackendTests(unittest.TestCase):
 
     def test_search_documents_requires_filter(self) -> None:
         result = self.backend.search_documents(query="installation")
-        self.assertEqual("none", result[0]["mode"])
         self.assertIn("requires", result[0]["error"])
+        self.assertNotIn("mode", result[0])
 
     def test_price_multiple_variants_not_quotable(self) -> None:
         detail = self.backend.get_price_detail(["WX100"])
@@ -566,6 +566,32 @@ class ContextBudgetTests(unittest.TestCase):
         self.assertEqual(2, len(result["facets"]))
         self.assertEqual(2, result["facet_axis_value_count"])
         self.assertNotIn("facets_truncated", result)
+
+    def test_a_hit_carries_the_meaning_of_its_code_not_the_code_again(self) -> None:
+        """The fixture here decodes to a real axis, so the flattening is visible.
+
+        `{"poles": {"code": "4", "meaning": "4 pole"}}` on a hit whose sku_code
+        is `CG24025WNR` spends its `code` half restating a segment of the
+        identifier printed beside it.
+        """
+        result = self.backend.product_search(family="MCCB")
+        decoded = {
+            hit["sku_code"]: hit.get("decoded")
+            for hit in result["hits"]
+            if hit.get("decoded")
+        }
+        self.assertTrue(decoded, "expected at least one decoded hit")
+        for axes in decoded.values():
+            for value in axes.values():
+                self.assertNotIsInstance(value, dict)
+        self.assertIn("4 pole", decoded.get("CG24025WNR", {}).values())
+
+    def test_a_peer_carries_the_same_flattened_decode(self) -> None:
+        peers = self.backend.get_peer_group("CG24025WNR")["peers"]
+        self.assertTrue(peers)
+        for peer in peers:
+            for value in (peer.get("decoded") or {}).values():
+                self.assertNotIsInstance(value, dict)
 
     def test_peer_group_pages_but_reports_the_full_count(self) -> None:
         with patch.object(get_limits(), "max_peer_rows", 1):

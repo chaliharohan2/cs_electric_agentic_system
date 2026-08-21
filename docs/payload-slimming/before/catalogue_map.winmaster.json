@@ -1,0 +1,53 @@
+{
+  "matched_on": {
+    "path_text": "WiNmaster"
+  },
+  "groups": [
+    {
+      "division": "Low Voltage Products and Solutions",
+      "product_group": "Circuit Breakers",
+      "product_subgroup": "Air Circuit Breakers",
+      "product_range": "ACB – WiNmaster 3",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "sku_count": 157,
+      "description": "Latest Generation Circuit Breakers suitable up to 800V AC with a compact design",
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "market_segments": [
+        "Distribution & Transmission",
+        "Industries",
+        "Infrastructure",
+        "Original Equipment Manufacturers (OEM)"
+      ]
+    },
+    {
+      "division": "Low Voltage Products and Solutions",
+      "product_group": "Circuit Breakers",
+      "product_subgroup": "Air Circuit Breakers",
+      "product_range": "ACB – WiNmaster 2",
+      "family": "ACB – WiNmaster 2",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 2"
+      ],
+      "sku_count": 101,
+      "description": "User Friendly Circuit Breakers with a compact design",
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/winmaster2-power-circuit-breakers/",
+      "market_segments": [
+        "Distribution & Transmission",
+        "Industries",
+        "Infrastructure",
+        "Original Equipment Manufacturers (OEM)"
+      ]
+    }
+  ],
+  "total_groups": 2,
+  "total_skus": 258
+}

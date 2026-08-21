@@ -1,0 +1,301 @@
+{
+  "sku_code": "E-CSCS400DM4CO",
+  "canonical_code": "E-CSCS400DM4CO",
+  "family": "New Changeover Switches",
+  "description": null,
+  "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/switches/onload-changeover-switch/new-changeover-switch/",
+  "price_status": "listed",
+  "peer_group": "New Changeover Switches",
+  "path": [
+    "Low Voltage Products and Solutions",
+    "Switches",
+    "Onload Changeover Switches",
+    "New Changeover Switches"
+  ],
+  "headings": [],
+  "attributes": {
+    "enclosure": {
+      "code": "E-",
+      "label": "supplied in sheet-steel enclosure"
+    }
+  },
+  "comparable_on": [
+    "modules",
+    "poles",
+    "pollution_degree",
+    "price_inr",
+    "rated_current_a",
+    "rated_frequency_hz",
+    "rated_voltage_v"
+  ],
+  "related_codes": [
+    "E-CSCS63NM4CO",
+    "E-CSCS100NM4CO",
+    "E-CSCS125NM4CO",
+    "E-CSCS160NM4CO",
+    "E-CSCS200NM4CO",
+    "E-CSCS250NM4CO",
+    "E-CSCS315DM4CO",
+    "E-CSCS630K4CO",
+    "E-CSCS800K4CO",
+    "E-CSCS1000SB4CO",
+    "E-CSCS1000P4CO",
+    "E-CSCS1250P4CO",
+    "E-CSCS1600P4CO",
+    "E-CSCS2000P4CO",
+    "E-CSCS2500P4CO",
+    "E-CSCS3150P4CO"
+  ],
+  "also_published_as": [],
+  "alias_reason": null,
+  "extraction": {
+    "missing": [
+      "standards",
+      "ip_rating",
+      "mechanical_endurance_ops"
+    ],
+    "confidence": null
+  },
+  "fact_count": 27,
+  "decoded": {
+    "poles": {
+      "code": "4",
+      "meaning": 4
+    },
+    "rating": {
+      "code": "400",
+      "value": 400,
+      "meaning": 400
+    },
+    "function": {
+      "code": null,
+      "source": "default",
+      "meaning": "on-load changeover switch"
+    },
+    "enclosure": {
+      "code": "E-",
+      "meaning": "supplied in sheet-steel enclosure"
+    },
+    "construction": {
+      "code": "DM",
+      "meaning": "DM-Series"
+    }
+  },
+  "facts": [
+    {
+      "spec_id": "ambient_cubicle_service_temperature",
+      "unit": "°C",
+      "value_num": 40.0,
+      "value_min": 40.0,
+      "value_max": 40.0,
+      "value_display": "40 °C",
+      "value_kind": "scalar",
+      "source_of_truth": "brochure"
+    },
+    {
+      "spec_id": "current_carrying_parts",
+      "value_display": "Silver-plated copper",
+      "value_kind": "text",
+      "source_of_truth": "brochure"
+    },
+    {
+      "spec_id": "enclosure_material",
+      "value_display": "Sheet steel",
+      "value_kind": "text",
+      "source_of_truth": "pricelist_table",
+      "source_heading": "code_grammar"
+    },
+    {
+      "spec_id": "frame_1",
+      "unit": "A",
+      "value_min": 63.0,
+      "value_max": 100.0,
+      "value_display": "63A, 100A",
+      "value_kind": "set",
+      "source_of_truth": "pricelist_table",
+      "source_heading": "Frames, ratings and versions"
+    },
+    {
+      "spec_id": "frame_2",
+      "unit": "A",
+      "value_min": 125.0,
+      "value_max": 200.0,
+      "value_display": "125, 160, 200A",
+      "value_kind": "set",
+      "source_of_truth": "pricelist_table",
+      "source_heading": "Frames, ratings and versions"
+    },
+    {
+      "spec_id": "gst_rate_pct",
+      "value_display": "MRP is inclusive of GST; rate not printed here",
+      "value_kind": "text",
+      "source_of_truth": "pricelist_table"
+    },
+    {
+      "spec_id": "hsn_code",
+      "value_num": 8536.0,
+      "value_display": "8536",
+      "value_kind": "text",
+      "source_of_truth": "pricelist_table"
+    },
+    {
+      "spec_id": "ip_level_after_mounting",
+      "value_display": "IP54",
+      "value_kind": "text",
+      "source_of_truth": "brochure"
+    },
+    {
+      "spec_id": "market_segments",
+      "value_display": "Industries, Infrastructure, Original Equipment Manufacturers (OEM)",
+      "value_kind": "set",
+      "source_of_truth": "catalogue"
+    },
+    {
+      "spec_id": "modules",
+      "unit": "count",
+      "value_num": 4.0,
+      "value_min": 4.0,
+      "value_max": 4.0,
+      "value_display": "4",
+      "value_kind": "scalar",
+      "source_of_truth": "code_grammar"
+    },
+    {
+      "spec_id": "operating_mechanism",
+      "value_display": "Manual, quick-make quick-break; three stable positions I - O - II; adjustable telescopic shaft",
+      "value_kind": "text",
+      "source_of_truth": "brochure"
+    },
+    {
+      "spec_id": "padlocking",
+      "value_display": "Handle with built-in padlocking facility in all three positions (I, O, II); door interlock for external padlocking IP55",
+      "value_kind": "text",
+      "source_of_truth": "pricelist_table"
+    },
+    {
+      "spec_id": "poles",
+      "unit": "count",
+      "value_num": 4.0,
+      "value_min": 4.0,
+      "value_max": 4.0,
+      "value_display": "4",
+      "value_kind": "scalar",
+      "source_of_truth": "code_grammar"
+    },
+    {
+      "spec_id": "pollution_degree",
+      "value_num": 3.0,
+      "value_min": 3.0,
+      "value_max": 3.0,
+      "value_display": "3",
+      "value_kind": "scalar",
+      "source_of_truth": "pricelist_table"
+    },
+    {
+      "spec_id": "position_indication",
+      "value_display": "Positive ON/OFF indication showing true position of contacts",
+      "value_kind": "text",
+      "source_of_truth": "brochure"
+    },
+    {
+      "spec_id": "price_inr",
+      "unit": "INR",
+      "value_num": 77470.0,
+      "value_min": 77470.0,
+      "value_max": 77470.0,
+      "value_display": "₹77,470",
+      "value_kind": "scalar",
+      "source_of_truth": "pricelist_table",
+      "source_pdf": "LV-Pricelist-WEF-1st-June26.pdf",
+      "source_page": 42
+    },
+    {
+      "spec_id": "price_per_rated_amp_inr",
+      "unit": "INR/A",
+      "value_num": 193.68,
+      "value_min": 193.68,
+      "value_max": 193.68,
+      "value_display": "193.68 INR/A",
+      "value_kind": "scalar",
+      "source_of_truth": "computed"
+    },
+    {
+      "spec_id": "range_of_the_published_series",
+      "unit": "A",
+      "value_min": 63.0,
+      "value_max": 3150.0,
+      "value_display": "63 A ~ 3150 A, 415 V, 50 Hz (pricelist heading)",
+      "value_kind": "range",
+      "source_of_truth": "brochure"
+    },
+    {
+      "spec_id": "rated_current_a",
+      "unit": "A",
+      "value_num": 400.0,
+      "value_min": 400.0,
+      "value_max": 400.0,
+      "value_display": "400 A",
+      "value_kind": "scalar",
+      "source_of_truth": "code_grammar"
+    },
+    {
+      "spec_id": "rated_frequency_hz",
+      "unit": "Hz",
+      "value_min": 50.0,
+      "value_max": 60.0,
+      "value_display": "50/60 Hz (brochure); pricelist heading states 50 Hz",
+      "value_kind": "set",
+      "source_of_truth": "pricelist_table"
+    },
+    {
+      "spec_id": "rated_voltage_v",
+      "unit": "V",
+      "value_num": 415.0,
+      "value_min": 415.0,
+      "value_max": 415.0,
+      "value_display": "415 V",
+      "value_kind": "scalar",
+      "source_of_truth": "pricelist_table"
+    },
+    {
+      "spec_id": "short_circuit_current_with_fuses_rated_fused_short_circuit_l",
+      "unit": "kA",
+      "value_num": 80.0,
+      "value_min": 80.0,
+      "value_max": 80.0,
+      "value_display": "80 kA rms",
+      "value_kind": "scalar",
+      "source_of_truth": "brochure"
+    },
+    {
+      "spec_id": "suitability_for_isolation",
+      "value_display": "Yes — positive isolation",
+      "value_kind": "text",
+      "source_of_truth": "brochure"
+    },
+    {
+      "spec_id": "utilisation_category",
+      "value_display": "AC23A",
+      "value_kind": "text",
+      "source_of_truth": "pricelist_table"
+    },
+    {
+      "spec_id": "version",
+      "value_display": "4P (all published references are 4-pole; brochure General Parameters table states 3P/4P)",
+      "value_kind": "composite",
+      "source_of_truth": "brochure"
+    },
+    {
+      "spec_id": "version_1",
+      "value_display": "4P (all published references are 4-pole",
+      "value_kind": "text",
+      "source_of_truth": "brochure"
+    },
+    {
+      "spec_id": "version_2",
+      "value_display": "brochure General Parameters table states 3P/4P)",
+      "value_kind": "text",
+      "source_of_truth": "brochure"
+    }
+  ]
+}

@@ -89,9 +89,12 @@ PRODUCT_SEARCH = (
     "PRIMARY tool for any number, rating, range, or "
     "superlative, and the way to turn a product-line name into ordering codes. "
     "family accepts a string or a list of names (OR across families); path remains "
-    "one prefix, not an OR of levels. Pass all known families in one call. Each "
-    "hit carries its own family and path, so grouped or not you can always tell "
-    "which product a specification belongs to. When the scope spans several "
+    "one prefix, not an OR of levels. Pass all known families in one call. "
+    "Anything true of every hit — family, path, the product page url — is "
+    "stated once in a `scope` object beside the hits rather than repeated on "
+    "each of them; a field that differs between hits stays on the hits. So "
+    "grouped or not you can always tell which product a specification belongs "
+    "to: read the hit first, then `scope`. When the scope spans several "
     "families, return_specs attaches only the specifications ALL of them "
     "publish — an empty cell would otherwise read as a product difference "
     "rather than a gap in the catalogue — and the rest are named in "
@@ -105,7 +108,9 @@ PRODUCT_SEARCH = (
     "then caps the hit list globally; with group_by, limit is the sample per "
     "group. "
     + NAME_MATCHING + " Spec IDs also match their labels, so 'breaking capacity' "
-    "finds breaking_capacity_ka. Range specs use their min/max bounds. Missing "
+    "finds breaking_capacity_ka. Attached specifications are keyed by spec_id and "
+    "carry no label: you named the ids, and list_canonical_specs is where their "
+    "published labels live. Range specs use their min/max bounds. Missing "
     "specifications mean not published, never zero. composite_excluded values are "
     "unknown, not ruled out. Read widening_hint before concluding no product exists. "
     "price_status must be a list such as [\"listed\"], not a bare string. "
@@ -119,7 +124,10 @@ PRODUCT_SEARCH = (
 GET_SKU = (
     "Everything known about one SKU: facts with units and value ranges, decoded "
     "ordering code, source references, extraction missing/confidence, and optionally "
-    "chunks, price and peers. Resolve user-entered codes with resolve_product first."
+    "chunks, price and peers. A fact is identified by its spec_id and carries no "
+    "label and no restating sentence — the value_display, unit and source_of_truth "
+    "beside it are the whole fact. Resolve user-entered codes with resolve_product "
+    "first."
 )
 
 COMPARE_SKUS = (
@@ -133,14 +141,20 @@ COMPARE_SKUS = (
 SEARCH_DOCUMENTS = (
     "Semantic search over qualitative catalogue text, filterable by path, family, SKU, "
     "and chunk_type. Never use it for numeric ratings. Always pass family or path. "
-    "Falls back to lexical search and reports its mode. Long passages are returned "
-    "head-first and marked truncated; retrieve the whole passage with get_sku chunks "
-    "when the part you need was cut."
+    "Falls back to lexical search when the catalogue carries no embeddings: a hit "
+    "with a distance came from the semantic index and one without it from the "
+    "lexical one, and score is comparable only between hits of the same call. "
+    "Long passages are returned head-first and marked truncated; retrieve the "
+    "whole passage with get_sku chunks when the part you need was cut."
 )
 
 RESOLVE_PRODUCT = (
     "Resolve a product code, alias, partial code, misspelling, or description to real "
-    "SKU codes. Always use this before SKU-specific tools when the user typed the code."
+    "SKU codes. The sku_code it returns is the one to order by and the one to hand "
+    "to every other tool; match_role says whether it was reached as a code, a "
+    "canonical spelling, an alias or a description, and an alias_note explains an "
+    "alternate published spelling. Always use this before SKU-specific tools when "
+    "the user typed the code."
 )
 
 GET_PRICE_DETAIL = (
@@ -153,7 +167,9 @@ GET_PRICE_DETAIL = (
 
 GET_PEER_GROUP = (
     "Return a SKU's catalogue peer set, comparable_on axes, related codes, and decoded "
-    "differences. Use for shortlists and like-for-like comparison. peer_count is the "
+    "differences. Each peer's decoded ordering code is one entry per axis holding "
+    "that axis's meaning, and the family the whole group sits in is stated once "
+    "in `scope`. Use for shortlists and like-for-like comparison. peer_count is the "
     "true size of the group; peers is a page of it. When a truncated note is present "
     "the group is larger than the list, so never say it has only the SKUs shown — "
     "reach a specific peer with product_search instead."

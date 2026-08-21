@@ -1,0 +1,646 @@
+{
+  "sku_code": "E-CSCS400DM4CO",
+  "peer_group": "New Changeover Switches",
+  "comparable_on": [
+    "modules",
+    "poles",
+    "pollution_degree",
+    "price_inr",
+    "rated_current_a",
+    "rated_frequency_hz",
+    "rated_voltage_v"
+  ],
+  "related_codes": [
+    "E-CSCS63NM4CO",
+    "E-CSCS100NM4CO",
+    "E-CSCS125NM4CO",
+    "E-CSCS160NM4CO",
+    "E-CSCS200NM4CO",
+    "E-CSCS250NM4CO",
+    "E-CSCS315DM4CO",
+    "E-CSCS630K4CO",
+    "E-CSCS800K4CO",
+    "E-CSCS1000SB4CO",
+    "E-CSCS1000P4CO",
+    "E-CSCS1250P4CO",
+    "E-CSCS1600P4CO",
+    "E-CSCS2000P4CO",
+    "E-CSCS2500P4CO",
+    "E-CSCS3150P4CO"
+  ],
+  "peer_count": 48,
+  "peers": [
+    {
+      "sku_code": "CSCONM1AUX10",
+      "family": "New Changeover Switches",
+      "decoded": {},
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCONM2AUX10",
+      "family": "New Changeover Switches",
+      "decoded": {},
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS1000P4CO",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "1000",
+          "value": 1000,
+          "meaning": 1000
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "P",
+          "meaning": "P-Series"
+        }
+      },
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS1000SB4CO",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "1000",
+          "value": 1000,
+          "meaning": 1000
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "SB",
+          "meaning": "unknown"
+        }
+      },
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS100NM4CO",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "100",
+          "value": 100,
+          "meaning": 100
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "NM",
+          "meaning": "NM-Series (non-modular)"
+        }
+      },
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS100NM4CORE",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "100",
+          "value": 100,
+          "meaning": 100
+        },
+        "channel": {
+          "code": "RE",
+          "meaning": "unknown"
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "NM",
+          "meaning": "NM-Series (non-modular)"
+        }
+      },
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS1250P4CO",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "1250",
+          "value": 1250,
+          "meaning": 1250
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "P",
+          "meaning": "P-Series"
+        }
+      },
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS125NM4CO",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "125",
+          "value": 125,
+          "meaning": 125
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "NM",
+          "meaning": "NM-Series (non-modular)"
+        }
+      },
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS125NM4CORE",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "125",
+          "value": 125,
+          "meaning": 125
+        },
+        "channel": {
+          "code": "RE",
+          "meaning": "unknown"
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "NM",
+          "meaning": "NM-Series (non-modular)"
+        }
+      },
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS1600P4CO",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "1600",
+          "value": 1600,
+          "meaning": 1600
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "P",
+          "meaning": "P-Series"
+        }
+      },
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS160NM4CO",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "160",
+          "value": 160,
+          "meaning": 160
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "NM",
+          "meaning": "NM-Series (non-modular)"
+        }
+      },
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS160NM4CORE",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "160",
+          "value": 160,
+          "meaning": 160
+        },
+        "channel": {
+          "code": "RE",
+          "meaning": "unknown"
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "NM",
+          "meaning": "NM-Series (non-modular)"
+        }
+      },
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS2000P4CO",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "2000",
+          "value": 2000,
+          "meaning": 2000
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "P",
+          "meaning": "P-Series"
+        }
+      },
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS200NM4CO",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "200",
+          "value": 200,
+          "meaning": 200
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "NM",
+          "meaning": "NM-Series (non-modular)"
+        }
+      },
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS200NM4CORE",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "200",
+          "value": 200,
+          "meaning": 200
+        },
+        "channel": {
+          "code": "RE",
+          "meaning": "unknown"
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "NM",
+          "meaning": "NM-Series (non-modular)"
+        }
+      },
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS2500P4CO",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "2500",
+          "value": 2500,
+          "meaning": 2500
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "P",
+          "meaning": "P-Series"
+        }
+      },
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS250NM4CO",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "250",
+          "value": 250,
+          "meaning": 250
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "NM",
+          "meaning": "NM-Series (non-modular)"
+        }
+      },
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS250NM4CORE",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "250",
+          "value": 250,
+          "meaning": 250
+        },
+        "channel": {
+          "code": "RE",
+          "meaning": "unknown"
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "NM",
+          "meaning": "NM-Series (non-modular)"
+        }
+      },
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS3150P4CO",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "3150",
+          "value": 3150,
+          "meaning": 3150
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "P",
+          "meaning": "P-Series"
+        }
+      },
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS315DM4CO",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "315",
+          "value": 315,
+          "meaning": 315
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "DM",
+          "meaning": "DM-Series"
+        }
+      },
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS400DM4CO",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "400",
+          "value": 400,
+          "meaning": 400
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "DM",
+          "meaning": "DM-Series"
+        }
+      },
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS630K4CO",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "630",
+          "value": 630,
+          "meaning": 630
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "K",
+          "meaning": "K-Series"
+        }
+      },
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS63NM4CO",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "63",
+          "value": 63,
+          "meaning": 63
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "NM",
+          "meaning": "NM-Series (non-modular)"
+        }
+      },
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS63NM4CORE",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "63",
+          "value": 63,
+          "meaning": 63
+        },
+        "channel": {
+          "code": "RE",
+          "meaning": "unknown"
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "NM",
+          "meaning": "NM-Series (non-modular)"
+        }
+      },
+      "price_status": "listed"
+    },
+    {
+      "sku_code": "CSCS800K4CO",
+      "family": "New Changeover Switches",
+      "decoded": {
+        "poles": {
+          "code": "4",
+          "meaning": 4
+        },
+        "rating": {
+          "code": "800",
+          "value": 800,
+          "meaning": 800
+        },
+        "function": {
+          "code": null,
+          "source": "default",
+          "meaning": "on-load changeover switch"
+        },
+        "construction": {
+          "code": "K",
+          "meaning": "K-Series"
+        }
+      },
+      "price_status": "listed"
+    }
+  ],
+  "truncated": "Showing 25 of 48 peers, ordered by ordering code. The group is larger than this sample: use product_search with the family and a specific filter to reach a peer that is not listed, and never state the group has only 25 members."
+}

@@ -1,0 +1,382 @@
+{
+  "sku_code": "E-CSCS400DM4CO",
+  "canonical_code": "E-CSCS400DM4CO",
+  "family": "New Changeover Switches",
+  "description": null,
+  "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/switches/onload-changeover-switch/new-changeover-switch/",
+  "price_status": "listed",
+  "peer_group": "New Changeover Switches",
+  "path": [
+    "Low Voltage Products and Solutions",
+    "Switches",
+    "Onload Changeover Switches",
+    "New Changeover Switches"
+  ],
+  "headings": [],
+  "attributes": {
+    "enclosure": {
+      "code": "E-",
+      "label": "supplied in sheet-steel enclosure"
+    }
+  },
+  "comparable_on": [
+    "modules",
+    "poles",
+    "pollution_degree",
+    "price_inr",
+    "rated_current_a",
+    "rated_frequency_hz",
+    "rated_voltage_v"
+  ],
+  "related_codes": [
+    "E-CSCS63NM4CO",
+    "E-CSCS100NM4CO",
+    "E-CSCS125NM4CO",
+    "E-CSCS160NM4CO",
+    "E-CSCS200NM4CO",
+    "E-CSCS250NM4CO",
+    "E-CSCS315DM4CO",
+    "E-CSCS630K4CO",
+    "E-CSCS800K4CO",
+    "E-CSCS1000SB4CO",
+    "E-CSCS1000P4CO",
+    "E-CSCS1250P4CO",
+    "E-CSCS1600P4CO",
+    "E-CSCS2000P4CO",
+    "E-CSCS2500P4CO",
+    "E-CSCS3150P4CO"
+  ],
+  "also_published_as": [],
+  "alias_reason": null,
+  "extraction": {
+    "missing": [
+      "standards",
+      "ip_rating",
+      "mechanical_endurance_ops"
+    ],
+    "confidence": null
+  },
+  "fact_count": 27,
+  "decoded": {
+    "poles": {
+      "code": "4",
+      "meaning": 4
+    },
+    "rating": {
+      "code": "400",
+      "value": 400,
+      "meaning": 400
+    },
+    "function": {
+      "code": null,
+      "source": "default",
+      "meaning": "on-load changeover switch"
+    },
+    "enclosure": {
+      "code": "E-",
+      "meaning": "supplied in sheet-steel enclosure"
+    },
+    "construction": {
+      "code": "DM",
+      "meaning": "DM-Series"
+    }
+  },
+  "facts": [
+    {
+      "spec_id": "ambient_cubicle_service_temperature",
+      "spec_label": "Ambient / cubicle service temperature",
+      "unit": "°C",
+      "is_canonical_spec": 0,
+      "value_num": 40.0,
+      "value_min": 40.0,
+      "value_max": 40.0,
+      "value_display": "40 °C",
+      "value_kind": "scalar",
+      "source_of_truth": "brochure",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a ambient / cubicle service temperature of 40 °C."
+    },
+    {
+      "spec_id": "current_carrying_parts",
+      "spec_label": "Current-carrying parts",
+      "is_canonical_spec": 0,
+      "value_display": "Silver-plated copper",
+      "value_kind": "text",
+      "source_of_truth": "brochure",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a current-carrying parts of Silver-plated copper."
+    },
+    {
+      "spec_id": "enclosure_material",
+      "spec_label": "Enclosure material",
+      "is_canonical_spec": 0,
+      "value_display": "Sheet steel",
+      "value_kind": "text",
+      "source_of_truth": "pricelist_table",
+      "source_heading": "code_grammar",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a enclosure material of Sheet steel."
+    },
+    {
+      "spec_id": "frame_1",
+      "spec_label": "Frame 1",
+      "unit": "A",
+      "is_canonical_spec": 0,
+      "value_min": 63.0,
+      "value_max": 100.0,
+      "value_display": "63A, 100A",
+      "value_kind": "set",
+      "source_of_truth": "pricelist_table",
+      "source_heading": "Frames, ratings and versions",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a frame 1 of 63A, 100A."
+    },
+    {
+      "spec_id": "frame_2",
+      "spec_label": "Frame 2",
+      "unit": "A",
+      "is_canonical_spec": 0,
+      "value_min": 125.0,
+      "value_max": 200.0,
+      "value_display": "125, 160, 200A",
+      "value_kind": "set",
+      "source_of_truth": "pricelist_table",
+      "source_heading": "Frames, ratings and versions",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a frame 2 of 125, 160, 200A."
+    },
+    {
+      "spec_id": "gst_rate_pct",
+      "spec_label": "GST",
+      "is_canonical_spec": 1,
+      "value_display": "MRP is inclusive of GST; rate not printed here",
+      "value_kind": "text",
+      "source_of_truth": "pricelist_table",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole): The published MRP is inclusive of GST."
+    },
+    {
+      "spec_id": "hsn_code",
+      "spec_label": "HSN code",
+      "is_canonical_spec": 1,
+      "value_num": 8536.0,
+      "value_display": "8536",
+      "value_kind": "text",
+      "source_of_truth": "pricelist_table",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a hsn code of 8536."
+    },
+    {
+      "spec_id": "ip_level_after_mounting",
+      "spec_label": "IP level after mounting",
+      "is_canonical_spec": 0,
+      "value_display": "IP54",
+      "value_kind": "text",
+      "source_of_truth": "brochure",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a ip level after mounting of IP54."
+    },
+    {
+      "spec_id": "market_segments",
+      "spec_label": "Market segments",
+      "is_canonical_spec": 1,
+      "value_display": "Industries, Infrastructure, Original Equipment Manufacturers (OEM)",
+      "value_kind": "set",
+      "source_of_truth": "catalogue",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) is used in Industries, Infrastructure, Original Equipment Manufacturers (OEM)."
+    },
+    {
+      "spec_id": "modules",
+      "spec_label": "Width in modules",
+      "unit": "count",
+      "is_canonical_spec": 1,
+      "value_num": 4.0,
+      "value_min": 4.0,
+      "value_max": 4.0,
+      "value_display": "4",
+      "value_kind": "scalar",
+      "source_of_truth": "code_grammar",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has 4 modules."
+    },
+    {
+      "spec_id": "operating_mechanism",
+      "spec_label": "Operating mechanism",
+      "is_canonical_spec": 0,
+      "value_display": "Manual, quick-make quick-break; three stable positions I - O - II; adjustable telescopic shaft",
+      "value_kind": "text",
+      "source_of_truth": "brochure",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a operating mechanism of Manual, quick-make quick-break; three stable positions I - O - II; adjustable telescopic shaft."
+    },
+    {
+      "spec_id": "padlocking",
+      "spec_label": "Padlocking provision",
+      "is_canonical_spec": 1,
+      "value_display": "Handle with built-in padlocking facility in all three positions (I, O, II); door interlock for external padlocking IP55",
+      "value_kind": "text",
+      "source_of_truth": "pricelist_table",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a padlocking provision of Handle with built-in padlocking facility in all three positions (I, O, II); door interlock for external padlocking IP55."
+    },
+    {
+      "spec_id": "poles",
+      "spec_label": "Number of poles",
+      "unit": "count",
+      "is_canonical_spec": 1,
+      "value_num": 4.0,
+      "value_min": 4.0,
+      "value_max": 4.0,
+      "value_display": "4",
+      "value_kind": "scalar",
+      "source_of_truth": "code_grammar",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has 4 poles."
+    },
+    {
+      "spec_id": "pollution_degree",
+      "spec_label": "Pollution degree",
+      "is_canonical_spec": 1,
+      "value_num": 3.0,
+      "value_min": 3.0,
+      "value_max": 3.0,
+      "value_display": "3",
+      "value_kind": "scalar",
+      "source_of_truth": "pricelist_table",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a pollution degree of 3."
+    },
+    {
+      "spec_id": "position_indication",
+      "spec_label": "Position indication",
+      "is_canonical_spec": 0,
+      "value_display": "Positive ON/OFF indication showing true position of contacts",
+      "value_kind": "text",
+      "source_of_truth": "brochure",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a position indication of Positive ON/OFF indication showing true position of contacts."
+    },
+    {
+      "spec_id": "price_inr",
+      "spec_label": "MRP",
+      "unit": "INR",
+      "is_canonical_spec": 1,
+      "value_num": 77470.0,
+      "value_min": 77470.0,
+      "value_max": 77470.0,
+      "value_display": "₹77,470",
+      "value_kind": "scalar",
+      "source_of_truth": "pricelist_table",
+      "source_pdf": "LV-Pricelist-WEF-1st-June26.pdf",
+      "source_page": 42,
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has an MRP of ₹77,470 in the LV pricelist effective 2026-06-01."
+    },
+    {
+      "spec_id": "price_per_rated_amp_inr",
+      "spec_label": "Price per rated ampere",
+      "unit": "INR/A",
+      "is_canonical_spec": 1,
+      "value_num": 193.68,
+      "value_min": 193.68,
+      "value_max": 193.68,
+      "value_display": "193.68 INR/A",
+      "value_kind": "scalar",
+      "source_of_truth": "computed",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a price per rated ampere of 193.68 INR/A."
+    },
+    {
+      "spec_id": "range_of_the_published_series",
+      "spec_label": "Range of the published series",
+      "unit": "A",
+      "is_canonical_spec": 0,
+      "value_min": 63.0,
+      "value_max": 3150.0,
+      "value_display": "63 A ~ 3150 A, 415 V, 50 Hz (pricelist heading)",
+      "value_kind": "range",
+      "source_of_truth": "brochure",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a range of the published series of 63 A ~ 3150 A, 415 V, 50 Hz (pricelist heading)."
+    },
+    {
+      "spec_id": "rated_current_a",
+      "spec_label": "Rated current (In)",
+      "unit": "A",
+      "is_canonical_spec": 1,
+      "value_num": 400.0,
+      "value_min": 400.0,
+      "value_max": 400.0,
+      "value_display": "400 A",
+      "value_kind": "scalar",
+      "source_of_truth": "code_grammar",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a rated current (in) of 400 A."
+    },
+    {
+      "spec_id": "rated_frequency_hz",
+      "spec_label": "Rated frequency",
+      "unit": "Hz",
+      "is_canonical_spec": 1,
+      "value_min": 50.0,
+      "value_max": 60.0,
+      "value_display": "50/60 Hz (brochure); pricelist heading states 50 Hz",
+      "value_kind": "set",
+      "source_of_truth": "pricelist_table",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a rated frequency of 50/60 Hz (brochure); pricelist heading states 50 Hz."
+    },
+    {
+      "spec_id": "rated_voltage_v",
+      "spec_label": "Rated operational voltage (Ue)",
+      "unit": "V",
+      "is_canonical_spec": 1,
+      "value_num": 415.0,
+      "value_min": 415.0,
+      "value_max": 415.0,
+      "value_display": "415 V",
+      "value_kind": "scalar",
+      "source_of_truth": "pricelist_table",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a rated operational voltage (ue) of 415 V."
+    },
+    {
+      "spec_id": "short_circuit_current_with_fuses_rated_fused_short_circuit_l",
+      "spec_label": "Short circuit current with fuses (rated fused short-circuit level)",
+      "unit": "kA",
+      "is_canonical_spec": 0,
+      "value_num": 80.0,
+      "value_min": 80.0,
+      "value_max": 80.0,
+      "value_display": "80 kA rms",
+      "value_kind": "scalar",
+      "source_of_truth": "brochure",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a short circuit current with fuses (rated fused short-circuit level) of 80 kA rms."
+    },
+    {
+      "spec_id": "suitability_for_isolation",
+      "spec_label": "Suitability for isolation",
+      "is_canonical_spec": 0,
+      "value_display": "Yes — positive isolation",
+      "value_kind": "text",
+      "source_of_truth": "brochure",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a suitability for isolation of Yes — positive isolation."
+    },
+    {
+      "spec_id": "utilisation_category",
+      "spec_label": "Utilisation category",
+      "is_canonical_spec": 1,
+      "value_display": "AC23A",
+      "value_kind": "text",
+      "source_of_truth": "pricelist_table",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a utilisation category of AC23A."
+    },
+    {
+      "spec_id": "version",
+      "spec_label": "Version",
+      "is_canonical_spec": 0,
+      "value_display": "4P (all published references are 4-pole; brochure General Parameters table states 3P/4P)",
+      "value_kind": "composite",
+      "source_of_truth": "brochure",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a version of 4P (all published references are 4-pole; brochure General Parameters table states 3P/4P)."
+    },
+    {
+      "spec_id": "version_1",
+      "spec_label": "Version (4P (all published references)",
+      "is_canonical_spec": 0,
+      "value_display": "4P (all published references are 4-pole",
+      "value_kind": "text",
+      "source_of_truth": "brochure",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a version (4p (all published references) of 4P (all published references are 4-pole."
+    },
+    {
+      "spec_id": "version_2",
+      "spec_label": "Version (brochure General Parameters)",
+      "is_canonical_spec": 0,
+      "value_display": "brochure General Parameters table states 3P/4P)",
+      "value_kind": "text",
+      "source_of_truth": "brochure",
+      "fact_sentence": "E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a version (brochure general parameters) of brochure General Parameters table states 3P/4P)."
+    }
+  ]
+}

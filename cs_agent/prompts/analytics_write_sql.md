@@ -13,7 +13,7 @@ Key columns:
   product_range, path_depth, path_text, is_no_category,
   price_status, price_quotable, price_inr, price_context_ok, price_sibling_code,
   spec_id, spec_label, unit, value_num, value_min, value_max, value_display,
-  value_kind, is_canonical_spec, source_of_truth, fact_sentence
+  value_kind, source_of_truth, fact_sentence
 
 COUNTING PRODUCTS — read this first.
   Never write count(*) to count products. It counts fact rows and overstates by roughly

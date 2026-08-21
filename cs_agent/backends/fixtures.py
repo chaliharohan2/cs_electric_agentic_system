@@ -15,6 +15,12 @@ from cs_agent.backends.grouped_search import (
     has_search_scope,
 )
 from cs_agent.backends.matching import family_matches, matches, unmatched_family_terms
+from cs_agent.backends.payload_shape import (
+    PEER_SCOPE_FIELDS,
+    SEARCH_SCOPE_FIELDS,
+    flatten_decoded,
+    hoist_scope,
+)
 from cs_agent.backends.path_levels import NA, path_to_levels
 from cs_agent.backends.read_only_sql import read_only_sql_error
 from cs_agent.backends.sqlite import _not_shared_note
@@ -132,9 +138,7 @@ class FixturesBackend:
             "hits": [
                 {
                     key: sku[key]
-                    for key in (
-                        "sku_code", "canonical_code", "family", "description"
-                    )
+                    for key in ("sku_code", "family", "description")
                 } | {
                     "path_text": " > ".join(sku["path"]),
                     "match_role": "sku" if exact else "description",
@@ -263,15 +267,12 @@ class FixturesBackend:
         ]
         matched.sort(key=lambda b: (-b["sku_count"], b["family"]))
         result: dict[str, Any] = {
-            "matched_on": {
-                key: value for key, value in (
-                    ("path_text", path_text), ("market_segment", market_segment)
-                ) if value
-            },
             "groups": matched[:limit],
             "total_groups": len(matched),
             "total_skus": sum(branch["sku_count"] for branch in matched),
         }
+        if market_segment:
+            result["matched_on"] = {"market_segment": market_segment}
         if not matched:
             miss: dict[str, Any] = {}
             if path_text:
@@ -377,17 +378,20 @@ class FixturesBackend:
                 key: sku[key]
                 for key in (
                     "sku_code",
-                    "canonical_code",
                     "family",
                     "path",
                     "description",
                     "url",
                     "price_status",
-                    "decoded",
                 )
             },
+            **(
+                {"decoded": decoded}
+                if (decoded := flatten_decoded(sku["decoded"]))
+                else {}
+            ),
             "specs": [
-                compact_fact(fact, drop=NESTED_REDUNDANT)
+                compact_fact(fact, drop=(*NESTED_REDUNDANT, "spec_label"))
                 for fact in sku["facts"]
                 if not requested or fact["spec_id"] in requested
             ],
@@ -462,7 +466,10 @@ class FixturesBackend:
             )
             if dropped:
                 result["specs_not_shared"] = _not_shared_note(dropped, group_by)
-            return result
+            sample_hits = [
+                hit for group in result["groups"] for hit in group["sample_hits"]
+            ]
+            return hoist_scope(result, sample_hits, SEARCH_SCOPE_FIELDS)
         hits = [self._hit_from_sku(sku, kw, kept) for sku in matched_skus]
         total = len(hits)
         limit = int(kw.get("limit", 20))
@@ -479,7 +486,7 @@ class FixturesBackend:
             result["specs_not_shared"] = _not_shared_note(
                 dropped, kw.get("group_by") or "family"
             )
-        return result
+        return hoist_scope(result, result["hits"], SEARCH_SCOPE_FIELDS)
 
     def get_sku(self, sku_code: str, include: list[str], **kw: Any) -> dict:
         sku = self._resolve_sku(sku_code)
@@ -493,7 +500,16 @@ class FixturesBackend:
             )
         }
         if "facts" in include:
-            result["facts"] = sku["facts"]
+            # The same three keys the SQLite backend stopped selecting, dropped
+            # here so a fixture test sees the shape the live backend returns.
+            result["facts"] = [
+                {
+                    key: value
+                    for key, value in fact.items()
+                    if key not in ("spec_label", "fact_sentence", "is_canonical_spec")
+                }
+                for fact in sku["facts"]
+            ]
         if "decoded" in include:
             result["decoded"] = sku["decoded"]
         if "sources" in include:
@@ -526,13 +542,14 @@ class FixturesBackend:
         if not sku:
             return {"error": f"No ordering code resolves from {sku_code!r}"}
         peers = [
-            {"sku_code": item["sku_code"], "family": item["family"], "decoded": item["decoded"],
-             "price_status": item["price_status"]}
+            {"sku_code": item["sku_code"], "family": item["family"],
+             "price_status": item["price_status"],
+             **({"decoded": d} if (d := flatten_decoded(item["decoded"])) else {})}
             for item in self._fixture_skus() if item["peer_group"] == sku["peer_group"]
         ]
         # peer_count mirrors the SQLite backend, which pages large groups; the
         # fixture set is small enough that the page is always the whole group.
-        return {
+        result = {
             "sku_code": sku["sku_code"],
             "peer_group": sku["peer_group"],
             "comparable_on": sku["comparable_on"],
@@ -540,6 +557,7 @@ class FixturesBackend:
             "peer_count": len(peers),
             "peers": peers,
         }
+        return hoist_scope(result, peers, PEER_SCOPE_FIELDS)
 
     def compare_skus(
         self, sku_codes: list[str], spec_ids: list[str] | None = None
@@ -594,7 +612,7 @@ class FixturesBackend:
                 "sku_code": sku["sku_code"] if sku else matched["sku_code"],
                 "chunk_type": chunk.get("chunk_type", "features"),
                 "headings": None, "brochure_md": None, "score": score,
-                "shared_by_sku_count": 1, "mode": "lexical",
+                "shared_by_sku_count": 1,
             }
             for score, chunk, matched in ranked[: int(kw.get("k", 6))]
         ]

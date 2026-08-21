@@ -1,0 +1,4666 @@
+{
+  "hits": [
+    {
+      "sku_code": "MP3-3.1",
+      "canonical_code": "MP3-3.1",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "listed",
+      "price_inr": 10730.0,
+      "price_quotable": true,
+      "decoded": {},
+      "specs": [
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_min": 3.0,
+          "value_max": 4.0,
+          "value_display": "3P, 4P",
+          "value_kind": "set",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306L3P1MDOA(S)",
+      "canonical_code": "WX306L3P1MDOA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "3P",
+          "meaning": {
+            "poles": 3
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MDO",
+          "meaning": "Manual Draw Out Type"
+        },
+        "breaking": {
+          "code": "L",
+          "meaning": {
+            "ka": 80,
+            "volts": 415
+          }
+        },
+        "rating_idx": {
+          "code": "06",
+          "meaning": 630
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 80.0,
+          "value_min": 80.0,
+          "value_max": 80.0,
+          "value_display": "80 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306L3P1MFA(S)",
+      "canonical_code": "WX306L3P1MFA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "3P",
+          "meaning": {
+            "poles": 3
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MF",
+          "meaning": "Manual Fixed Type"
+        },
+        "breaking": {
+          "code": "L",
+          "meaning": {
+            "ka": 80,
+            "volts": 415
+          }
+        },
+        "rating_idx": {
+          "code": "06",
+          "meaning": 630
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 80.0,
+          "value_min": 80.0,
+          "value_max": 80.0,
+          "value_display": "80 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306L4P1MDOA(S)",
+      "canonical_code": "WX306L4P1MDOA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "4P",
+          "meaning": {
+            "poles": 4
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MDO",
+          "meaning": "Manual Draw Out Type"
+        },
+        "breaking": {
+          "code": "L",
+          "meaning": {
+            "ka": 80,
+            "volts": 415
+          }
+        },
+        "rating_idx": {
+          "code": "06",
+          "meaning": 630
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 80.0,
+          "value_min": 80.0,
+          "value_max": 80.0,
+          "value_display": "80 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306L4P1MFA(S)",
+      "canonical_code": "WX306L4P1MFA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "4P",
+          "meaning": {
+            "poles": 4
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MF",
+          "meaning": "Manual Fixed Type"
+        },
+        "breaking": {
+          "code": "L",
+          "meaning": {
+            "ka": 80,
+            "volts": 415
+          }
+        },
+        "rating_idx": {
+          "code": "06",
+          "meaning": 630
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 80.0,
+          "value_min": 80.0,
+          "value_max": 80.0,
+          "value_display": "80 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306MC3P1MDOA(S)",
+      "canonical_code": "WX306MC3P1MDOA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "3P",
+          "meaning": {
+            "poles": 3
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MDO",
+          "meaning": "Manual Draw Out Type"
+        },
+        "breaking": {
+          "code": "MC",
+          "meaning": {
+            "ka": 42,
+            "volts": 800,
+            "source": "pricelist_only"
+          }
+        },
+        "rating_idx": {
+          "code": "06",
+          "meaning": 630
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 42.0,
+          "value_min": 42.0,
+          "value_max": 42.0,
+          "value_display": "42 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306MC3P1MFA(S)",
+      "canonical_code": "WX306MC3P1MFA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "3P",
+          "meaning": {
+            "poles": 3
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MF",
+          "meaning": "Manual Fixed Type"
+        },
+        "breaking": {
+          "code": "MC",
+          "meaning": {
+            "ka": 42,
+            "volts": 800,
+            "source": "pricelist_only"
+          }
+        },
+        "rating_idx": {
+          "code": "06",
+          "meaning": 630
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 42.0,
+          "value_min": 42.0,
+          "value_max": 42.0,
+          "value_display": "42 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306MC4P1MDOA(S)",
+      "canonical_code": "WX306MC4P1MDOA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "4P",
+          "meaning": {
+            "poles": 4
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MDO",
+          "meaning": "Manual Draw Out Type"
+        },
+        "breaking": {
+          "code": "MC",
+          "meaning": {
+            "ka": 42,
+            "volts": 800,
+            "source": "pricelist_only"
+          }
+        },
+        "rating_idx": {
+          "code": "06",
+          "meaning": 630
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 42.0,
+          "value_min": 42.0,
+          "value_max": 42.0,
+          "value_display": "42 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306MC4P1MFA(S)",
+      "canonical_code": "WX306MC4P1MFA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "4P",
+          "meaning": {
+            "poles": 4
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MF",
+          "meaning": "Manual Fixed Type"
+        },
+        "breaking": {
+          "code": "MC",
+          "meaning": {
+            "ka": 42,
+            "volts": 800,
+            "source": "pricelist_only"
+          }
+        },
+        "rating_idx": {
+          "code": "06",
+          "meaning": 630
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 42.0,
+          "value_min": 42.0,
+          "value_max": 42.0,
+          "value_display": "42 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306N3P1MDOA(S)",
+      "canonical_code": "WX306N3P1MDOA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "3P",
+          "meaning": {
+            "poles": 3
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MDO",
+          "meaning": "Manual Draw Out Type"
+        },
+        "breaking": {
+          "code": "N",
+          "meaning": {
+            "ka": 50,
+            "volts": 415,
+            "applies_to": "630A~1250A per brochure footnote *"
+          }
+        },
+        "rating_idx": {
+          "code": "06",
+          "meaning": 630
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306N3P1MFA(S)",
+      "canonical_code": "WX306N3P1MFA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "3P",
+          "meaning": {
+            "poles": 3
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MF",
+          "meaning": "Manual Fixed Type"
+        },
+        "breaking": {
+          "code": "N",
+          "meaning": {
+            "ka": 50,
+            "volts": 415,
+            "applies_to": "630A~1250A per brochure footnote *"
+          }
+        },
+        "rating_idx": {
+          "code": "06",
+          "meaning": 630
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306N4P1MDOA(S)",
+      "canonical_code": "WX306N4P1MDOA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "4P",
+          "meaning": {
+            "poles": 4
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MDO",
+          "meaning": "Manual Draw Out Type"
+        },
+        "breaking": {
+          "code": "N",
+          "meaning": {
+            "ka": 50,
+            "volts": 415,
+            "applies_to": "630A~1250A per brochure footnote *"
+          }
+        },
+        "rating_idx": {
+          "code": "06",
+          "meaning": 630
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306N4P1MFA(S)",
+      "canonical_code": "WX306N4P1MFA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "4P",
+          "meaning": {
+            "poles": 4
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MF",
+          "meaning": "Manual Fixed Type"
+        },
+        "breaking": {
+          "code": "N",
+          "meaning": {
+            "ka": 50,
+            "volts": 415,
+            "applies_to": "630A~1250A per brochure footnote *"
+          }
+        },
+        "rating_idx": {
+          "code": "06",
+          "meaning": 630
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306S3P1MDOA(S)",
+      "canonical_code": "WX306S3P1MDOA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "3P",
+          "meaning": {
+            "poles": 3
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MDO",
+          "meaning": "Manual Draw Out Type"
+        },
+        "breaking": {
+          "code": "S",
+          "meaning": {
+            "ka": 65,
+            "volts": 415,
+            "applies_to": "630A~1600A per brochure footnote #"
+          }
+        },
+        "rating_idx": {
+          "code": "06",
+          "meaning": 630
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 65.0,
+          "value_min": 65.0,
+          "value_max": 65.0,
+          "value_display": "65 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306S3P1MFA(S)",
+      "canonical_code": "WX306S3P1MFA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "3P",
+          "meaning": {
+            "poles": 3
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MF",
+          "meaning": "Manual Fixed Type"
+        },
+        "breaking": {
+          "code": "S",
+          "meaning": {
+            "ka": 65,
+            "volts": 415,
+            "applies_to": "630A~1600A per brochure footnote #"
+          }
+        },
+        "rating_idx": {
+          "code": "06",
+          "meaning": 630
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 65.0,
+          "value_min": 65.0,
+          "value_max": 65.0,
+          "value_display": "65 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306S4P1MDOA(S)",
+      "canonical_code": "WX306S4P1MDOA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "4P",
+          "meaning": {
+            "poles": 4
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MDO",
+          "meaning": "Manual Draw Out Type"
+        },
+        "breaking": {
+          "code": "S",
+          "meaning": {
+            "ka": 65,
+            "volts": 415,
+            "applies_to": "630A~1600A per brochure footnote #"
+          }
+        },
+        "rating_idx": {
+          "code": "06",
+          "meaning": 630
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 65.0,
+          "value_min": 65.0,
+          "value_max": 65.0,
+          "value_display": "65 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306S4P1MFA(S)",
+      "canonical_code": "WX306S4P1MFA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "4P",
+          "meaning": {
+            "poles": 4
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MF",
+          "meaning": "Manual Fixed Type"
+        },
+        "breaking": {
+          "code": "S",
+          "meaning": {
+            "ka": 65,
+            "volts": 415,
+            "applies_to": "630A~1600A per brochure footnote #"
+          }
+        },
+        "rating_idx": {
+          "code": "06",
+          "meaning": 630
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 65.0,
+          "value_min": 65.0,
+          "value_max": 65.0,
+          "value_display": "65 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308H3P2MDOA(S)",
+      "canonical_code": "WX308H3P2MDOA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "2",
+          "meaning": "II Frame"
+        },
+        "poles": {
+          "code": "3P",
+          "meaning": {
+            "poles": 3
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MDO",
+          "meaning": "Manual Draw Out Type"
+        },
+        "breaking": {
+          "code": "H",
+          "meaning": {
+            "ka": 100,
+            "volts": 415
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 100.0,
+          "value_min": 100.0,
+          "value_max": 100.0,
+          "value_display": "100 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308H3P2MFA(S)",
+      "canonical_code": "WX308H3P2MFA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "2",
+          "meaning": "II Frame"
+        },
+        "poles": {
+          "code": "3P",
+          "meaning": {
+            "poles": 3
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MF",
+          "meaning": "Manual Fixed Type"
+        },
+        "breaking": {
+          "code": "H",
+          "meaning": {
+            "ka": 100,
+            "volts": 415
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 100.0,
+          "value_min": 100.0,
+          "value_max": 100.0,
+          "value_display": "100 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308H4P2MDOA(S)",
+      "canonical_code": "WX308H4P2MDOA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "2",
+          "meaning": "II Frame"
+        },
+        "poles": {
+          "code": "4P",
+          "meaning": {
+            "poles": 4
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MDO",
+          "meaning": "Manual Draw Out Type"
+        },
+        "breaking": {
+          "code": "H",
+          "meaning": {
+            "ka": 100,
+            "volts": 415
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 100.0,
+          "value_min": 100.0,
+          "value_max": 100.0,
+          "value_display": "100 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308H4P2MFA(S)",
+      "canonical_code": "WX308H4P2MFA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "2",
+          "meaning": "II Frame"
+        },
+        "poles": {
+          "code": "4P",
+          "meaning": {
+            "poles": 4
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MF",
+          "meaning": "Manual Fixed Type"
+        },
+        "breaking": {
+          "code": "H",
+          "meaning": {
+            "ka": 100,
+            "volts": 415
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 100.0,
+          "value_min": 100.0,
+          "value_max": 100.0,
+          "value_display": "100 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308L3P1MDOA(S)",
+      "canonical_code": "WX308L3P1MDOA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "3P",
+          "meaning": {
+            "poles": 3
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MDO",
+          "meaning": "Manual Draw Out Type"
+        },
+        "breaking": {
+          "code": "L",
+          "meaning": {
+            "ka": 80,
+            "volts": 415
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 80.0,
+          "value_min": 80.0,
+          "value_max": 80.0,
+          "value_display": "80 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308L3P1MFA(S)",
+      "canonical_code": "WX308L3P1MFA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "3P",
+          "meaning": {
+            "poles": 3
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MF",
+          "meaning": "Manual Fixed Type"
+        },
+        "breaking": {
+          "code": "L",
+          "meaning": {
+            "ka": 80,
+            "volts": 415
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 80.0,
+          "value_min": 80.0,
+          "value_max": 80.0,
+          "value_display": "80 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308L4P1MDOA(S)",
+      "canonical_code": "WX308L4P1MDOA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "4P",
+          "meaning": {
+            "poles": 4
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MDO",
+          "meaning": "Manual Draw Out Type"
+        },
+        "breaking": {
+          "code": "L",
+          "meaning": {
+            "ka": 80,
+            "volts": 415
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 80.0,
+          "value_min": 80.0,
+          "value_max": 80.0,
+          "value_display": "80 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308L4P1MFA(S)",
+      "canonical_code": "WX308L4P1MFA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "4P",
+          "meaning": {
+            "poles": 4
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MF",
+          "meaning": "Manual Fixed Type"
+        },
+        "breaking": {
+          "code": "L",
+          "meaning": {
+            "ka": 80,
+            "volts": 415
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 80.0,
+          "value_min": 80.0,
+          "value_max": 80.0,
+          "value_display": "80 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308MC3P1MDOA(S)",
+      "canonical_code": "WX308MC3P1MDOA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "3P",
+          "meaning": {
+            "poles": 3
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MDO",
+          "meaning": "Manual Draw Out Type"
+        },
+        "breaking": {
+          "code": "MC",
+          "meaning": {
+            "ka": 42,
+            "volts": 800,
+            "source": "pricelist_only"
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 42.0,
+          "value_min": 42.0,
+          "value_max": 42.0,
+          "value_display": "42 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308MC3P1MFA(S)",
+      "canonical_code": "WX308MC3P1MFA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "3P",
+          "meaning": {
+            "poles": 3
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MF",
+          "meaning": "Manual Fixed Type"
+        },
+        "breaking": {
+          "code": "MC",
+          "meaning": {
+            "ka": 42,
+            "volts": 800,
+            "source": "pricelist_only"
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 42.0,
+          "value_min": 42.0,
+          "value_max": 42.0,
+          "value_display": "42 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308MC4P1MDOA(S)",
+      "canonical_code": "WX308MC4P1MDOA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "4P",
+          "meaning": {
+            "poles": 4
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MDO",
+          "meaning": "Manual Draw Out Type"
+        },
+        "breaking": {
+          "code": "MC",
+          "meaning": {
+            "ka": 42,
+            "volts": 800,
+            "source": "pricelist_only"
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 42.0,
+          "value_min": 42.0,
+          "value_max": 42.0,
+          "value_display": "42 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308MC4P1MFA(S)",
+      "canonical_code": "WX308MC4P1MFA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "4P",
+          "meaning": {
+            "poles": 4
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MF",
+          "meaning": "Manual Fixed Type"
+        },
+        "breaking": {
+          "code": "MC",
+          "meaning": {
+            "ka": 42,
+            "volts": 800,
+            "source": "pricelist_only"
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 42.0,
+          "value_min": 42.0,
+          "value_max": 42.0,
+          "value_display": "42 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308N3P1MDOA(S)",
+      "canonical_code": "WX308N3P1MDOA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "3P",
+          "meaning": {
+            "poles": 3
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MDO",
+          "meaning": "Manual Draw Out Type"
+        },
+        "breaking": {
+          "code": "N",
+          "meaning": {
+            "ka": 50,
+            "volts": 415,
+            "applies_to": "630A~1250A per brochure footnote *"
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308N3P1MFA(S)",
+      "canonical_code": "WX308N3P1MFA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "3P",
+          "meaning": {
+            "poles": 3
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MF",
+          "meaning": "Manual Fixed Type"
+        },
+        "breaking": {
+          "code": "N",
+          "meaning": {
+            "ka": 50,
+            "volts": 415,
+            "applies_to": "630A~1250A per brochure footnote *"
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308N4P1MDOA(S)",
+      "canonical_code": "WX308N4P1MDOA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "4P",
+          "meaning": {
+            "poles": 4
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MDO",
+          "meaning": "Manual Draw Out Type"
+        },
+        "breaking": {
+          "code": "N",
+          "meaning": {
+            "ka": 50,
+            "volts": 415,
+            "applies_to": "630A~1250A per brochure footnote *"
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308N4P1MFA(S)",
+      "canonical_code": "WX308N4P1MFA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "4P",
+          "meaning": {
+            "poles": 4
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MF",
+          "meaning": "Manual Fixed Type"
+        },
+        "breaking": {
+          "code": "N",
+          "meaning": {
+            "ka": 50,
+            "volts": 415,
+            "applies_to": "630A~1250A per brochure footnote *"
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308NC3P2MDOA(S)",
+      "canonical_code": "WX308NC3P2MDOA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "2",
+          "meaning": "II Frame"
+        },
+        "poles": {
+          "code": "3P",
+          "meaning": {
+            "poles": 3
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MDO",
+          "meaning": "Manual Draw Out Type"
+        },
+        "breaking": {
+          "code": "NC",
+          "meaning": {
+            "ka": 50,
+            "volts": 800,
+            "source": "pricelist_only"
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308NC3P2MFA(S)",
+      "canonical_code": "WX308NC3P2MFA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "2",
+          "meaning": "II Frame"
+        },
+        "poles": {
+          "code": "3P",
+          "meaning": {
+            "poles": 3
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MF",
+          "meaning": "Manual Fixed Type"
+        },
+        "breaking": {
+          "code": "NC",
+          "meaning": {
+            "ka": 50,
+            "volts": 800,
+            "source": "pricelist_only"
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308NC4P2MDOA(S)",
+      "canonical_code": "WX308NC4P2MDOA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "2",
+          "meaning": "II Frame"
+        },
+        "poles": {
+          "code": "4P",
+          "meaning": {
+            "poles": 4
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MDO",
+          "meaning": "Manual Draw Out Type"
+        },
+        "breaking": {
+          "code": "NC",
+          "meaning": {
+            "ka": 50,
+            "volts": 800,
+            "source": "pricelist_only"
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308NC4P2MFA(S)",
+      "canonical_code": "WX308NC4P2MFA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "2",
+          "meaning": "II Frame"
+        },
+        "poles": {
+          "code": "4P",
+          "meaning": {
+            "poles": 4
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MF",
+          "meaning": "Manual Fixed Type"
+        },
+        "breaking": {
+          "code": "NC",
+          "meaning": {
+            "ka": 50,
+            "volts": 800,
+            "source": "pricelist_only"
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308S3P1MDOA(S)",
+      "canonical_code": "WX308S3P1MDOA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "3P",
+          "meaning": {
+            "poles": 3
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MDO",
+          "meaning": "Manual Draw Out Type"
+        },
+        "breaking": {
+          "code": "S",
+          "meaning": {
+            "ka": 65,
+            "volts": 415,
+            "applies_to": "630A~1600A per brochure footnote #"
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 65.0,
+          "value_min": 65.0,
+          "value_max": 65.0,
+          "value_display": "65 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308S3P1MFA(S)",
+      "canonical_code": "WX308S3P1MFA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "3P",
+          "meaning": {
+            "poles": 3
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MF",
+          "meaning": "Manual Fixed Type"
+        },
+        "breaking": {
+          "code": "S",
+          "meaning": {
+            "ka": 65,
+            "volts": 415,
+            "applies_to": "630A~1600A per brochure footnote #"
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 65.0,
+          "value_min": 65.0,
+          "value_max": 65.0,
+          "value_display": "65 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308S4P1MDOA(S)",
+      "canonical_code": "WX308S4P1MDOA(S)",
+      "family": "ACB – WiNmaster 3",
+      "path": [
+        "Low Voltage Products and Solutions",
+        "Circuit Breakers",
+        "Air Circuit Breakers",
+        "ACB – WiNmaster 3"
+      ],
+      "description": null,
+      "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": {
+          "code": "1",
+          "meaning": "I Frame"
+        },
+        "poles": {
+          "code": "4P",
+          "meaning": {
+            "poles": 4
+          }
+        },
+        "release": {
+          "code": "A",
+          "meaning": "Micropro3-3.1"
+        },
+        "acb_type": {
+          "code": "MDO",
+          "meaning": "Manual Draw Out Type"
+        },
+        "breaking": {
+          "code": "S",
+          "meaning": {
+            "ka": 65,
+            "volts": 415,
+            "applies_to": "630A~1600A per brochure footnote #"
+          }
+        },
+        "rating_idx": {
+          "code": "08",
+          "meaning": 800
+        },
+        "std_accessories": {
+          "code": "(S)",
+          "meaning": "supplied with standard accessories"
+        }
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "spec_label": "ACB execution type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "spec_label": "Ultimate breaking capacity (Icu)",
+          "unit": "kA",
+          "value_num": 65.0,
+          "value_min": 65.0,
+          "value_max": 65.0,
+          "value_display": "65 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "spec_label": "Number of poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "spec_label": "Protection release type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "spec_label": "Rated current (In)",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "spec_label": "Rated operational voltage (Ue)",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "spec_label": "Thermal memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    }
+  ],
+  "total_matched": 157,
+  "composite_excluded": 0,
+  "filters_applied": [],
+  "widening_hint": null
+}
