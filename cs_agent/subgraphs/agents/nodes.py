@@ -310,7 +310,10 @@ def make_report_node(agent_name: str, tools: list[Any] | None = None):
         instruction = (
             "Produce the specialist report from the work above. Do not call a "
             "tool — the retrieval is finished. Every specification finding must "
-            "cite a SourceRef containing its sku_code."
+            "cite a SourceRef: the sku_code the value was retrieved against, or, "
+            "where the claim is about a whole range — which spec IDs it "
+            "publishes, its counts, its observed bounds — the family it "
+            "describes. Do not pin a member's code onto a range-level claim."
         )
         # The role prompt that explains depth is bound to the agent node, not to
         # this one, so restate the overview contract here. Without it the report

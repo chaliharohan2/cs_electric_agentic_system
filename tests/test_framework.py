@@ -20,6 +20,7 @@ from cs_agent.backends.fixtures import FixturesBackend
 from cs_agent.graph.nodes.gate import _violations
 from cs_agent.subgraphs.agents.nodes import _asked_for
 from cs_agent.subgraphs.agents.report_modes import (
+    BACKFILLED,
     backfill_report,
     derive_report,
     needs_model_fallback,
@@ -32,6 +33,7 @@ from cs_agent.config.limits import clear_limits_cache, get_limits
 from cs_agent.contracts import (
     AdvisoryReport,
     AgentBrief,
+    Candidate,
     ComparisonReport,
     ComparisonTable,
     ComplianceReport,
@@ -3710,3 +3712,104 @@ class SkuIdentityTests(unittest.TestCase):
                     self.assertNotIn("product_id", spec)
             sku = get_sku(sku_code=hits[0]["sku_code"], include=["facts"])
             self.assertNotIn("product_id", sku)
+
+
+class FamilyScopedSourceTests(unittest.TestCase):
+    """A claim about a range cites the range.
+
+    The gate used to demand a `sku_code` behind every `specification` finding at
+    detailed depth. Some specification claims have no SKU behind them — which
+    spec IDs a family publishes, how many of its members a filter matched, that
+    a spec is composite-valued across the family — so the rule was unsatisfiable
+    for them, and the run that exposed it bought its pass by pinning a
+    representative ordering code onto counts over 316 SKUs.
+    """
+
+    def base(self, agent: str) -> dict[str, Any]:
+        return {"agent": agent, "status": "complete", "summary": "s"}
+
+    def _gate(self, agent: str, report: Any) -> list[str]:
+        return _violations(agent, report.model_dump(), "detailed")
+
+    def test_a_family_sources_a_range_level_specification(self) -> None:
+        report = SpecSelectionReport(
+            **self.base("spec_selection"),
+            candidates=[Candidate(sku_code="WX06N4PMDOA(S)", why_it_fits="4-pole")],
+            findings=[
+                Finding(
+                    statement=(
+                        "The 'poles' spec is composite-valued in ACB – AH-AHA; "
+                        "3 composite SKUs were excluded from the numeric filter."
+                    ),
+                    kind="specification",
+                    source=SourceRef(family="ACB – AH-AHA"),
+                )
+            ],
+        )
+        self.assertEqual([], self._gate("spec_selection", report))
+
+    def test_a_specification_sourced_to_nothing_still_fails(self) -> None:
+        report = SpecSelectionReport(
+            **self.base("spec_selection"),
+            candidates=[Candidate(sku_code="WX06N4PMDOA(S)", why_it_fits="4-pole")],
+            findings=[
+                Finding(
+                    statement="80 of 316 SKUs match poles=4.",
+                    kind="specification",
+                    source=SourceRef(source_of_truth="code_grammar"),
+                )
+            ],
+        )
+        self.assertEqual(1, len(self._gate("spec_selection", report)))
+
+    def test_a_candidate_may_be_a_family(self) -> None:
+        report = SpecSelectionReport(
+            **self.base("spec_selection"),
+            candidates=[
+                Candidate(family="ACB – WiNmaster 3", why_it_fits="79 of 157 are 4-pole")
+            ],
+        )
+        self.assertEqual([], self._gate("spec_selection", report))
+
+    def test_a_candidate_naming_neither_fails(self) -> None:
+        report = SpecSelectionReport(
+            **self.base("spec_selection"),
+            candidates=[Candidate(why_it_fits="something matched")],
+        )
+        self.assertEqual(
+            ["Every candidate needs a sku_code or a family."],
+            self._gate("spec_selection", report),
+        )
+
+    def test_the_relaxation_reaches_every_agent(self) -> None:
+        """The rule is written once, outside the per-agent branches."""
+        report = ComplianceReport(
+            **self.base("compliance"),
+            not_established=["no IEC claim published"],
+            findings=[
+                Finding(
+                    statement="WiNtrip2 publishes breaking_capacity_ka over 408 SKUs.",
+                    kind="specification",
+                    source=SourceRef(family="WiNtrip2 MCB & Isolator"),
+                )
+            ],
+        )
+        self.assertEqual([], self._gate("compliance", report))
+
+    def test_a_family_candidate_survives_the_digest(self) -> None:
+        """The next stage cannot act on an entry whose only identifier was dropped."""
+        digest = digest_report(
+            SpecSelectionReport(
+                **self.base("spec_selection"),
+                candidates=[
+                    Candidate(family="ACB – WiNmaster 3", why_it_fits="79 are 4-pole")
+                ],
+            ).model_dump()
+        )
+        self.assertEqual("ACB – WiNmaster 3", digest["candidates"][0]["family"])
+
+    def test_family_is_asked_for_in_the_slim_schema(self) -> None:
+        """Backfilling hides four SourceRef fields. `family` is not one of them."""
+        self.assertNotIn("family", BACKFILLED)
+        asked = _asked_for(SpecSelectionReport)
+        self.assertIn("family", asked)

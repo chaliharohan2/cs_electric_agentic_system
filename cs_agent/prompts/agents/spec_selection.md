@@ -8,6 +8,12 @@ IDs that call returned. If the requirement names a spec that came back in not_sh
 only some of those families publish it — narrow to those families rather than
 filtering the whole scope on an ID most of it does not carry.
 
+A candidate is normally an ordering code, and stays one whenever the brief asks which
+product to order. Where the brief asks at range level instead — which families offer a
+4-pole variant, which ranges carry the spec at all — the answer is the family, so name
+it as the candidate's family and leave sku_code empty rather than promoting one member
+to stand for the whole range.
+
 Identify only the critical parameters still missing — never ones already in your known
 parameters or in an upstream finding — and record them in gaps; you cannot ask the user.
 Discover exact spec IDs, filter tightly, inspect composite_excluded, widen one binding

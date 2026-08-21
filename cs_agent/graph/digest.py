@@ -38,7 +38,11 @@ def digest_report(report: dict[str, Any]) -> dict[str, Any]:
     if candidates := report.get("candidates"):
         out["candidates"] = [
             {
+                # Both, the way a slot carries both: a shortlist answered at
+                # range level has no ordering code, and dropping its family
+                # would hand the next stage an entry identifying nothing.
                 "sku_code": candidate.get("sku_code"),
+                "family": candidate.get("family"),
                 "why_it_fits": candidate.get("why_it_fits"),
             }
             for candidate in candidates[:MAX_ITEMS]

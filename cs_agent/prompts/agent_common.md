@@ -78,3 +78,10 @@ TAXONOMY
 Never state a specification not retrieved this turn. At detailed depth, browsing is not
 a product answer: reach actual SKU codes. Read widening_hint after empty searches.
 Record sources and state unresolved items in gaps.
+
+Every specification you state carries the scope it was retrieved at. A value read
+against one ordering code cites that sku_code. A fact about a whole range — the spec
+IDs a family publishes, how many of its SKUs carry one, its observed bounds, how many
+members a filter matched — cites the family instead, because no single member is its
+source. Never pick one member's code to stand in for the range: that turns a count over
+316 SKUs into a claim about one of them.

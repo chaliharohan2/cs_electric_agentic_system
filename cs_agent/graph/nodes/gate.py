@@ -27,6 +27,13 @@ def _violations(agent: str, raw: dict[str, Any], depth: str = "detailed") -> lis
             failures.append(
                 "Return a candidate or a no_candidates_reason with filters_tried."
             )
+        for candidate in report.candidates:
+            # A shortlist entry has to be orderable or at least locatable. Which
+            # of the two depends on the brief, not on this check: "find me the
+            # 16A 2P 6kA code" wants the code, "which ranges offer 4-pole" wants
+            # the range, and only the entry that names neither is unusable.
+            if not (candidate.sku_code or candidate.family):
+                failures.append("Every candidate needs a sku_code or a family.")
     elif agent == "discovery":
         if not report.families:
             failures.append("Return at least one family.")
@@ -68,13 +75,25 @@ def _violations(agent: str, raw: dict[str, Any], depth: str = "detailed") -> lis
     # supply: what it quotes is a category-level span off the taxonomy page, not
     # a claim about one product. Enforcing the SKU rule here made the check
     # unsatisfiable by construction and cost a full re-run of the specialist.
+    #
+    # A family is the other honest answer to "sourced against what". Some
+    # specification claims are true of a range rather than a product — which
+    # spec IDs it publishes, over how many SKUs, between which observed bounds,
+    # how many of its members a filter matched — and no member code sources
+    # them. Demanding one made this check unsatisfiable for those too: on the
+    # 4-pole ACB run the only finding it failed was "the 'poles' spec is
+    # composite-valued in ACB – AH-AHA (3 composite SKUs excluded)", a statement
+    # about the family's registry with no SKU behind it, and the retry bought
+    # the pass by pinning a representative code onto range-level counts.
     if depth != "overview":
         for finding in report.findings:
             if finding.kind == "specification" and not (
-                finding.source and finding.source.sku_code
+                finding.source and (finding.source.sku_code or finding.source.family)
             ):
                 failures.append(
-                    "Every specification finding needs a SourceRef with sku_code."
+                    "Every specification finding needs a SourceRef naming the "
+                    "sku_code it was retrieved against, or the family when the "
+                    "claim is about the range rather than one product."
                 )
     # One sentence per distinct problem: the list is replayed to the specialist
     # as its revision note, and four copies of a rule read as four faults.
