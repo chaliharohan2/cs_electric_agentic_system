@@ -34,8 +34,23 @@ def brief_depth(brief: dict[str, Any]) -> str:
     return brief.get("depth") or DEFAULT_DEPTH.get(brief.get("agent", ""), "detailed")
 
 
+# Where a claim came from: one ordering code, or the range it describes. Not
+# every retrieved fact belongs to a single product — `list_canonical_specs`
+# answers at family level (which spec IDs a range publishes, over how many SKUs,
+# between which observed bounds) and a `product_search` grouped by family answers
+# "80 of 316 in scope match poles=4". Neither has a sku_code to give, so `family`
+# is how such a claim states its scope. Requiring the SKU regardless left the
+# model two ways out and it took both: attach some arbitrary member code to a
+# claim about the whole range, or drop the claim.
+#
+# Docstrings are deliberately not used on the report contracts: the whole schema
+# is dumped into the report prompt verbatim, so every line of prose here is paid
+# for on every specialist report call.
 class SourceRef(BaseModel):
     sku_code: str | None = None
+    family: str | None = Field(
+        None, description="Scope of a claim about a range rather than one product."
+    )
     brochure_md: str | None = None
     pricelist_pdf: str | None = None
     pricelist_page: int | None = None
@@ -129,8 +144,16 @@ class KeySpec(BaseModel):
     source: SourceRef | None = None
 
 
+# A shortlist entry, addressed by ordering code or — failing that — range. The
+# ordering code stays the deliverable whenever the brief asks for one, but a
+# brief can legitimately stop at range level ("which families offer a 4-pole
+# variant") and then there is no one code to name. The gate holds the floor: an
+# entry naming neither is not an answer.
 class Candidate(BaseModel):
-    sku_code: str
+    sku_code: str | None = None
+    family: str | None = Field(
+        None, description="Set instead of sku_code when the shortlist is range-level."
+    )
     why_it_fits: str
     key_specs: list[KeySpec] = Field(default_factory=list)
     price_status: str | None = None

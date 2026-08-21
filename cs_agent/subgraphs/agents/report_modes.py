@@ -461,8 +461,10 @@ def _findings(
         findings.append(
             {
                 "statement": _statement(row),
-                # The gate requires a sku_code behind every specification claim.
-                # Anything without one is a catalogue fact by construction here,
+                # The gate wants a scope behind every specification claim — a
+                # sku_code, or a family when the claim is about the range. An
+                # evidence row carries neither unless it names a SKU, so
+                # anything without one is a catalogue fact by construction here,
                 # which is both true and the only classification code can defend.
                 "kind": "specification" if specification and source else "catalogue",
                 "source": source,
@@ -702,7 +704,9 @@ def derive_report(
             # optional — a brief that reached the report node having called no
             # search at all still has to account for itself.
             report["filters_tried"] = applied or ["no product search was run"]
-        shown = [entry["sku_code"] for entry in report["candidates"]]
+        shown = [
+            entry["sku_code"] for entry in report["candidates"] if entry.get("sku_code")
+        ]
         report["summary"] = (
             f"{len(candidates)} ordering codes came back"
             + (f" from searches filtered on {', '.join(matched)}" if matched else "")

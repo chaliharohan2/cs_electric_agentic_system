@@ -412,7 +412,7 @@ prepare → agent ⇄ tools → record → agent → … → report → END
 | **agent** | LLM bound only to that role’s tools. System prompt = shared `agent_common.md` + role body under `prompts/agents/`. Remembers remaining allowance and failure count. Streams to screen under the agent's name (§10.1). |
 | **tools** | A wrapper around LangGraph's `ToolNode` (`subgraphs/agents/tool_node.py`) executes the requested tools. Errors become tool results (with hints), not graph crashes. A call whose name and arguments exactly match one already answered in this transcript is short-circuited with a pointer to it rather than re-executed — see "Repeat calls" below. |
 | **record** | Trailing tool messages are turned into evidence rows (facts, names, document snippets, analytics statements) and tagged with the agent name. Call/failure counters update. |
-| **report** | Structured Pydantic report for that role (`DiscoveryReport`, `SpecSelectionReport`, …). Spec findings must carry a `SourceRef` with `sku_code`. Runs as a continuation of the agent's own conversation, not a fresh call — see "Why the report reuses the thread" below. Streams too: it is the largest generation in a turn. |
+| **report** | Structured Pydantic report for that role (`DiscoveryReport`, `SpecSelectionReport`, …). Spec findings must carry a `SourceRef` naming a `sku_code`, or a `family` where the claim is about the range. Runs as a continuation of the agent's own conversation, not a fresh call — see "Why the report reuses the thread" below. Streams too: it is the largest generation in a turn. |
 
 Routing stops tool use when:
 
@@ -508,11 +508,11 @@ spend the retry budget on work never dispatched.
 |---|---|
 | discovery (`detailed`) | ≥1 family, and ≥1 representative SKU **or** an explicit gap explaining why none |
 | discovery (`overview`) | ≥1 family, and ≥1 `follow_up_question`. Ordering codes are not the deliverable at this depth |
-| spec_selection | ≥1 candidate **or** (`no_candidates_reason` + non-empty `filters_tried`) |
+| spec_selection | ≥1 candidate **or** (`no_candidates_reason` + non-empty `filters_tried`); every candidate names a `sku_code` or a `family` |
 | comparison | non-empty axes and ≥2 SKU rows, or `status=no_result` with a reason |
 | compliance | ≥1 standards claim **or** non-empty `not_established` |
 | solution_advisory | ≥1 catalog_backed or engineering_guidance claim; every recommended slot resolved to a family/SKU or explicitly “no C&S product” |
-| all agents except an `overview` brief | any `Finding` of kind `specification` must cite a `SourceRef.sku_code` |
+| all agents except an `overview` brief | any `Finding` of kind `specification` must cite a `SourceRef.sku_code`, or a `SourceRef.family` where the claim is about a range rather than one product |
 
 The `overview` carve-out is not a loosened standard, it is the right subject.
 "Up to 6300 A in 3 or 4 pole" is published on the *Air Circuit Breakers category
@@ -522,6 +522,17 @@ construction — the depth forbids reaching a SKU, and the rule demands one — 
 every overview that quoted a rating failed and re-ran. Category-level facts
 belong to `kind: catalogue`; `specification` means a value read against one
 `sku_code`.
+
+At detailed depth the same problem arrives from the other direction. A
+specification claim can be true of a *family* — which spec IDs it publishes, how
+many of its SKUs carry one, its observed bounds, how many members a filter
+matched — and no member code sources it. Demanding a `sku_code` there was
+unsatisfiable too, and the escape the model actually took was worse than a
+failure: on one 4-pole ACB run the retry passed the gate by attaching a
+representative ordering code to "80 of 316 SKUs in scope match poles=4", which
+reads as a claim about that one product. `SourceRef.family` is how such a claim
+states its real scope, and the gate accepts either. The ordering code remains
+the deliverable whenever the brief asks for a product.
 
 On failure, the gate may **re-Send only the failing agents once**, appending the
 violations as a `revision_note` on their briefs. A retry **resumes on the
