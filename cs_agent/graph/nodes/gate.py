@@ -95,6 +95,29 @@ def _violations(agent: str, raw: dict[str, Any], depth: str = "detailed") -> lis
                     "sku_code it was retrieved against, or the family when the "
                     "claim is about the range rather than one product."
                 )
+    # An unexpanded citation means the formatter did not run, or ran against a
+    # fact index that never held the spec. Either way what reached here is a
+    # claim with no value in it, which reads to the composer as a specification
+    # the catalogue does not publish. The model cannot fix this by rewriting —
+    # the values were never its to supply — so it is stated as the fault it is.
+    unexpanded = [
+        f"{candidate.sku_code or candidate.family}/{spec.spec_id}"
+        for candidate in getattr(report, "candidates", [])
+        for spec in candidate.key_specs
+        if spec.value_display is None
+    ]
+    unexpanded += [
+        f"{claim.sku_code}/{claim.spec_id}"
+        for claim in getattr(report, "standards", [])
+        if not claim.value_display
+    ]
+    if any(not finding.statement for finding in report.findings):
+        unexpanded.append("a finding carrying a citation but no statement")
+    if unexpanded:
+        failures.append(
+            "Citations reached the report without being expanded into values: "
+            + ", ".join(sorted(set(unexpanded))[:6])
+        )
     # One sentence per distinct problem: the list is replayed to the specialist
     # as its revision note, and four copies of a rule read as four faults.
     return list(dict.fromkeys(failures))

@@ -134,13 +134,16 @@ def compact_fact(row: dict[str, Any], *, drop: tuple[str, ...] = ()) -> dict[str
     which takes three distinct values here, one of which — `pricelist_table` —
     is what a price citation is built from.
 
-    `spec_label` used to be defended here too, on the grounds that it differs
-    from `spec_id` irrecoverably on 41% of the catalogue's 1,112 label pairs
-    (`1_no_1_nc` is published as `1 NO + 1 NC`). That is still true, and it is
-    still why `list_canonical_specs` publishes labels. It stopped being an
-    argument for repeating one on every attached spec row: a `return_specs`
-    block asks for specifications the caller has already named by id, and on one
-    measured call the seven ids it named carried seven labels across 274 rows.
+    `spec_label` stays, and briefly did not. The argument for dropping it was
+    that a `return_specs` block asks for specifications the caller already named
+    by id, so on one measured call the seven ids it named carried seven labels
+    across 274 rows — a definition restated 274 times. That measurement holds;
+    the conclusion did not survive reading the catalogue. A label is
+    irrecoverable from its id on 1,005 of 1,650 distinct pairs — 61% — and the
+    ones that go wrong are the ones that carry meaning: `10_12` is published as
+    "10, 12" and `10_16` as "10-16", so the id cannot say whether it names two
+    values or a span. `1no_1nc_for_125_250_a` is "1NO + 1NC for 125~250 A".
+    Repetition is the cheaper mistake.
     """
     return {
         key: value

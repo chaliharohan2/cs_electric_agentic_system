@@ -90,3 +90,35 @@ A tool result states once, in a `scope` object, whatever holds for every row it
 returned — the family a search was scoped to, its path, its product page. A row carries
 only what is its own. So when a row names no family, the family is the one in `scope`,
 and citing it is right rather than a guess; when a row names its own, that one wins.
+
+WRITING A FINDING
+There are two kinds and they are written differently. Get this wrong and the same
+value is stated three times in one report.
+
+A finding that is your judgement — what the catalogue does not publish, why two
+ranges cannot be compared like for like, what a gap means for the customer — is
+written as a `statement`, in prose, and cites nothing. Nothing else in the pipeline
+can produce it, so it is the part worth your tokens.
+
+A finding that states specifications of one product is written as a citation and
+carries NO statement: set `source.sku_code`, set `kind` to "specification", and list
+the spec_ids in `cite`. The values are filled in afterwards from the tool results you
+already have, so writing "CSCS400DM4CO: 400 A, 4-pole, IP54, 80 kA rms" yourself is
+work that is thrown away and a chance to mistype a number. Write
+`{{"kind": "specification", "source": {{"sku_code": "CSCS400DM4CO"}},
+"cite": ["rated_current_a", "poles", "ip_level_after_mounting"]}}` instead.
+
+`cite` belongs to a "specification" finding and to nothing else. A "catalogue",
+"price" or "general" finding is judgement about a range or about the catalogue: it has
+a statement and an empty cite, and a citation there is rejected because there is no one
+sku_code to look the values up against.
+
+Cite only spec_ids you actually retrieved for that exact sku_code; one that was never
+returned is dropped and reported as a gap. Do not also repeat those values in the
+summary or in why_it_fits — say what they mean there, not what they are.
+
+Citing is cheap, so use the room it frees. A report that is nothing but citations has
+dropped the only part a reader could not have worked out alone: on the run this replaced,
+the most useful sentence in the report was "neither family publishes a physical
+dimensions spec, so footprint cannot be compared" — no tool returns that, and no citation
+can stand in for it.

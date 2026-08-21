@@ -108,9 +108,11 @@ PRODUCT_SEARCH = (
     "then caps the hit list globally; with group_by, limit is the sample per "
     "group. "
     + NAME_MATCHING + " Spec IDs also match their labels, so 'breaking capacity' "
-    "finds breaking_capacity_ka. Attached specifications are keyed by spec_id and "
-    "carry no label: you named the ids, and list_canonical_specs is where their "
-    "published labels live. Range specs use their min/max bounds. Missing "
+    "finds breaking_capacity_ka. Attached specifications carry both the spec_id "
+    "and the catalogue's published spec_label, and the label is the one to quote "
+    "to a customer: an id cannot always be read back into it, so 10_12 is "
+    "published as \u201c10, 12\u201d where 10_16 is \u201c10-16\u201d. Range specs use their "
+    "min/max bounds. Missing "
     "specifications mean not published, never zero. composite_excluded values are "
     "unknown, not ruled out. Read widening_hint before concluding no product exists. "
     "price_status must be a list such as [\"listed\"], not a bare string. "
@@ -124,10 +126,10 @@ PRODUCT_SEARCH = (
 GET_SKU = (
     "Everything known about one SKU: facts with units and value ranges, decoded "
     "ordering code, source references, extraction missing/confidence, and optionally "
-    "chunks, price and peers. A fact is identified by its spec_id and carries no "
-    "label and no restating sentence — the value_display, unit and source_of_truth "
-    "beside it are the whole fact. Resolve user-entered codes with resolve_product "
-    "first."
+    "chunks, price and peers. A fact carries its spec_id and the catalogue's "
+    "published spec_label, and no restating sentence — the label, value_display, "
+    "unit and source_of_truth beside it are the whole fact. Quote the label rather "
+    "than the id. Resolve user-entered codes with resolve_product first."
 )
 
 COMPARE_SKUS = (

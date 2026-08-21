@@ -391,7 +391,7 @@ class FixturesBackend:
                 else {}
             ),
             "specs": [
-                compact_fact(fact, drop=(*NESTED_REDUNDANT, "spec_label"))
+                compact_fact(fact, drop=NESTED_REDUNDANT)
                 for fact in sku["facts"]
                 if not requested or fact["spec_id"] in requested
             ],
@@ -500,13 +500,15 @@ class FixturesBackend:
             )
         }
         if "facts" in include:
-            # The same three keys the SQLite backend stopped selecting, dropped
+            # The same two keys the SQLite backend stopped selecting, dropped
             # here so a fixture test sees the shape the live backend returns.
+            # `spec_label` is not among them: it went and came back, because
+            # 61% of the catalogue's labels cannot be read off the spec_id.
             result["facts"] = [
                 {
                     key: value
                     for key, value in fact.items()
-                    if key not in ("spec_label", "fact_sentence", "is_canonical_spec")
+                    if key not in ("fact_sentence", "is_canonical_spec")
                 }
                 for fact in sku["facts"]
             ]

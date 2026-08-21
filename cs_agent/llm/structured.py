@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from collections.abc import Iterable, Mapping
 from typing import TypeVar
@@ -35,7 +36,10 @@ def strip_fences(text: str) -> str:
 
 
 def _prune(
-    document: dict, hide: Mapping[str, Iterable[str]], limits: Mapping[str, int]
+    document: dict,
+    hide: Mapping[str, Iterable[str]],
+    limits: Mapping[str, int],
+    scalars: Mapping[str, str] | None = None,
 ) -> dict:
     """Drop fields from a JSON Schema and cap list lengths, in place.
 
@@ -44,6 +48,15 @@ def _prune(
     removing: the pydantic model still accepts the field, so anything already
     holding a value keeps validating and code is free to fill it in afterwards.
     Only the *asking* changes.
+
+    ``scalars`` goes further, replacing a whole definition with a plain string:
+    ``{"KeySpec": "spec_id"}`` asks for ``["rated_current_a", "poles"]`` where
+    the model would otherwise write an object apiece. Every ``$ref`` to that
+    definition resolves to the string, so nothing else in the document has to
+    change, and the pydantic model accepts the short form through a `before`
+    validator. Worth the extra machinery only where the object is repeated:
+    hiding three of four fields still leaves the model writing
+    ``{"spec_id": "poles"}`` — 30 characters against 7 — once per row.
     """
     sections = {"": document, **(document.get("$defs") or {})}
     for name, fields in hide.items():
@@ -58,6 +71,35 @@ def _prune(
     for field, cap in limits.items():
         if entry := (document.get("properties") or {}).get(field):
             entry["maxItems"] = cap
+    for name, field in (scalars or {}).items():
+        section = (document.get("$defs") or {}).get(name)
+        if not section:
+            continue
+        described = ((section.get("properties") or {}).get(field) or {}).get(
+            "description"
+        )
+        section.clear()
+        section["type"] = "string"
+        section["description"] = described or f"The {field}, as a bare string."
+    return document
+
+
+def asked_schema(
+    schema: type[BaseModel],
+    *,
+    hide: Mapping[str, Iterable[str]] | None = None,
+    limits: Mapping[str, int] | None = None,
+    scalars: Mapping[str, str] | None = None,
+) -> dict:
+    """The JSON Schema document the model is actually shown.
+
+    Split out from `schema_instruction` because the same document is what
+    `structured` hands Ollama as `format`, so the grammar the decode is
+    constrained to and the schema the prompt describes cannot drift apart.
+    """
+    document = schema.model_json_schema()
+    if hide or limits or scalars:
+        document = _prune(document, hide or {}, limits or {}, scalars)
     return document
 
 
@@ -66,6 +108,7 @@ def schema_instruction(
     *,
     hide: Mapping[str, Iterable[str]] | None = None,
     limits: Mapping[str, int] | None = None,
+    scalars: Mapping[str, str] | None = None,
 ) -> str:
     """The wording that asks for a schema-shaped JSON object.
 
@@ -84,10 +127,9 @@ def schema_instruction(
     pydantic constraint because a length violation there would fail validation
     and spend a whole extra generation on the retry.
     """
-    document = schema.model_json_schema()
-    if hide or limits:
-        document = _prune(document, hide or {}, limits or {})
-    schema_json = json.dumps(document, indent=2)
+    schema_json = json.dumps(
+        asked_schema(schema, hide=hide, limits=limits, scalars=scalars), indent=2
+    )
     return (
         "Respond with ONLY a JSON object matching this JSON Schema. "
         "No markdown fences, no commentary.\n\n"
@@ -130,6 +172,48 @@ def _called(reply: BaseMessage) -> list[str]:
     ]
 
 
+def constrain_json() -> bool:
+    """Whether to hand the server the schema as a decoding constraint.
+
+    **Off by default, because it was measured making the report worse.** The
+    idea was sound and the result was not: a grammar cannot make the model write
+    less — it still emits every brace and key, and Ollama's sampler has no
+    jump-ahead — so the only thing it could buy was the retry a malformed object
+    costs. What it actually bought, on the same 66k-character transcript and the
+    same schema, against qwen3.8:27b:
+
+        format on    5,483 chars   102.5s   0 of 5 candidates named a sku_code
+        format off   7,299 chars    78.0s   5 of 5 named a sku_code and a family
+
+    Every optional field went missing under the constraint. `sku_code` and
+    `family` are `anyOf: [string, null]` and absent from `required`, so omitting
+    them is legal, and constrained sampling took that path on every candidate in
+    the shortlist — a report the gate rejects outright. It also misapplied
+    `cite` to a judgement finding the unconstrained run wrote as prose. And it
+    was slower per token, not faster: roughly 13 tok/s against 23.
+
+    It does coexist with bound tools, which was the open question — Ollama
+    accepted both together and parsed first time. That part works. Everything
+    else about it was a loss, so `CS_STRUCTURED_FORMAT=1` turns it back on for
+    anyone who wants to retest against a different model or server.
+    """
+    return (os.getenv("CS_STRUCTURED_FORMAT") or "0").strip().lower() in {
+        "1", "true", "yes", "on",
+    }
+
+
+def _takes_format(model: object) -> bool:
+    """Whether this provider understands `format` as a decoding constraint.
+
+    It is Ollama's, and the same node runs against a hosted endpoint in other
+    configurations — `nodes.agent` resolves to an Anthropic model as shipped.
+    Binding it there would put an unknown key in the request body and fail the
+    call, so the constraint is applied where it means something and skipped
+    where it does not.
+    """
+    return type(model).__name__.endswith("ChatOllama")
+
+
 def structured(
     node: str,
     messages: list[BaseMessage],
@@ -137,6 +221,7 @@ def structured(
     attempts: int = 2,
     tools: list[object] | None = None,
     label: str | None = None,
+    format_schema: dict | None = None,
 ) -> T:
     """Ask for a schema-shaped JSON object, validating and retrying.
 
@@ -152,6 +237,10 @@ def structured(
     ``label`` streams the JSON to screen as it is generated, under that name.
     The specialist report is the largest single generation in a turn, and it is
     otherwise invisible until it is finished.
+
+    ``format_schema`` is the document to constrain the decode with. Pass the one
+    the *prompt* was built from — a caller that hides fields must hide them in
+    both or the grammar will demand what the instruction never mentioned.
     """
     bare = get_model(node)
     model = bare
@@ -163,6 +252,8 @@ def structured(
         tool_names = {
             name for tool in tools if (name := getattr(tool, "name", None))
         }
+    if format_schema and constrain_json() and _takes_format(bare):
+        model = model.bind(format=format_schema)
     msgs: list[BaseMessage] = list(messages)
     has_schema_hint = any(
         isinstance(m, (SystemMessage, HumanMessage))

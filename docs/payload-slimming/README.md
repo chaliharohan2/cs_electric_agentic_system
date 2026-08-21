@@ -65,7 +65,7 @@ has not been repeated — its input goes from **235,289 to ~156,600 chars**,
 
 | field | change | why |
 |---|---|---|
-| `hits[].spec_label` | **cut** | On one measured call there were **7 distinct `(spec_id, spec_label)` pairs across 274 spec rows** — the seven ids the caller asked for by name. 11.2% of the payload restating seven definitions. `list_canonical_specs` publishes the labels; both tools also match a spec by its label. |
+| `hits[].spec_label` | **cut, then restored** — see *Reversed* below | On one measured call there were **7 distinct `(spec_id, spec_label)` pairs across 274 spec rows** — the seven ids the caller asked for by name. 11.2% of the payload restating seven definitions. `list_canonical_specs` publishes the labels; both tools also match a spec by its label. |
 | `hits[].canonical_code` | **cut** | Identical to `sku_code` on **11,217 of 11,250** ordering codes (99.7%) and on 40/40 hits here. A search answers with the code you order by; `resolve_product` is where an alternate spelling gets sorted out. |
 | `hits[].decoded` | **reshaped** | `{"acb_type": {"code": "MDO", "meaning": "Manual Draw Out Type"}}` → `{"acb_type": "Manual Draw Out Type"}`. The `code` half is a literal substring of the `sku_code` printed on the same row. A nested meaning carrying several facts survives whole (`breaking` → `{"ka": 80, "volts": 415}`); a single-key meaning restating its own axis is unwrapped (`poles` → `3`); an axis whose meaning is `"unknown"` is left out; a hit with nothing decoded carries no `decoded` key. **19.0% → ~8%.** |
 | `hits[].url` | **hoisted to `scope`** | **One distinct value across all 40 hits.** The catalogue publishes 42 URLs for 11,250 SKUs. It *is* used — both URLs in the compare capture reached the answer — so it is stated once, not dropped. |
@@ -83,7 +83,7 @@ means "not published", which is what the tool descriptions tell the model.
 | field | change | why |
 |---|---|---|
 | `facts[].fact_sentence` | **cut** | The single largest line item in the audit at **31.0%** of the payload. A template: *"E-CSCS400DM4CO (New Changeover Switches, 400 A, 4-pole) has a ambient / cubicle service temperature of 40 °C."* Across 200,000 catalogue rows **87.9%** contain both `spec_label` and `value_display` verbatim, and the remaining 12% are template variants carrying nothing the neighbouring columns do not. Mean length 113 chars. **Not one of the 141 sentences in the changeover capture reached the report or the answer.** |
-| `facts[].spec_label` | **cut** | 8.3%. |
+| `facts[].spec_label` | **cut, then restored** — see *Reversed* below | 8.3%. |
 | `facts[].is_canonical_spec` | **cut** | See below. |
 | everything else | unchanged | including `url`, `canonical_code`, `decoded` (**not** flattened here — a single-SKU call has one decode, not forty), `value_min`/`value_max`, `value_kind`, `source_pdf`, `source_page`, `source_heading`, `path`, `headings`, `attributes`, `comparable_on`, `related_codes`, `also_published_as`, `alias_reason`, `extraction`, `fact_count`. |
 
@@ -139,6 +139,36 @@ Deferred (tier 3, not done): `product_search` with `group_by` still embeds up to
 rather than behind an `include` flag; `limit` is still whatever the model asks
 for, up to 100.
 
+## Reversed: `spec_label` came back
+
+Cut from `product_search`'s attached specs and from `get_sku`'s facts on the
+measurement above, and put back after review. The measurement was right and the
+inference drawn from it was wrong.
+
+What it missed is that a `spec_id` is not a readable form of its label. Across
+the built catalogue, **1,005 of 1,650 distinct `(spec_id, spec_label)` pairs —
+61% — cannot be recovered from the id**, and the failures are the ones that
+change the meaning rather than the spelling:
+
+| spec_id | published as |
+|---|---|
+| `10_12` | 10, 12 |
+| `10_16` | 10-16 |
+| `1no_1nc_for_125_250_a` | 1NO + 1NC for 125~250 A |
+| `100_130_v` | 100-130 V |
+
+Nothing in `10_12` says whether it names two values or a span, and the answer is
+different for the id one line below it. That is not a formatting nicety, it is
+the fact.
+
+It is not cheap. Restoring it costs **+15.4% on `get_sku`** and **+16.5% on the
+40-hit `product_search`**, taking the nine-call total from 108,944 back to
+121,131 — **−28.7% against the 169,922 baseline rather than −35.9%.** Every
+other cut in this document stands.
+
+`list_canonical_specs` was never affected: it kept `spec_label` throughout, in
+`spec_envelope.SHARED_FIELDS`.
+
 ## Code
 
 New: **`cs_agent/backends/payload_shape.py`** — `flatten_decoded`, `hoist_scope`,
@@ -151,7 +181,7 @@ Changed:
 |---|---|
 | `backends/sqlite.py` | the cuts, the flattening, the two hoist calls |
 | `backends/fixtures.py` | the same, mirrored |
-| `backends/spec_envelope.py` | `group_specs` stops emitting `is_canonical_spec`; `compact_fact` docstring records why `spec_label` left `product_search` but not `list_canonical_specs` |
+| `backends/spec_envelope.py` | `group_specs` stops emitting `is_canonical_spec`; `compact_fact` docstring records why `spec_label` left `product_search` and why it came back |
 | `subgraphs/agents/report_modes.py` | `_search_hits` merges `scope` back under each row, so a derived report still finds family, path and URL after the hoist; the source-ref builder reads a hoisted `url` |
 | `graph/nodes/record_evidence.py` | comment only — see below |
 | `tools/descriptions.py` | `product_search` describes `scope` and says attached specs are keyed by `spec_id`; `search_documents` explains `distance` in place of `mode`; `get_sku`, `get_peer_group`, `resolve_product` updated |

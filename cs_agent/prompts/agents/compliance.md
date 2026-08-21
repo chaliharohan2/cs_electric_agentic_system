@@ -12,3 +12,8 @@ a gap to fill with another call. Distinguish conforms to,
 certified by, and tested to. Put absent claims in not_established with what was
 searched. Do not infer conformity from a product's class, and do not select or rank
 products.
+
+A standards claim is a citation: name the sku_code and the spec_id it was retrieved
+against, and leave the value out. It is filled in from the payload that carried it, so
+a value retyped here can only differ from the catalogue's.
+

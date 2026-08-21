@@ -58,10 +58,40 @@ class SourceRef(BaseModel):
     source_of_truth: str | None = None
 
 
+# A finding is written one of two ways, and which one depends on what it is.
+# A judgement — "neither family publishes a physical dimensions spec, so
+# footprint cannot be compared" — exists nowhere but here and is written as
+# prose. A specification claim is a value list, and every value in it came out
+# of a tool payload the pipeline still holds: the model names the SKU and the
+# spec_ids, and `cite_facts` builds the sentence. On a captured report six of
+# eight findings were the second kind, restating values the same report had
+# already stated twice.
 class Finding(BaseModel):
-    statement: str
+    statement: str = ""
     kind: Literal["specification", "catalogue", "price", "general"] = "catalogue"
     source: SourceRef | None = None
+    cite: list[str] = Field(
+        default_factory=list,
+        description="spec_ids to state for source.sku_code, instead of a statement.",
+    )
+
+    @model_validator(mode="after")
+    def _says_something(self) -> "Finding":
+        # A citation is only meaningful for a specification claim: it names
+        # spec_ids to look up against a sku_code. A catalogue or general finding
+        # is judgement, and there is nothing to look it up in — measured, a
+        # model handed both shapes applied `cite` to a catalogue finding too,
+        # and the whole of what it meant to say was lost when the lookup came
+        # back empty. So each kind is held to its own shape.
+        if self.cite and self.kind != "specification":
+            raise ValueError(
+                f"a {self.kind!r} finding is judgement: write a statement, not a cite"
+            )
+        if self.cite and not (self.source and self.source.sku_code):
+            raise ValueError("a cite needs source.sku_code to look the specs up against")
+        if not self.statement and not self.cite:
+            raise ValueError("a finding needs a statement or a cite")
+        return self
 
 
 class AgentBrief(BaseModel):
@@ -137,11 +167,23 @@ class Plan(BaseModel):
         return self
 
 
+# Written as a bare spec_id and read back as a fact. `value_display` and `unit`
+# are filled from the payload the specialist already received — measured across
+# 469 of them, every leaf value was verbatim in one — and `source_of_truth`
+# comes with them because it varies per spec where the rest of a SourceRef does
+# not: a price fact is `pricelist_table` where the spec beside it is `brochure`.
+# The document reference itself belongs to the SKU, so it sits on the Candidate.
 class KeySpec(BaseModel):
     spec_id: str
     value_display: str | None = None
     unit: str | None = None
-    source: SourceRef | None = None
+    source_of_truth: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _from_bare_id(cls, value: Any) -> Any:
+        """Accept "rated_current_a" as shorthand for the whole row."""
+        return {"spec_id": value} if isinstance(value, str) else value
 
 
 # A shortlist entry, addressed by ordering code or — failing that — range. The
@@ -157,6 +199,12 @@ class Candidate(BaseModel):
     why_it_fits: str
     key_specs: list[KeySpec] = Field(default_factory=list)
     price_status: str | None = None
+    # One reference for the whole entry rather than one per specification. The
+    # entry already names the SKU, and on 466 of 469 measured key_specs the
+    # reference under it repeated exactly that; the document fields are per-SKU
+    # by construction, so a shortlist of five SKUs was carrying 33 copies of two
+    # URLs.
+    source: SourceRef | None = None
 
 
 class FamilyBrief(BaseModel):

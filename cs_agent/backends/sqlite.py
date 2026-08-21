@@ -1014,12 +1014,17 @@ class SqliteBackend:
     ) -> None:
         """Hang the requested specifications on each hit, keyed by spec_id.
 
-        `spec_label` is not selected. Over 274 attached rows on one measured
-        call there were seven distinct labels — the seven the caller asked for
-        by id — so the label was a definition restated 274 times, 11.2% of the
-        payload. The caller named the spec_ids, `list_canonical_specs` is where
-        their labels are published, and both tools match a spec by its label
-        anyway.
+        `spec_label` is selected. It was dropped here once, on the grounds that
+        274 attached rows on a measured call carried only the seven labels the
+        caller had already named by id. The measurement was right and the
+        conclusion was wrong: a spec_id is not always a readable form of its
+        label. Across the built catalogue 1,005 of 1,650 distinct
+        (spec_id, spec_label) pairs — 61% — cannot be recovered from the id,
+        and the failures are the ones that change meaning: `10_12` is published
+        as "10, 12" and `10_16` as "10-16", so the id alone cannot say whether
+        two values or a span is meant, and `1no_1nc_for_125_250_a` is
+        "1NO + 1NC for 125~250 A". Restating a definition per row is the price
+        of not guessing at it.
         """
         if not hits or not return_specs:
             return
@@ -1028,7 +1033,7 @@ class SqliteBackend:
         spec_ph = ",".join("?" for _ in return_specs)
         facts = connection.execute(
             f"""
-            SELECT sku_code, spec_id, unit, value_num,
+            SELECT sku_code, spec_id, spec_label, unit, value_num,
                    value_min, value_max, value_display, value_kind,
                    source_of_truth, fact_source_pdf AS source_pdf,
                    fact_source_page AS source_page
@@ -1339,18 +1344,22 @@ class SqliteBackend:
         if "decoded" in include:
             result["decoded"] = _loads(row["decoded"], {})
         if "facts" in include:
-            # `fact_sentence`, `spec_label` and `is_canonical_spec` are not
-            # selected. The sentence is a template — "E-CSCS400DM4CO (New
-            # Changeover Switches, 400 A, 4-pole) has a ambient / cubicle
-            # service temperature of 40 °C." — and across 200,000 catalogue
-            # rows 87.9% of them contain both the label and the value display
-            # verbatim, while the rest are template variants carrying nothing
-            # the neighbouring columns do not. It was 31.0% of this payload,
-            # and not one of the 141 sentences in a captured run reached the
-            # report or the answer. `is_canonical_spec` is read nowhere.
+            # `fact_sentence` and `is_canonical_spec` are not selected. The
+            # sentence is a template — "E-CSCS400DM4CO (New Changeover
+            # Switches, 400 A, 4-pole) has a ambient / cubicle service
+            # temperature of 40 °C." — and across 200,000 catalogue rows 87.9%
+            # of them contain both the label and the value display verbatim,
+            # while the rest are template variants carrying nothing the
+            # neighbouring columns do not. It was 31.0% of this payload, and
+            # not one of the 141 sentences in a captured run reached the report
+            # or the answer. `is_canonical_spec` is read nowhere.
+            #
+            # `spec_label` is selected: 61% of the catalogue's distinct
+            # (spec_id, spec_label) pairs cannot be recovered from the id, and
+            # dropping it left the model reading `10_12` for "10, 12".
             facts = connection.execute(
                 """
-                SELECT spec_id, unit, value_num,
+                SELECT spec_id, spec_label, unit, value_num,
                        value_min, value_max, value_display, value_kind,
                        source_of_truth, fact_source_pdf AS source_pdf,
                        fact_source_page AS source_page,
