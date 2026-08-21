@@ -1,0 +1,387 @@
+{
+  "scope": {
+    "path": null,
+    "family": [
+      "ACB – WiNmaster 3",
+      "ACB – WiNmaster 2"
+    ],
+    "group_by": "family",
+    "groups": [
+      "ACB – WiNmaster 2",
+      "ACB – WiNmaster 3"
+    ]
+  },
+  "specs": [
+    {
+      "spec_id": "acb_execution_type",
+      "by_group": {
+        "ACB – WiNmaster 3": {
+          "sku_count": 156,
+          "composite_count": 0
+        },
+        "ACB – WiNmaster 2": {
+          "sku_count": 56,
+          "composite_count": 0
+        }
+      },
+      "spec_label": "ACB execution type",
+      "value_kind": "text"
+    },
+    {
+      "spec_id": "gst_rate_pct",
+      "by_group": {
+        "ACB – WiNmaster 3": {
+          "sku_count": 61,
+          "composite_count": 0
+        },
+        "ACB – WiNmaster 2": {
+          "sku_count": 77,
+          "composite_count": 0
+        }
+      },
+      "spec_label": "GST",
+      "value_kind": "text",
+      "is_canonical_spec": true
+    },
+    {
+      "spec_id": "price_inr",
+      "by_group": {
+        "ACB – WiNmaster 3": {
+          "sku_count": 157,
+          "composite_count": 0,
+          "observed_min": 10730.0,
+          "observed_max": 10730.0
+        },
+        "ACB – WiNmaster 2": {
+          "sku_count": 101,
+          "composite_count": 0,
+          "observed_min": 1600.0,
+          "observed_max": 875990.0
+        }
+      },
+      "spec_label": "MRP",
+      "unit": "INR",
+      "value_kind": "scalar",
+      "is_canonical_spec": true
+    },
+    {
+      "spec_id": "market_segments",
+      "by_group": {
+        "ACB – WiNmaster 3": {
+          "sku_count": 157,
+          "composite_count": 0
+        },
+        "ACB – WiNmaster 2": {
+          "sku_count": 101,
+          "composite_count": 0
+        }
+      },
+      "spec_label": "Market segments",
+      "value_kind": "set",
+      "is_canonical_spec": true
+    },
+    {
+      "spec_id": "poles",
+      "by_group": {
+        "ACB – WiNmaster 3": {
+          "sku_count": 157,
+          "composite_count": 0,
+          "observed_min": 3.0,
+          "observed_max": 4.0
+        },
+        "ACB – WiNmaster 2": {
+          "sku_count": 56,
+          "composite_count": 0,
+          "observed_min": 3.0,
+          "observed_max": 4.0
+        }
+      },
+      "spec_label": "Number of poles",
+      "unit": "count",
+      "value_kind": "scalar",
+      "is_canonical_spec": true
+    },
+    {
+      "spec_id": "protection_release_type",
+      "by_group": {
+        "ACB – WiNmaster 3": {
+          "sku_count": 156,
+          "composite_count": 0
+        },
+        "ACB – WiNmaster 2": {
+          "sku_count": 56,
+          "composite_count": 0
+        }
+      },
+      "spec_label": "Protection release type",
+      "value_kind": "text"
+    },
+    {
+      "spec_id": "rated_current_a",
+      "by_group": {
+        "ACB – WiNmaster 3": {
+          "sku_count": 156,
+          "composite_count": 0,
+          "observed_min": 630.0,
+          "observed_max": 4000.0
+        },
+        "ACB – WiNmaster 2": {
+          "sku_count": 71,
+          "composite_count": 0,
+          "observed_min": 0.2,
+          "observed_max": 2500.0
+        }
+      },
+      "spec_label": "Rated current (In)",
+      "unit": "A",
+      "value_kind": "scalar",
+      "is_canonical_spec": true
+    },
+    {
+      "spec_id": "rated_voltage_v",
+      "by_group": {
+        "ACB – WiNmaster 3": {
+          "sku_count": 156,
+          "composite_count": 0,
+          "observed_min": 415.0,
+          "observed_max": 800.0
+        },
+        "ACB – WiNmaster 2": {
+          "sku_count": 56,
+          "composite_count": 0,
+          "observed_min": 415.0,
+          "observed_max": 415.0
+        }
+      },
+      "spec_label": "Rated operational voltage (Ue)",
+      "unit": "V",
+      "value_kind": "scalar",
+      "is_canonical_spec": true
+    },
+    {
+      "spec_id": "thermal_memory",
+      "by_group": {
+        "ACB – WiNmaster 3": {
+          "sku_count": 156,
+          "composite_count": 0
+        },
+        "ACB – WiNmaster 2": {
+          "sku_count": 73,
+          "composite_count": 0,
+          "observed_min": 1.0,
+          "observed_max": 300.0
+        }
+      },
+      "spec_label": "Thermal memory",
+      "value_kind": "text",
+      "unit": "m"
+    },
+    {
+      "spec_id": "breaking_capacity_ka",
+      "by_group": {
+        "ACB – WiNmaster 3": {
+          "sku_count": 156,
+          "composite_count": 0,
+          "observed_min": 42.0,
+          "observed_max": 100.0
+        },
+        "ACB – WiNmaster 2": {
+          "sku_count": 56,
+          "composite_count": 0,
+          "observed_min": 50.0,
+          "observed_max": 50.0
+        }
+      },
+      "spec_label": "Ultimate breaking capacity (Icu)",
+      "unit": "kA",
+      "value_kind": "scalar",
+      "is_canonical_spec": true
+    }
+  ],
+  "not_shared": {
+    "note": "75 more specification ids exist in some but not all of the 2 groups in scope, so they cannot be compared across it. They are named here rather than returned: call again with the single group to get one of them in full.",
+    "spec_ids": {
+      "a2": [
+        "ACB – WiNmaster 2"
+      ],
+      "a3": [
+        "ACB – WiNmaster 2"
+      ],
+      "a4": [
+        "ACB – WiNmaster 2"
+      ],
+      "a5": [
+        "ACB – WiNmaster 2"
+      ],
+      "a6": [
+        "ACB – WiNmaster 2"
+      ],
+      "a7": [
+        "ACB – WiNmaster 2"
+      ],
+      "additional_protection": [
+        "ACB – WiNmaster 3"
+      ],
+      "alarm_action_time_delay": [
+        "ACB – WiNmaster 2"
+      ],
+      "alarm_return_current_setting": [
+        "ACB – WiNmaster 2"
+      ],
+      "alarm_return_delay": [
+        "ACB – WiNmaster 2"
+      ],
+      "breaking_capacity_class": [
+        "ACB – WiNmaster 3"
+      ],
+      "breaking_capacity_classes": [
+        "ACB – WiNmaster 3"
+      ],
+      "closing_time_ms": [
+        "ACB – WiNmaster 3"
+      ],
+      "current_setting_of_alarm_action": [
+        "ACB – WiNmaster 2"
+      ],
+      "current_unbalance_protection": [
+        "ACB – WiNmaster 2"
+      ],
+      "delay": [
+        "ACB – WiNmaster 2"
+      ],
+      "delay_set_value": [
+        "ACB – WiNmaster 2"
+      ],
+      "delay_tg": [
+        "ACB – WiNmaster 2"
+      ],
+      "delay_time_of_protected_operation": [
+        "ACB – WiNmaster 2"
+      ],
+      "delay_time_of_protected_return": [
+        "ACB – WiNmaster 2"
+      ],
+      "delay_time_of_protection_return": [
+        "ACB – WiNmaster 2"
+      ],
+      "delay_time_t_n_s": [
+        "ACB – WiNmaster 2"
+      ],
+      "display": [
+        "ACB – WiNmaster 3"
+      ],
+      "earth_fault_zone_selective_interlocking": [
+        "ACB – WiNmaster 2"
+      ],
+      "earth_leakage_protection_i_n": [
+        "ACB – WiNmaster 2"
+      ],
+      "fixed_time_delay_time_tsd": [
+        "ACB – WiNmaster 2"
+      ],
+      "indication": [
+        "ACB – WiNmaster 3"
+      ],
+      "inverse_curve_multiple_cr": [
+        "ACB – WiNmaster 2"
+      ],
+      "ip_rating": [
+        "ACB – WiNmaster 3"
+      ],
+      "lcd_display": [
+        "ACB – WiNmaster 2"
+      ],
+      "mounting_type": [
+        "ACB – WiNmaster 3"
+      ],
+      "opening_time_ms": [
+        "ACB – WiNmaster 3"
+      ],
+      "operating_phase_sequence": [
+        "ACB – WiNmaster 2"
+      ],
+      "output_do_single_alarm": [
+        "ACB – WiNmaster 2"
+      ],
+      "over_load_flashing_led": [
+        "ACB – WiNmaster 2"
+      ],
+      "performance": [
+        "ACB – WiNmaster 2"
+      ],
+      "performing_way": [
+        "ACB – WiNmaster 2"
+      ],
+      "pick_up": [
+        "ACB – WiNmaster 2"
+      ],
+      "pick_up_a_isd_ir_x": [
+        "ACB – WiNmaster 2"
+      ],
+      "power_on_led": [
+        "ACB – WiNmaster 2"
+      ],
+      "power_supply": [
+        "ACB – WiNmaster 3"
+      ],
+      "price_per_ka_inr": [
+        "ACB – WiNmaster 2"
+      ],
+      "price_per_rated_amp_inr": [
+        "ACB – WiNmaster 2"
+      ],
+      "protected_operation_delay_time": [
+        "ACB – WiNmaster 2"
+      ],
+      "protection_curve": [
+        "ACB – WiNmaster 2"
+      ],
+      "protection_delay_return_time": [
+        "ACB – WiNmaster 2"
+      ],
+      "protection_delay_set_value": [
+        "ACB – WiNmaster 2"
+      ],
+      "protection_operating_way": [
+        "ACB – WiNmaster 2"
+      ],
+      "protection_performance": [
+        "ACB – WiNmaster 2"
+      ],
+      "protection_return_value": [
+        "ACB – WiNmaster 2"
+      ],
+      "protection_start_set_value": [
+        "ACB – WiNmaster 2"
+      ],
+      "remote_reset": [
+        "ACB – WiNmaster 3"
+      ],
+      "return_delay": [
+        "ACB – WiNmaster 2"
+      ],
+      "return_set_value": [
+        "ACB – WiNmaster 2"
+      ],
+      "return_value": [
+        "ACB – WiNmaster 2"
+      ],
+      "s1": [
+        "ACB – WiNmaster 2"
+      ],
+      "s2": [
+        "ACB – WiNmaster 2"
+      ],
+      "s3": [
+        "ACB – WiNmaster 2"
+      ],
+      "s4": [
+        "ACB – WiNmaster 2"
+      ],
+      "s5": [
+        "ACB – WiNmaster 2"
+      ]
+    },
+    "truncated_after": 60
+  }
+}

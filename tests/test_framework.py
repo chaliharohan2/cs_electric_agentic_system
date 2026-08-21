@@ -1493,8 +1493,12 @@ class FixtureToolTests(unittest.TestCase):
             k=3,
         )
         self.assertTrue(hits)
-        self.assertEqual("lexical", hits[0]["mode"])
         self.assertIn("chunk_type", hits[0])
+        # `mode` and `chunk_id` are retrieval internals: which index answered is
+        # not something the model should reason about, and the chunk id is a
+        # build-source row number it could quote at a customer.
+        self.assertNotIn("mode", hits[0])
+        self.assertNotIn("chunk_id", hits[0])
 
     def test_tool_schemas_and_role_registry(self) -> None:
         args = ProductSearchArgs(
@@ -1587,10 +1591,15 @@ class FixtureToolTests(unittest.TestCase):
             filters=[{"spec_id": "poles", "op": "eq", "value": 3}],
         )
         self.assertGreater(listed["total_matched"], 0)
-        self.assertTrue(all(hit["family"] == "WIN2-125" for hit in listed["hits"]))
+        # One family answered, so it is stated once in scope instead of on
+        # every hit — and the hits stop carrying it at all.
+        self.assertEqual("WIN2-125", listed["scope"]["family"])
+        self.assertTrue(all("family" not in hit for hit in listed["hits"]))
+        # Several families answered, so it stays on the hits where it differs.
         prefixed = self.backend.product_search(family="WIN2")
         families = {hit["family"] for hit in prefixed["hits"]}
         self.assertTrue({"WIN2-125", "WIN2-250", "WIN2-400E"} <= families)
+        self.assertNotIn("family", prefixed.get("scope") or {})
 
     def test_product_search_group_by_family_distinguishes_zeros(self) -> None:
         result = self.backend.product_search(
@@ -1622,7 +1631,10 @@ class FixtureToolTests(unittest.TestCase):
         self.assertTrue(group["spec_present"])
         self.assertGreater(group["matched"], 0)
         self.assertGreater(group["total_in_scope"], group["matched"])
-        self.assertTrue(all(hit["path"][0] == "protection" for hit in group["sample_hits"]))
+        # Every sample hit sat under the same path, so it is hoisted; the group
+        # keeps its own path, which is the prefix the level names.
+        self.assertEqual("protection", result["scope"]["path"][0])
+        self.assertEqual(["protection", "mccb"], group["path"])
 
     def test_unknown_family_is_not_a_zero_group(self) -> None:
         result = self.backend.product_search(
@@ -1944,8 +1956,17 @@ class CatalogueMapTests(unittest.TestCase):
         self.assertIn("Industries", segment["no_match"]["known_market_segments"])
 
     def test_matched_on_reports_only_the_filters_used(self) -> None:
+        """`market_segment` is validated against a closed list, `path_text` is not.
+
+        Reading back a free-text argument the caller wrote one line earlier told
+        it nothing, so it is gone. Seeing which of seven segment values actually
+        took effect is an answer, so that one stays.
+        """
         result = self.backend.catalogue_map(path_text="mccb")
-        self.assertEqual({"path_text": "mccb"}, result["matched_on"])
+        self.assertNotIn("matched_on", result)
+        self.assertTrue(result["groups"])
+        segment = self.backend.catalogue_map(market_segment="Industries")
+        self.assertEqual({"market_segment": "Industries"}, segment["matched_on"])
 
     def test_limit_caps_the_rows_not_the_totals(self) -> None:
         capped = self.backend.catalogue_map(path_text="protection", limit=1)
@@ -2955,7 +2976,13 @@ class BackfillTests(unittest.TestCase):
         ]
     }
 
-    def test_a_reference_gains_the_documents_its_payload_recorded(self) -> None:
+    def test_the_documents_are_stated_once_in_sources(self) -> None:
+        """A nested reference identifies; `sources` is where provenance lives.
+
+        Filling the documents in everywhere made
+        `candidates[].key_specs[].source.product_page_url` 21.4% of one
+        measured composer prompt: 33 references, 14 distinct, two distinct URLs.
+        """
         report = {
             "findings": [
                 {
@@ -2972,16 +2999,32 @@ class BackfillTests(unittest.TestCase):
             [],
         )
         source = filled["findings"][0]["source"]
-        self.assertEqual(source["pricelist_pdf"], "LV-Pricelist-WEF-1st-June26.pdf")
-        self.assertEqual(source["pricelist_page"], 42)
-        self.assertEqual(source["product_page_url"], "https://example.invalid/changeover")
-        # What the model did write is left exactly as it wrote it.
+        # What the model wrote is left exactly as it wrote it, and nothing else
+        # is added to it.
+        self.assertEqual(source["sku_code"], "CSCS400DM4CO")
         self.assertEqual(source["source_of_truth"], "pricelist_table")
+        self.assertNotIn("pricelist_pdf", source)
+        self.assertNotIn("product_page_url", source)
+        # The same provenance is reachable, once, through the index.
+        indexed = [
+            ref for ref in filled["sources"] if ref.get("sku_code") == "CSCS400DM4CO"
+        ]
+        self.assertTrue(
+            any(ref.get("pricelist_pdf") == "LV-Pricelist-WEF-1st-June26.pdf" for ref in indexed)
+        )
+        self.assertTrue(any(ref.get("pricelist_page") == 42 for ref in indexed))
+        self.assertTrue(
+            any(
+                ref.get("product_page_url") == "https://example.invalid/changeover"
+                for ref in filled["sources"]
+            )
+        )
 
     def test_a_reference_the_payloads_do_not_know_is_left_alone(self) -> None:
         report = {"findings": [{"statement": "x", "source": {"sku_code": "UNKNOWN"}}], "sources": []}
         filled = backfill_report(report, [self._tool("get_price_detail", self.PRICES)], [])
         self.assertIsNone(filled["findings"][0]["source"].get("pricelist_pdf"))
+        self.assertEqual(filled["findings"][0]["source"]["sku_code"], "UNKNOWN")
 
     def test_sources_indexes_what_the_report_references(self) -> None:
         """Provenance for the SKUs the report names, not a log of the retrieval.
@@ -3045,9 +3088,13 @@ class BackfillTests(unittest.TestCase):
             "sources": [],
         }
         filled = backfill_report(report, [self._tool("get_sku", payload)], [])
-        source = filled["findings"][0]["source"]
-        self.assertEqual(source["pricelist_pdf"], "LV-Pricelist-WEF-1st-June26.pdf")
-        self.assertEqual(source["pricelist_page"], 42)
+        indexed = [
+            ref for ref in filled["sources"] if ref.get("sku_code") == "CSCS400DM4CO"
+        ]
+        self.assertTrue(
+            any(ref.get("pricelist_pdf") == "LV-Pricelist-WEF-1st-June26.pdf" for ref in indexed)
+        )
+        self.assertTrue(any(ref.get("pricelist_page") == 42 for ref in indexed))
 
     def test_a_sources_list_the_model_did_supply_is_kept(self) -> None:
         report = {"findings": [], "sources": [{"sku_code": "MINE"}]}
@@ -3365,7 +3412,6 @@ class BatchedScopeTests(unittest.TestCase):
                     "spec_label": "Rated current",
                     "unit": "A",
                     "value_kind": "scalar",
-                    "is_canonical_spec": 1,
                     "sku_count": 101,
                     "composite_count": 0,
                     "observed_min": 630.0,
@@ -3377,7 +3423,6 @@ class BatchedScopeTests(unittest.TestCase):
                     "spec_label": "Rated current",
                     "unit": "A",
                     "value_kind": "scalar",
-                    "is_canonical_spec": 1,
                     "sku_count": 157,
                     "composite_count": 0,
                     "observed_min": 630.0,
@@ -3526,17 +3571,21 @@ class CompactFactTests(unittest.TestCase):
         self.assertNotIn("value_num", out)
         self.assertEqual("400 A", out["value_display"])
         self.assertEqual("pricelist_table", out["source_of_truth"])
-        # spec_label is not recoverable from spec_id on 41% of the catalogue
-        # (`1_no_1_nc` is published as `1 NO + 1 NC`), so it is never dropped.
+        # compact_fact drops nulls, not fields: a caller that hands it a label
+        # keeps the label. `product_search` stopped handing it one, because a
+        # `return_specs` block repeats the same handful of labels on every hit;
+        # `list_canonical_specs`, which publishes the vocabulary itself, still
+        # does — `1_no_1_nc` is published as `1 NO + 1 NC` and no rule recovers
+        # that from the id.
         self.assertEqual("Rated current", out["spec_label"])
 
     def test_a_falsy_value_is_not_a_missing_one(self) -> None:
-        """`is_canonical_spec: 0` and `sku_count: 0` are answers, not absences."""
+        """`sku_count: 0` and `composite_count: 0` are answers, not absences."""
         from cs_agent.backends.spec_envelope import compact_fact
 
-        out = compact_fact({"spec_id": "x", "is_canonical_spec": 0, "sku_count": 0,
+        out = compact_fact({"spec_id": "x", "composite_count": 0, "sku_count": 0,
                             "value_num": 0.0, "unit": "", "gone": None})
-        self.assertEqual(0, out["is_canonical_spec"])
+        self.assertEqual(0, out["composite_count"])
         self.assertEqual(0, out["sku_count"])
         self.assertEqual(0.0, out["value_num"])
         self.assertEqual("", out["unit"])
@@ -3813,3 +3862,647 @@ class FamilyScopedSourceTests(unittest.TestCase):
         self.assertNotIn("family", BACKFILLED)
         asked = _asked_for(SpecSelectionReport)
         self.assertIn("family", asked)
+
+
+class PayloadShapeTests(unittest.TestCase):
+    """What the tools stopped sending, and what has to still arrive.
+
+    Measured against the two captured specialist report calls: five `get_sku`
+    payloads were 63.5% of one report's input and three `product_search`
+    payloads 91% of the other's, on an input already at 98% of the usable
+    window. Every cut below is a field whose content the payload states
+    somewhere else, so these tests pin both halves — the bytes are gone, the
+    facts are not.
+    """
+
+    def setUp(self) -> None:
+        from cs_agent.backends import get_backend
+
+        self.backend = get_backend()
+
+    # ---------------------------------------------------------- flatten
+
+    def test_a_decoded_axis_keeps_its_meaning_and_sheds_its_code(self) -> None:
+        """The code half is a substring of the ordering code on the same row."""
+        from cs_agent.backends.payload_shape import flatten_decoded
+
+        out = flatten_decoded(
+            {"acb_type": {"code": "MDO", "meaning": "Manual Draw Out Type"}}
+        )
+        self.assertEqual({"acb_type": "Manual Draw Out Type"}, out)
+
+    def test_a_meaning_carrying_several_facts_survives_whole(self) -> None:
+        """`breaking` decodes to a kA rating AND a voltage. Both are facts."""
+        from cs_agent.backends.payload_shape import flatten_decoded
+
+        out = flatten_decoded(
+            {"breaking": {"code": "L", "meaning": {"ka": 80, "volts": 415}}}
+        )
+        self.assertEqual({"breaking": {"ka": 80, "volts": 415}}, out)
+
+    def test_a_meaning_restating_its_own_axis_is_unwrapped(self) -> None:
+        from cs_agent.backends.payload_shape import flatten_decoded
+
+        out = flatten_decoded({"poles": {"code": "3P", "meaning": {"poles": 3}}})
+        self.assertEqual({"poles": 3}, out)
+
+    def test_an_undecoded_axis_is_left_out_rather_than_named_unknown(self) -> None:
+        """Saying "we could not read this" costs bytes; absence says it free."""
+        from cs_agent.backends.payload_shape import flatten_decoded
+
+        out = flatten_decoded(
+            {
+                "detail": {"code": "DOOR-INT-DRAB", "meaning": "unknown"},
+                "frame": {"code": "1", "meaning": "I Frame"},
+            }
+        )
+        self.assertEqual({"frame": "I Frame"}, out)
+
+    # ------------------------------------------------------------ hoist
+
+    def test_a_field_that_differs_between_rows_stays_on_the_rows(self) -> None:
+        """This is what keeps a grouped search honest about which family is which."""
+        from cs_agent.backends.payload_shape import hoist_scope
+
+        payload = {"hits": [{"family": "A"}, {"family": "B"}]}
+        out = hoist_scope(payload, payload["hits"], ("family",))
+        self.assertNotIn("scope", out)
+        self.assertEqual(["A", "B"], [hit["family"] for hit in out["hits"]])
+
+    def test_a_field_uniformly_absent_is_dropped_rather_than_hoisted(self) -> None:
+        from cs_agent.backends.payload_shape import hoist_scope
+
+        payload = {"hits": [{"url": None}, {"url": None}]}
+        out = hoist_scope(payload, payload["hits"], ("url",))
+        self.assertNotIn("scope", out)
+        self.assertTrue(all("url" not in hit for hit in out["hits"]))
+
+    def test_a_row_is_read_back_with_its_scope_underneath_it(self) -> None:
+        """Code that consumes payloads must not lose what the model gained."""
+        from cs_agent.backends.payload_shape import merge_scope
+
+        payload = {"scope": {"family": "F", "url": "u"}}
+        self.assertEqual(
+            {"family": "F", "url": "u", "sku_code": "X"},
+            merge_scope(payload, {"sku_code": "X"}),
+        )
+
+    def test_a_rows_own_value_beats_the_scope(self) -> None:
+        from cs_agent.backends.payload_shape import merge_scope
+
+        payload = {"scope": {"family": "F"}}
+        self.assertEqual("OWN", merge_scope(payload, {"family": "OWN"})["family"])
+
+    # ------------------------------------------------------------ get_sku
+
+    def test_a_fact_states_its_value_once(self) -> None:
+        """`fact_sentence` restated the label and the value in a sentence.
+
+        Across 200,000 catalogue rows 87.9% of those sentences contained both
+        the label and the value display verbatim, and not one of the 141 in a
+        captured run reached the report or the answer. The label itself stays:
+        it went with the sentence and came back, because 61% of the catalogue's
+        distinct (spec_id, spec_label) pairs cannot be recovered from the id.
+        """
+        sku = self.backend.get_sku("WIN2-125-3P-63", ["facts"])
+        self.assertTrue(sku["facts"])
+        for fact in sku["facts"]:
+            self.assertNotIn("fact_sentence", fact)
+            self.assertNotIn("is_canonical_spec", fact)
+            self.assertIn("spec_id", fact)
+            self.assertIn("spec_label", fact)
+            self.assertIn("value_display", fact)
+
+    # ----------------------------------------------------- product_search
+
+    def test_a_search_scoped_to_one_family_names_it_once(self) -> None:
+        result = self.backend.product_search(family="WIN2-125")
+        self.assertTrue(result["hits"])
+        self.assertEqual("WIN2-125", result["scope"]["family"])
+        self.assertTrue(all("family" not in hit for hit in result["hits"]))
+        self.assertIn("path", result["scope"])
+
+    def test_a_hit_is_addressed_by_the_code_you_order_by(self) -> None:
+        """`canonical_code` repeated `sku_code` on 11,217 of 11,250 codes."""
+        result = self.backend.product_search(family="WIN2-125")
+        self.assertTrue(all("canonical_code" not in hit for hit in result["hits"]))
+        self.assertTrue(all(hit["sku_code"] for hit in result["hits"]))
+
+    def test_an_attached_spec_carries_the_label_it_is_published_under(self) -> None:
+        """The id is not always a readable form of the label.
+
+        Dropping the label here saved 11.2% of one payload and cost the meaning
+        of every id that is not its own description: `10_12` is published as
+        "10, 12" where `10_16` is "10-16", and no reader of the id alone can
+        tell a pair of values from a span. 1,005 of the catalogue's 1,650
+        distinct pairs are like that.
+        """
+        result = self.backend.product_search(
+            family="WIN2-125", return_specs=["poles"]
+        )
+        attached = [spec for hit in result["hits"] for spec in hit.get("specs") or []]
+        self.assertTrue(attached)
+        for spec in attached:
+            self.assertEqual("poles", spec["spec_id"])
+            self.assertTrue(spec["spec_label"])
+
+    # ----------------------------------------------------- other payloads
+
+    def test_a_peer_group_names_its_family_once(self) -> None:
+        anchor = self.backend.product_search(family="WIN2-125")["hits"][0]
+        peers = self.backend.get_peer_group(anchor["sku_code"])
+        self.assertTrue(peers["peers"])
+        self.assertEqual("WIN2-125", peers["scope"]["family"])
+        self.assertTrue(all("family" not in peer for peer in peers["peers"]))
+
+    def test_a_resolution_answers_with_one_code(self) -> None:
+        result = self.backend.resolve_product(query="WIN2")
+        self.assertTrue(result["hits"])
+        for hit in result["hits"]:
+            self.assertNotIn("canonical_code", hit)
+            self.assertIn("match_role", hit)
+
+    def test_a_document_hit_carries_no_retrieval_internals(self) -> None:
+        hits = self.backend.search_documents(
+            query="electronic trip", family="WIN2", k=3
+        )
+        self.assertTrue(hits)
+        for hit in hits:
+            self.assertNotIn("mode", hit)
+            self.assertNotIn("chunk_id", hit)
+            self.assertIn("score", hit)
+
+    def test_a_map_does_not_read_back_the_caller_own_words(self) -> None:
+        result = self.backend.catalogue_map(path_text="mccb")
+        self.assertNotIn("matched_on", result)
+        self.assertTrue(result["groups"])
+
+    def test_the_spec_registry_publishes_no_canonical_flag(self) -> None:
+        """A 50/50 signal that no prompt, report or consumer ever read."""
+        result = self.backend.list_canonical_specs(family="WIN2-125")
+        self.assertTrue(result["specs"])
+        for spec in result["specs"]:
+            self.assertNotIn("is_canonical_spec", spec)
+            self.assertIn("spec_id", spec)
+
+    # --------------------------------------------------- the consumers
+
+    def test_a_derived_report_still_finds_the_family_after_the_hoist(self) -> None:
+        """The hoist moved family out of the hits; derivation reads it anyway."""
+        from cs_agent.subgraphs.agents.report_modes import _search_hits
+
+        payload = self.backend.product_search(family="WIN2-125")
+        rows = _search_hits(payload)
+        self.assertTrue(rows)
+        self.assertTrue(all(row["family"] == "WIN2-125" for row in rows))
+
+    def test_a_code_that_decodes_to_nothing_carries_no_decoded_key(self) -> None:
+        """An empty object spends bytes announcing it has nothing to say."""
+        from cs_agent.backends.payload_shape import flatten_decoded
+
+        self.assertEqual({}, flatten_decoded({}))
+        result = self.backend.product_search(family="WIN2-125")
+        self.assertTrue(all("decoded" not in hit for hit in result["hits"]))
+
+
+class CitedReportTests(unittest.TestCase):
+    """The report states judgement and cites everything else.
+
+    Measured on the captured `spec_selection` report in `logs/report_io/`: all
+    95 leaf values under `key_specs` were verbatim in a payload the specialist
+    already held, and 89% of them were restated a second time in the same
+    report's own findings. Asking for the citation instead took the generation
+    from 8,990 characters to 4,879.
+    """
+
+    PAYLOAD = {
+        "sku_code": "CSCS400DM4CO",
+        "url": "https://example.invalid/changeover",
+        "facts": [
+            {
+                "spec_id": "rated_current_a",
+                "spec_label": "Rated current (In)",
+                "unit": "A",
+                "value_num": 400.0,
+                "value_display": "400 A",
+                "source_of_truth": "code_grammar",
+            },
+            {
+                "spec_id": "price_inr",
+                "spec_label": "MRP",
+                "unit": "INR",
+                "value_display": "₹60,910",
+                "source_of_truth": "pricelist_table",
+                "source_pdf": "LV-Pricelist-WEF-1st-June26.pdf",
+                "source_page": 42,
+            },
+        ],
+    }
+    SEARCH = {
+        "scope": {"family": "New Changeover Switches"},
+        "hits": [
+            {
+                "sku_code": "E-CSCS400DM4CO",
+                "specs": [
+                    {
+                        "spec_id": "poles",
+                        "spec_label": "Number of poles",
+                        "unit": "count",
+                        "value_display": "4",
+                        "source_of_truth": "code_grammar",
+                    }
+                ],
+            }
+        ],
+    }
+
+    @staticmethod
+    def _tool(name: str, payload: dict[str, Any]) -> ToolMessage:
+        return ToolMessage(
+            content=json.dumps(payload), tool_call_id=str(uuid.uuid4()), name=name
+        )
+
+    def _messages(self) -> list[Any]:
+        return [
+            self._tool("get_sku", self.PAYLOAD),
+            self._tool("product_search", self.SEARCH),
+        ]
+
+    # ------------------------------------------------------- the contract
+
+    def test_a_key_spec_may_be_written_as_a_bare_spec_id(self) -> None:
+        """`{"spec_id": "poles"}` is 30 characters where "poles" is 7."""
+        candidate = Candidate.model_validate(
+            {"sku_code": "X", "why_it_fits": "y", "key_specs": ["poles", "modules"]}
+        )
+        self.assertEqual(
+            ["poles", "modules"], [spec.spec_id for spec in candidate.key_specs]
+        )
+        self.assertIsNone(candidate.key_specs[0].value_display)
+
+    def test_a_finding_needs_a_statement_or_a_citation(self) -> None:
+        Finding.model_validate({"statement": "judgement"})
+        Finding.model_validate(
+            {"kind": "specification", "source": {"sku_code": "X"}, "cite": ["poles"]}
+        )
+        with self.assertRaises(ValidationError):
+            Finding.model_validate({"kind": "specification"})
+
+    def test_only_a_specification_finding_may_cite(self) -> None:
+        """A judgement finding has nothing to look its citation up against.
+
+        Measured live: handed both shapes, the model applied `cite` to a
+        catalogue finding as well, and everything it meant to say was lost when
+        the lookup came back empty and the finding was dropped.
+        """
+        with self.assertRaises(ValidationError):
+            Finding.model_validate(
+                {"kind": "catalogue", "source": {"family": "F"}, "cite": ["poles"]}
+            )
+        with self.assertRaises(ValidationError):
+            Finding.model_validate({"kind": "specification", "cite": ["poles"]})
+
+    # --------------------------------------------------- what is asked for
+
+    def test_the_model_is_not_asked_for_what_it_would_copy(self) -> None:
+        asked = _asked_for(SpecSelectionReport)
+        document = json.loads(asked[asked.index("{"):])
+        self.assertEqual("string", document["$defs"]["KeySpec"]["type"])
+        self.assertNotIn("agent", document["properties"])
+        self.assertNotIn("sources", document["properties"])
+        self.assertNotIn(
+            "source", document["$defs"]["Candidate"]["properties"]
+        )
+        # The judgement fields are still asked for, because nothing else has them.
+        for field in ("summary", "gaps", "caveats", "filters_tried"):
+            self.assertIn(field, document["properties"])
+        self.assertIn("why_it_fits", document["$defs"]["Candidate"]["properties"])
+
+    def test_a_standards_claim_is_asked_for_as_a_citation(self) -> None:
+        document = json.loads((asked := _asked_for(ComplianceReport))[asked.index("{"):])
+        claim = document["$defs"]["StandardClaim"]["properties"]
+        self.assertIn("sku_code", claim)
+        self.assertIn("spec_id", claim)
+        self.assertNotIn("value_display", claim)
+
+    def test_the_grammar_and_the_instruction_come_from_one_document(self) -> None:
+        """A field hidden in one and demanded by the other cannot be satisfied."""
+        from cs_agent.llm import asked_schema
+        from cs_agent.subgraphs.agents.nodes import _asked_kwargs
+
+        document = asked_schema(
+            SpecSelectionReport, **_asked_kwargs(SpecSelectionReport)
+        )
+        instruction = _asked_for(SpecSelectionReport)
+        self.assertEqual(
+            document, json.loads(instruction[instruction.index("{"):])
+        )
+
+    # ------------------------------------------------------- the formatter
+
+    def test_a_cited_spec_is_filled_from_the_payload_that_carried_it(self) -> None:
+        from cs_agent.subgraphs.agents.report_format import format_report
+
+        report = {
+            "candidates": [
+                {
+                    "sku_code": "CSCS400DM4CO",
+                    "why_it_fits": "exact match",
+                    "key_specs": [{"spec_id": "rated_current_a"}],
+                }
+            ]
+        }
+        filled, missing = format_report(report, self._messages(), [])
+        spec = filled["candidates"][0]["key_specs"][0]
+        self.assertEqual("400 A", spec["value_display"])
+        self.assertEqual("A", spec["unit"])
+        self.assertEqual("code_grammar", spec["source_of_truth"])
+        self.assertEqual([], missing)
+
+    def test_a_spec_attached_to_a_search_hit_is_reachable_too(self) -> None:
+        """`product_search` hangs its facts on the hits, not at the top level."""
+        from cs_agent.subgraphs.agents.report_format import format_report
+
+        report = {
+            "candidates": [
+                {"sku_code": "E-CSCS400DM4CO", "why_it_fits": "y", "key_specs": ["poles"]}
+            ]
+        }
+        filled, missing = format_report(report, self._messages(), [])
+        self.assertEqual("4", filled["candidates"][0]["key_specs"][0]["value_display"])
+        self.assertEqual([], missing)
+
+    def test_a_spec_that_was_never_retrieved_becomes_a_gap(self) -> None:
+        """The check the gate could not express: a value nothing returned."""
+        from cs_agent.subgraphs.agents.report_format import format_report
+
+        report = {
+            "candidates": [
+                {
+                    "sku_code": "CSCS400DM4CO",
+                    "why_it_fits": "y",
+                    "key_specs": ["rated_current_a", "breaking_capacity_ka"],
+                }
+            ]
+        }
+        filled, missing = format_report(report, self._messages(), [])
+        self.assertEqual(
+            ["rated_current_a"],
+            [spec["spec_id"] for spec in filled["candidates"][0]["key_specs"]],
+        )
+        self.assertEqual(["CSCS400DM4CO/breaking_capacity_ka"], missing)
+
+    def test_a_cited_finding_is_stated_from_the_facts(self) -> None:
+        from cs_agent.subgraphs.agents.report_format import format_report
+
+        report = {
+            "findings": [
+                {
+                    "kind": "specification",
+                    "source": {"sku_code": "CSCS400DM4CO"},
+                    "cite": ["rated_current_a", "price_inr"],
+                }
+            ]
+        }
+        filled, _ = format_report(report, self._messages(), [])
+        statement = filled["findings"][0]["statement"]
+        self.assertIn("Rated current (In) 400 A", statement)
+        self.assertIn("MRP ₹60,910", statement)
+        self.assertNotIn("cite", filled["findings"][0])
+
+    def test_a_prose_finding_is_left_exactly_as_written(self) -> None:
+        from cs_agent.subgraphs.agents.report_format import format_report
+
+        judgement = "Neither family publishes a physical dimensions spec."
+        report = {"findings": [{"kind": "catalogue", "statement": judgement}]}
+        filled, _ = format_report(report, self._messages(), [])
+        self.assertEqual(judgement, filled["findings"][0]["statement"])
+
+    def test_a_unit_the_value_already_carries_is_not_said_twice(self) -> None:
+        """"400 A" + unit "A" read as "400 A A"; poles read as "4 count"."""
+        from cs_agent.subgraphs.agents.report_format import displayed
+
+        self.assertEqual("400 A", displayed({"value_display": "400 A", "unit": "A"}))
+        self.assertEqual("4", displayed({"value_display": "4", "unit": "count"}))
+        self.assertEqual(
+            "₹60,910", displayed({"value_display": "₹60,910", "unit": "INR"})
+        )
+        self.assertEqual(
+            "10,000 operations",
+            displayed({"value_display": "10,000", "unit": "operations"}),
+        )
+
+    def test_a_standards_claim_is_filled_from_the_fact_it_names(self) -> None:
+        from cs_agent.subgraphs.agents.report_format import format_report
+
+        report = {
+            "standards": [
+                {"sku_code": "CSCS400DM4CO", "spec_id": "rated_current_a"},
+                {"sku_code": "CSCS400DM4CO", "spec_id": "never_retrieved"},
+            ]
+        }
+        filled, missing = format_report(report, self._messages(), [])
+        self.assertEqual(1, len(filled["standards"]))
+        self.assertEqual("400 A", filled["standards"][0]["value_display"])
+        self.assertEqual(["CSCS400DM4CO/never_retrieved"], missing)
+
+    # ------------------------------------------------------------ the gate
+
+    def test_the_gate_catches_a_citation_that_was_never_expanded(self) -> None:
+        """The formatter not running must not read as an unpublished spec."""
+        report = {
+            "agent": "spec_selection",
+            "status": "complete",
+            "summary": "s",
+            "candidates": [
+                {"sku_code": "X", "why_it_fits": "y", "key_specs": ["poles"]}
+            ],
+        }
+        violations = _violations("spec_selection", report)
+        self.assertTrue(
+            any("without being expanded" in v for v in violations), violations
+        )
+
+    def test_an_expanded_report_passes_the_gate(self) -> None:
+        report = {
+            "agent": "spec_selection",
+            "status": "complete",
+            "summary": "s",
+            "candidates": [
+                {
+                    "sku_code": "X",
+                    "why_it_fits": "y",
+                    "key_specs": [{"spec_id": "poles", "value_display": "4"}],
+                }
+            ],
+        }
+        self.assertEqual([], _violations("spec_selection", report))
+
+    # ----------------------------------------------------- one set of sources
+
+    def test_a_report_carries_one_set_of_documents(self) -> None:
+        report = {
+            "candidates": [
+                {
+                    "sku_code": "CSCS400DM4CO",
+                    "why_it_fits": "y",
+                    "key_specs": [{"spec_id": "rated_current_a", "value_display": "400 A"}],
+                }
+            ],
+            "findings": [
+                {"statement": "x", "source": {"sku_code": "CSCS400DM4CO"}}
+            ],
+            "sources": [],
+        }
+        filled = backfill_report(report, self._messages(), [])
+        # The candidate carries the one reference for the entry.
+        self.assertEqual(
+            "https://example.invalid/changeover",
+            filled["candidates"][0]["source"]["product_page_url"],
+        )
+        # Its specifications carry none, and neither does the finding.
+        self.assertNotIn("source", filled["candidates"][0]["key_specs"][0])
+        self.assertNotIn("product_page_url", filled["findings"][0]["source"])
+        self.assertTrue(filled["sources"])
+
+    def test_one_sku_gets_one_entry_in_the_index(self) -> None:
+        """Deduplicating before filling left three copies of one provenance.
+
+        A bare `{"sku_code": "X"}` off a finding and a half-populated reference
+        off a payload are different strings until the documents are on both,
+        and identical afterwards.
+        """
+        report = {
+            "candidates": [
+                {
+                    "sku_code": "CSCS400DM4CO",
+                    "why_it_fits": "y",
+                    "key_specs": [{"spec_id": "price_inr", "value_display": "₹60,910"}],
+                }
+            ],
+            "findings": [
+                {
+                    "statement": "x",
+                    "source": {"sku_code": "CSCS400DM4CO", "source_of_truth": "pricelist_table"},
+                }
+            ],
+            "sources": [],
+        }
+        filled = backfill_report(report, self._messages(), [])
+        for_sku = [
+            ref for ref in filled["sources"] if ref.get("sku_code") == "CSCS400DM4CO"
+        ]
+        self.assertEqual(1, len(for_sku), filled["sources"])
+        self.assertEqual("https://example.invalid/changeover", for_sku[0]["product_page_url"])
+
+    def test_a_key_whose_value_is_null_is_not_carried(self) -> None:
+        """10.4% of four measured composer prompts, read twice a turn."""
+        from cs_agent.subgraphs.agents.report_modes import strip_empty
+
+        self.assertEqual(
+            {"a": 1, "b": [{"c": 2}]},
+            strip_empty({"a": 1, "z": None, "b": [{"c": 2, "y": None}]}),
+        )
+        filled = backfill_report(
+            {"findings": [{"statement": "x", "source": {"sku_code": None}}], "sources": []},
+            self._messages(),
+            [],
+        )
+        self.assertNotIn("sku_code", filled["findings"][0]["source"])
+
+    def test_the_report_call_hands_the_server_the_same_schema(self) -> None:
+        """A malformed object costs a whole extra generation, not a repair."""
+        from cs_agent.subgraphs.agents.nodes import make_report_node
+
+        seen: dict[str, Any] = {}
+
+        def _structured(node, messages, schema, **kw):
+            seen.update(kw)
+            return schema(agent="spec_selection", status="complete", summary="s")
+
+        state = {
+            "brief": AgentBrief(
+                agent="spec_selection", objective="o", depth="detailed", allowance=5
+            ).model_dump(),
+            "agent_name": "spec_selection",
+            "messages": self._messages(),
+            "evidence": [],
+        }
+        with patch(
+            "cs_agent.subgraphs.agents.nodes.structured", side_effect=_structured
+        ), patch.dict(os.environ, {"CS_REPORT_MODE": "llm"}):
+            make_report_node("spec_selection")(state)
+        self.assertEqual("string", seen["format_schema"]["$defs"]["KeySpec"]["type"])
+        self.assertNotIn("agent", seen["format_schema"]["properties"])
+
+    def test_the_agent_field_is_set_by_the_subgraph_not_the_model(self) -> None:
+        from cs_agent.subgraphs.agents.nodes import make_report_node
+
+        def _structured(node, messages, schema, **kw):
+            return schema(status="complete", summary="s")
+
+        state = {
+            "brief": AgentBrief(
+                agent="compliance", objective="o", depth="detailed", allowance=5
+            ).model_dump(),
+            "agent_name": "compliance",
+            "messages": self._messages(),
+            "evidence": [],
+        }
+        with patch(
+            "cs_agent.subgraphs.agents.nodes.structured", side_effect=_structured
+        ), patch.dict(os.environ, {"CS_REPORT_MODE": "llm"}):
+            out = make_report_node("compliance")(state)
+        self.assertEqual("compliance", out["report"]["agent"])
+
+
+class EvidenceFromSearchTests(unittest.TestCase):
+    """A `product_search` hangs its facts on the hits, not at the top level.
+
+    Reading `payload["specs"]` alone saw none of them, so a search with
+    `return_specs` produced zero evidence rows however many facts it carried.
+    Every consumer of the index went blind at once: the composer's evidence
+    table, `derive_report`'s findings, and the report formatter. On one captured
+    run 16 of the 33 facts a report cited could not be resolved against it, all
+    of them from SKUs reached by search rather than by `get_sku`.
+    """
+
+    HIT_SPEC = {
+        "spec_id": "poles",
+        "spec_label": "Number of poles",
+        "value_display": "4",
+        "unit": "count",
+        "source_of_truth": "code_grammar",
+    }
+
+    def test_a_search_hit_contributes_its_facts(self) -> None:
+        from cs_agent.graph.nodes.record_evidence import _extract
+
+        payload = {
+            "scope": {"family": "New Changeover Switches"},
+            "hits": [{"sku_code": "CSCS400DM4CO", "specs": [self.HIT_SPEC]}],
+        }
+        rows = _extract(payload, "product_search")
+        self.assertEqual(1, len(rows))
+        self.assertEqual("CSCS400DM4CO", rows[0]["sku_code"])
+        self.assertEqual("poles", rows[0]["spec_id"])
+        self.assertEqual("4", rows[0]["value_display"])
+
+    def test_a_grouped_search_contributes_its_sample_hits(self) -> None:
+        from cs_agent.graph.nodes.record_evidence import _extract
+
+        payload = {
+            "groups": [
+                {
+                    "family": "A",
+                    "sample_hits": [{"sku_code": "X", "specs": [self.HIT_SPEC]}],
+                }
+            ]
+        }
+        self.assertEqual(1, len(_extract(payload, "product_search")))
+
+    def test_a_hit_without_specs_contributes_nothing(self) -> None:
+        from cs_agent.graph.nodes.record_evidence import _extract
+
+        payload = {"hits": [{"sku_code": "X"}]}
+        self.assertEqual([], _extract(payload, "product_search"))

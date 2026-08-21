@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import operator
+import time
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Any, TypedDict
@@ -20,17 +21,27 @@ from langgraph.graph.message import add_messages
 from cs_agent.config.limits import get_limits
 from cs_agent.contracts import AgentBrief, REPORT_SCHEMAS, brief_depth
 from cs_agent.graph.nodes.record_evidence import _extract
-from cs_agent.llm import generate, get_model, schema_instruction, structured
+from cs_agent.llm import (
+    asked_schema,
+    generate,
+    get_model,
+    schema_instruction,
+    structured,
+)
+from cs_agent.subgraphs.agents import report_io  # TEMPORARY, see report_io.py
+from cs_agent.subgraphs.agents.report_format import format_report
 from cs_agent.subgraphs.agents.report_modes import (
-    BACKFILLED,
-    needs_model_fallback,
+    HIDDEN_BY_DEF,
     HIDDEN_REPORT_FIELDS,
+    SCALAR_DEFS,
     backfill_report,
     derive_report,
     findings_cap,
+    needs_model_fallback,
     raw_bundle,
     resolve_mode,
     slim_reports,
+    strip_empty,
 )
 from cs_agent.tool_errors import count_failures, trailing_tool_messages
 
@@ -248,23 +259,32 @@ def record(state: SpecialistState) -> dict[str, Any]:
     }
 
 
-def _asked_for(schema: type[Any]) -> str:
-    """The schema the report node shows the model.
+def _asked_kwargs(schema: type[Any]) -> dict[str, Any]:
+    """How the report schema is trimmed before the model is shown it.
 
-    Trimmed by default. `sources` and the four rarely-populated SourceRef fields
-    are hidden and rebuilt in code afterwards, and `findings` carries a cap the
-    model can see. Together those were 61.8% of everything a detailed report
-    wrote, almost none of which needed a model. Hiding is what makes it stick:
-    the same saving asked for in prose cut output 23% on one question and raised
-    it 22% on the next.
+    `sources` and the four rarely-populated SourceRef fields are hidden and
+    rebuilt in code, and `findings` carries a cap the model can see. Together
+    those were 61.8% of everything a detailed report wrote, almost none of which
+    needed a model. Hiding is what makes it stick: the same saving asked for in
+    prose cut output 23% on one question and raised it 22% on the next.
+
+    Beyond them the model is no longer asked for values it is copying. A
+    key_spec is a bare spec_id and a standards claim names its SKU and spec; the
+    formatter reads the rest out of the payloads. On a captured report that took
+    the generation from 8,990 characters to 4,879.
     """
     if not slim_reports():
-        return schema_instruction(schema)
-    return schema_instruction(
-        schema,
-        hide={"SourceRef": BACKFILLED, "": HIDDEN_REPORT_FIELDS},
-        limits={"findings": findings_cap()},
-    )
+        return {}
+    return {
+        "hide": {**HIDDEN_BY_DEF, "": HIDDEN_REPORT_FIELDS},
+        "limits": {"findings": findings_cap()},
+        "scalars": SCALAR_DEFS,
+    }
+
+
+def _asked_for(schema: type[Any]) -> str:
+    """The wording that asks for the trimmed report."""
+    return schema_instruction(schema, **_asked_kwargs(schema))
 
 
 def make_report_node(agent_name: str, tools: list[Any] | None = None):
@@ -281,7 +301,7 @@ def make_report_node(agent_name: str, tools: list[Any] | None = None):
                 state.get("messages", []),
                 state.get("evidence", []),
             )
-            validated = schema.model_validate(built).model_dump()
+            validated = strip_empty(schema.model_validate(built).model_dump())
             if needs_model_fallback(mode, agent_name, validated):
                 # Derivation came back with nothing the gate or the composer can
                 # work from. Writing it with the model costs a generation; not
@@ -329,15 +349,17 @@ def make_report_node(agent_name: str, tools: list[Any] | None = None):
                 "product, so record it with kind 'catalogue' — 'specification' "
                 "is for a value retrieved against a particular sku_code."
             )
+        sent = [
+            SystemMessage(content=_system_prompt(agent_name, state)),
+            *_settled(state.get("messages", [])),
+            # Last, not first: `structured` would otherwise prepend the
+            # schema and break the prefix this node exists to reuse.
+            HumanMessage(content=f"{instruction}\n\n{_asked_for(schema)}"),
+        ]
+        started = time.monotonic()
         result = structured(
             "agent",
-            [
-                SystemMessage(content=_system_prompt(agent_name, state)),
-                *_settled(state.get("messages", [])),
-                # Last, not first: `structured` would otherwise prepend the
-                # schema and break the prefix this node exists to reuse.
-                HumanMessage(content=f"{instruction}\n\n{_asked_for(schema)}"),
-            ],
+            sent,
             schema,
             # Bound, not offered: the server renders tool schemas into the
             # prompt prefix, so dropping them here would make this a different
@@ -347,15 +369,46 @@ def make_report_node(agent_name: str, tools: list[Any] | None = None):
             # measured turn's 6,136 output tokens — and the only way to see
             # which of them restate a tool result the report did not need.
             label=f"{agent_name} report",
+            # The same document the instruction above was rendered from, so the
+            # grammar the decode is held to and the schema the prompt describes
+            # cannot disagree about which fields exist.
+            format_schema=asked_schema(schema, **_asked_kwargs(schema)),
         )
+        generated = result.model_dump_json(indent=1, exclude_none=True)
+        result.agent = agent_name
         result.tool_calls_used = state.get("tool_calls_used", 0)
         built = result.model_dump()
         if slim_reports():
-            # Put back everything the slim schema did not ask for. The model was
-            # never shown these fields, so nothing here overwrites its work.
+            # Expand what the model cited, then put back everything the slim
+            # schema did not ask for. The model was never shown these fields, so
+            # nothing here overwrites its work. Expansion runs first: `sources`
+            # is rebuilt from the references the report ends up carrying, and a
+            # citation is not one until it has been turned into a fact.
+            built, unresolved = format_report(
+                built, state.get("messages", []), state.get("evidence", [])
+            )
+            if unresolved:
+                # Named rather than dropped silently. A specialist that cited a
+                # spec it never retrieved has a real gap, and the composer's
+                # sufficiency check is what decides whether it matters.
+                built["gaps"] = [
+                    *(built.get("gaps") or []),
+                    "Not retrieved, so not reported: "
+                    + ", ".join(sorted(set(unresolved))[:8]),
+                ]
             built = backfill_report(
                 built, state.get("messages", []), state.get("evidence", [])
             )
+        # TEMPORARY (report_io.py): dumps this call's exact input, what the model
+        # generated, and what the formatter turned it into.
+        report_io.capture(
+            agent_name,
+            sent,
+            generated,
+            formatted=json.dumps(built, indent=1, ensure_ascii=False, default=str),
+            seconds=time.monotonic() - started,
+            question=state.get("question", ""),
+        )
         return {"report": built}
 
     return report

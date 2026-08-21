@@ -1,0 +1,3144 @@
+{
+  "hits": [
+    {
+      "sku_code": "MP3-3.1",
+      "description": null,
+      "price_status": "listed",
+      "price_inr": 10730.0,
+      "price_quotable": true,
+      "specs": [
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_min": 3.0,
+          "value_max": 4.0,
+          "value_display": "3P, 4P",
+          "value_kind": "set",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306L3P1MDOA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 3,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Draw Out Type",
+        "breaking": {
+          "ka": 80,
+          "volts": 415
+        },
+        "rating_idx": 630,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 80.0,
+          "value_min": 80.0,
+          "value_max": 80.0,
+          "value_display": "80 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306L3P1MFA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 3,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Fixed Type",
+        "breaking": {
+          "ka": 80,
+          "volts": 415
+        },
+        "rating_idx": 630,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 80.0,
+          "value_min": 80.0,
+          "value_max": 80.0,
+          "value_display": "80 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306L4P1MDOA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 4,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Draw Out Type",
+        "breaking": {
+          "ka": 80,
+          "volts": 415
+        },
+        "rating_idx": 630,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 80.0,
+          "value_min": 80.0,
+          "value_max": 80.0,
+          "value_display": "80 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306L4P1MFA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 4,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Fixed Type",
+        "breaking": {
+          "ka": 80,
+          "volts": 415
+        },
+        "rating_idx": 630,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 80.0,
+          "value_min": 80.0,
+          "value_max": 80.0,
+          "value_display": "80 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306MC3P1MDOA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 3,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Draw Out Type",
+        "breaking": {
+          "ka": 42,
+          "volts": 800,
+          "source": "pricelist_only"
+        },
+        "rating_idx": 630,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 42.0,
+          "value_min": 42.0,
+          "value_max": 42.0,
+          "value_display": "42 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306MC3P1MFA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 3,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Fixed Type",
+        "breaking": {
+          "ka": 42,
+          "volts": 800,
+          "source": "pricelist_only"
+        },
+        "rating_idx": 630,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 42.0,
+          "value_min": 42.0,
+          "value_max": 42.0,
+          "value_display": "42 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306MC4P1MDOA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 4,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Draw Out Type",
+        "breaking": {
+          "ka": 42,
+          "volts": 800,
+          "source": "pricelist_only"
+        },
+        "rating_idx": 630,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 42.0,
+          "value_min": 42.0,
+          "value_max": 42.0,
+          "value_display": "42 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306MC4P1MFA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 4,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Fixed Type",
+        "breaking": {
+          "ka": 42,
+          "volts": 800,
+          "source": "pricelist_only"
+        },
+        "rating_idx": 630,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 42.0,
+          "value_min": 42.0,
+          "value_max": 42.0,
+          "value_display": "42 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306N3P1MDOA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 3,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Draw Out Type",
+        "breaking": {
+          "ka": 50,
+          "volts": 415,
+          "applies_to": "630A~1250A per brochure footnote *"
+        },
+        "rating_idx": 630,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306N3P1MFA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 3,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Fixed Type",
+        "breaking": {
+          "ka": 50,
+          "volts": 415,
+          "applies_to": "630A~1250A per brochure footnote *"
+        },
+        "rating_idx": 630,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306N4P1MDOA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 4,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Draw Out Type",
+        "breaking": {
+          "ka": 50,
+          "volts": 415,
+          "applies_to": "630A~1250A per brochure footnote *"
+        },
+        "rating_idx": 630,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306N4P1MFA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 4,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Fixed Type",
+        "breaking": {
+          "ka": 50,
+          "volts": 415,
+          "applies_to": "630A~1250A per brochure footnote *"
+        },
+        "rating_idx": 630,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306S3P1MDOA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 3,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Draw Out Type",
+        "breaking": {
+          "ka": 65,
+          "volts": 415,
+          "applies_to": "630A~1600A per brochure footnote #"
+        },
+        "rating_idx": 630,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 65.0,
+          "value_min": 65.0,
+          "value_max": 65.0,
+          "value_display": "65 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306S3P1MFA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 3,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Fixed Type",
+        "breaking": {
+          "ka": 65,
+          "volts": 415,
+          "applies_to": "630A~1600A per brochure footnote #"
+        },
+        "rating_idx": 630,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 65.0,
+          "value_min": 65.0,
+          "value_max": 65.0,
+          "value_display": "65 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306S4P1MDOA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 4,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Draw Out Type",
+        "breaking": {
+          "ka": 65,
+          "volts": 415,
+          "applies_to": "630A~1600A per brochure footnote #"
+        },
+        "rating_idx": 630,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 65.0,
+          "value_min": 65.0,
+          "value_max": 65.0,
+          "value_display": "65 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX306S4P1MFA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 4,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Fixed Type",
+        "breaking": {
+          "ka": 65,
+          "volts": 415,
+          "applies_to": "630A~1600A per brochure footnote #"
+        },
+        "rating_idx": 630,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 65.0,
+          "value_min": 65.0,
+          "value_max": 65.0,
+          "value_display": "65 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 630.0,
+          "value_min": 630.0,
+          "value_max": 630.0,
+          "value_display": "630 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308H3P2MDOA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "II Frame",
+        "poles": 3,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Draw Out Type",
+        "breaking": {
+          "ka": 100,
+          "volts": 415
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 100.0,
+          "value_min": 100.0,
+          "value_max": 100.0,
+          "value_display": "100 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308H3P2MFA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "II Frame",
+        "poles": 3,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Fixed Type",
+        "breaking": {
+          "ka": 100,
+          "volts": 415
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 100.0,
+          "value_min": 100.0,
+          "value_max": 100.0,
+          "value_display": "100 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308H4P2MDOA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "II Frame",
+        "poles": 4,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Draw Out Type",
+        "breaking": {
+          "ka": 100,
+          "volts": 415
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 100.0,
+          "value_min": 100.0,
+          "value_max": 100.0,
+          "value_display": "100 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308H4P2MFA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "II Frame",
+        "poles": 4,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Fixed Type",
+        "breaking": {
+          "ka": 100,
+          "volts": 415
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 100.0,
+          "value_min": 100.0,
+          "value_max": 100.0,
+          "value_display": "100 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308L3P1MDOA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 3,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Draw Out Type",
+        "breaking": {
+          "ka": 80,
+          "volts": 415
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 80.0,
+          "value_min": 80.0,
+          "value_max": 80.0,
+          "value_display": "80 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308L3P1MFA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 3,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Fixed Type",
+        "breaking": {
+          "ka": 80,
+          "volts": 415
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 80.0,
+          "value_min": 80.0,
+          "value_max": 80.0,
+          "value_display": "80 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308L4P1MDOA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 4,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Draw Out Type",
+        "breaking": {
+          "ka": 80,
+          "volts": 415
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 80.0,
+          "value_min": 80.0,
+          "value_max": 80.0,
+          "value_display": "80 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308L4P1MFA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 4,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Fixed Type",
+        "breaking": {
+          "ka": 80,
+          "volts": 415
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 80.0,
+          "value_min": 80.0,
+          "value_max": 80.0,
+          "value_display": "80 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308MC3P1MDOA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 3,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Draw Out Type",
+        "breaking": {
+          "ka": 42,
+          "volts": 800,
+          "source": "pricelist_only"
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 42.0,
+          "value_min": 42.0,
+          "value_max": 42.0,
+          "value_display": "42 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308MC3P1MFA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 3,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Fixed Type",
+        "breaking": {
+          "ka": 42,
+          "volts": 800,
+          "source": "pricelist_only"
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 42.0,
+          "value_min": 42.0,
+          "value_max": 42.0,
+          "value_display": "42 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308MC4P1MDOA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 4,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Draw Out Type",
+        "breaking": {
+          "ka": 42,
+          "volts": 800,
+          "source": "pricelist_only"
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 42.0,
+          "value_min": 42.0,
+          "value_max": 42.0,
+          "value_display": "42 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308MC4P1MFA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 4,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Fixed Type",
+        "breaking": {
+          "ka": 42,
+          "volts": 800,
+          "source": "pricelist_only"
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 42.0,
+          "value_min": 42.0,
+          "value_max": 42.0,
+          "value_display": "42 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308N3P1MDOA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 3,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Draw Out Type",
+        "breaking": {
+          "ka": 50,
+          "volts": 415,
+          "applies_to": "630A~1250A per brochure footnote *"
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308N3P1MFA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 3,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Fixed Type",
+        "breaking": {
+          "ka": 50,
+          "volts": 415,
+          "applies_to": "630A~1250A per brochure footnote *"
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308N4P1MDOA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 4,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Draw Out Type",
+        "breaking": {
+          "ka": 50,
+          "volts": 415,
+          "applies_to": "630A~1250A per brochure footnote *"
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308N4P1MFA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 4,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Fixed Type",
+        "breaking": {
+          "ka": 50,
+          "volts": 415,
+          "applies_to": "630A~1250A per brochure footnote *"
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308NC3P2MDOA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "II Frame",
+        "poles": 3,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Draw Out Type",
+        "breaking": {
+          "ka": 50,
+          "volts": 800,
+          "source": "pricelist_only"
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308NC3P2MFA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "II Frame",
+        "poles": 3,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Fixed Type",
+        "breaking": {
+          "ka": 50,
+          "volts": 800,
+          "source": "pricelist_only"
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308NC4P2MDOA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "II Frame",
+        "poles": 4,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Draw Out Type",
+        "breaking": {
+          "ka": 50,
+          "volts": 800,
+          "source": "pricelist_only"
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308NC4P2MFA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "II Frame",
+        "poles": 4,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Fixed Type",
+        "breaking": {
+          "ka": 50,
+          "volts": 800,
+          "source": "pricelist_only"
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 50.0,
+          "value_min": 50.0,
+          "value_max": 50.0,
+          "value_display": "50 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308S3P1MDOA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 3,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Draw Out Type",
+        "breaking": {
+          "ka": 65,
+          "volts": 415,
+          "applies_to": "630A~1600A per brochure footnote #"
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 65.0,
+          "value_min": 65.0,
+          "value_max": 65.0,
+          "value_display": "65 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308S3P1MFA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 3,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Fixed Type",
+        "breaking": {
+          "ka": 65,
+          "volts": 415,
+          "applies_to": "630A~1600A per brochure footnote #"
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Fixed Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 65.0,
+          "value_min": 65.0,
+          "value_max": 65.0,
+          "value_display": "65 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 3.0,
+          "value_min": 3.0,
+          "value_max": 3.0,
+          "value_display": "3",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    },
+    {
+      "sku_code": "WX308S4P1MDOA(S)",
+      "description": null,
+      "price_status": "por",
+      "price_inr": null,
+      "price_quotable": false,
+      "decoded": {
+        "frame": "I Frame",
+        "poles": 4,
+        "release": "Micropro3-3.1",
+        "acb_type": "Manual Draw Out Type",
+        "breaking": {
+          "ka": 65,
+          "volts": 415,
+          "applies_to": "630A~1600A per brochure footnote #"
+        },
+        "rating_idx": 800,
+        "std_accessories": "supplied with standard accessories"
+      },
+      "specs": [
+        {
+          "spec_id": "acb_execution_type",
+          "value_display": "Manual Draw Out Type",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "breaking_capacity_ka",
+          "unit": "kA",
+          "value_num": 65.0,
+          "value_min": 65.0,
+          "value_max": 65.0,
+          "value_display": "65 kA",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "poles",
+          "unit": "count",
+          "value_num": 4.0,
+          "value_min": 4.0,
+          "value_max": 4.0,
+          "value_display": "4",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "protection_release_type",
+          "value_display": "Micropro3-3.1",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        },
+        {
+          "spec_id": "rated_current_a",
+          "unit": "A",
+          "value_num": 800.0,
+          "value_min": 800.0,
+          "value_max": 800.0,
+          "value_display": "800 A",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "rated_voltage_v",
+          "unit": "V",
+          "value_num": 415.0,
+          "value_min": 415.0,
+          "value_max": 415.0,
+          "value_display": "415 V",
+          "value_kind": "scalar",
+          "source_of_truth": "code_grammar"
+        },
+        {
+          "spec_id": "thermal_memory",
+          "value_display": "Thermal memory for LT & ST",
+          "value_kind": "text",
+          "source_of_truth": "pricelist_table"
+        }
+      ]
+    }
+  ],
+  "total_matched": 157,
+  "composite_excluded": 0,
+  "filters_applied": [],
+  "widening_hint": null,
+  "scope": {
+    "url": "https://cselectric.co.in/products-solutions/low-voltage-switchgear/circuit-breakers/air-circuit-breakers/acb-winmaster-3/",
+    "path": [
+      "Low Voltage Products and Solutions",
+      "Circuit Breakers",
+      "Air Circuit Breakers",
+      "ACB – WiNmaster 3"
+    ],
+    "family": "ACB – WiNmaster 3"
+  }
+}

@@ -54,6 +54,7 @@ from typing import Any
 
 from langchain_core.messages import AnyMessage, ToolMessage
 
+from cs_agent.backends.payload_shape import merge_scope
 from cs_agent.contracts import brief_depth
 
 MODES = ("llm", "derived", "raw", "auto")
@@ -68,7 +69,23 @@ BACKFILLED = ("brochure_md", "pricelist_pdf", "pricelist_page", "product_page_ur
 # `sources` is not asked for either. Half its entries already sit on a finding
 # and the rest come straight from the payloads, so the whole list rebuilds
 # exactly — 14.3% of everything the model writes at detailed depth, for nothing.
-HIDDEN_REPORT_FIELDS = ("sources",)
+HIDDEN_REPORT_FIELDS = ("sources", "agent")
+
+# Written by the formatter, never asked for. `value_display` and `unit` on a
+# key_spec and on a standards claim are read out of the payload the specialist
+# already received — across 469 measured key_specs every leaf value was verbatim
+# in one — and `agent` is decided by which subgraph is running, not by the model.
+HIDDEN_BY_DEF = {
+    "KeySpec": ("value_display", "unit", "source_of_truth"),
+    "StandardClaim": ("value_display", "source_of_truth", "source"),
+    "Candidate": ("source",),
+    "SourceRef": BACKFILLED,
+}
+
+# Definitions asked for as a bare string instead of an object. A `key_spec` is a
+# citation: the model names the spec_id and nothing else, so asking for
+# `{"spec_id": "poles"}` would spend 30 characters where 7 will do, once per row.
+SCALAR_DEFS = {"KeySpec": "spec_id"}
 
 # A hint in the schema rather than a pydantic constraint: a length violation
 # there costs a whole retry generation, which is worse than an over-long list.
@@ -175,6 +192,10 @@ def _reference_index(items: list[tuple[str, Any]]) -> dict[str, dict[str, Any]]:
     def read_one(payload: dict[str, Any]) -> None:
         sku = payload.get("sku_code")
         note(sku, product_page_url=payload.get("url"))
+        # A hoisted `url` belongs to every hit in the payload, so it is the
+        # product page for whichever of them is being read here.
+        if not payload.get("url"):
+            note(sku, product_page_url=(payload.get("scope") or {}).get("url"))
         read_facts(payload.get("facts"), sku)
         read_facts(payload.get("specs"), sku)
         price = payload.get("price")
@@ -230,10 +251,19 @@ def backfill_report(
     """
     items = payloads(messages)
     index = _reference_index(items)
-    for ref in _walk_refs(report):
-        for key, value in index.get(str(ref.get("sku_code") or ""), {}).items():
-            if ref.get(key) in (None, "", []):
-                ref[key] = value
+    # Only the top-level index carries documents. A nested reference states who
+    # the claim is about — a sku_code, or a family — and where the value came
+    # from; the pdf, the page and the product page are properties of the SKU, so
+    # one entry in `sources` covers every claim that names it. Filling them in
+    # everywhere made `candidates[].key_specs[].source.product_page_url` 21.4% of
+    # the whole composer prompt on one run: 33 references, 14 of them distinct,
+    # and two distinct URLs between them.
+    for candidate in report.get("candidates") or []:
+        if isinstance(candidate, dict) and candidate.get("sku_code"):
+            candidate["source"] = {
+                "sku_code": candidate["sku_code"],
+                **index.get(str(candidate["sku_code"]), {}),
+            }
     if not report.get("sources"):
         # An index of what this report references, plus provenance for the SKUs
         # it named — not a log of everything the specialist retrieved. Rebuilding
@@ -244,18 +274,56 @@ def backfill_report(
             for ref in _walk_refs(report)
             if ref.get("sku_code")
         }
-        seen: dict[str, dict[str, Any]] = {}
-        for ref in _walk_refs(report):
-            seen.setdefault(json.dumps(ref, sort_keys=True, default=str), dict(ref))
+        collected: list[dict[str, Any]] = [dict(ref) for ref in _walk_refs(report)]
         for ref in _sources(items, evidence):
             if ref.get("sku_code") and str(ref["sku_code"]) not in named:
                 continue
-            seen.setdefault(json.dumps(ref, sort_keys=True, default=str), ref)
-        report["sources"] = list(seen.values())[:MAX_SOURCES]
+            collected.append(ref)
+        # One entry per subject, merged — not one per distinct reference. This
+        # index answers "where is this SKU published", and a SKU has one answer.
+        # Deduplicating on the whole reference instead gave it several: a bare
+        # `{"sku_code": "X"}` off a finding, the same reference carrying a
+        # `source_of_truth`, and a half-populated one off a payload are three
+        # distinct strings that mean one thing, and filling the documents into
+        # each of them made three near-identical entries out of them.
+        #
+        # `source_of_truth` still rides here when something supplied it, because
+        # a family-level entry has nothing else to say where it came from.
+        seen: dict[str, dict[str, Any]] = {}
+        for ref in collected:
+            subject = json.dumps(
+                [ref.get("sku_code"), ref.get("family")], default=str
+            )
+            entry = seen.setdefault(subject, {})
+            for key, value in {**ref, **index.get(str(ref.get("sku_code") or ""), {})}.items():
+                if value not in (None, "", []) and entry.get(key) in (None, "", []):
+                    entry[key] = value
+        report["sources"] = [ref for ref in seen.values() if ref][:MAX_SOURCES]
     if len(report.get("findings") or []) > findings_cap():
         # The schema asked for this cap and the model is free to ignore it.
         report["findings"] = report["findings"][: findings_cap()]
-    return report
+    return strip_empty(report)
+
+
+def strip_empty(node: Any) -> Any:
+    """The report with every null-valued key gone.
+
+    `model_dump()` emits every field the schema declares, so a report arrives
+    carrying `"brochure_md": null` on each of its references whether or not a
+    brochure exists. Across four measured runs that was 10.4% of everything the
+    composer read — 5,347 characters of 51,477 — and it is read twice a turn,
+    once for the sufficiency check and once to compose. An absent key already
+    means "not published", which is what the tool descriptions tell the model.
+    """
+    if isinstance(node, dict):
+        return {
+            key: strip_empty(value)
+            for key, value in node.items()
+            if value is not None
+        }
+    if isinstance(node, list):
+        return [strip_empty(value) for value in node]
+    return node
 
 
 def payloads(messages: list[AnyMessage]) -> list[tuple[str, Any]]:
@@ -489,8 +557,9 @@ def _sources(items: list[tuple[str, Any]], evidence: list[dict[str, Any]]) -> li
                         "source_of_truth": "pricelist_table",
                     }
                 )
-        if payload.get("url"):
-            refs.append({"sku_code": payload.get("sku_code"), "product_page_url": payload["url"]})
+        url = payload.get("url") or (payload.get("scope") or {}).get("url")
+        if url:
+            refs.append({"sku_code": payload.get("sku_code"), "product_page_url": url})
         for row in (payload.get("groups") or []) + (payload.get("children") or []):
             if isinstance(row, dict) and row.get("url"):
                 refs.append({"product_page_url": row["url"]})
@@ -536,6 +605,12 @@ def _search_hits(payload: dict[str, Any]) -> list[dict[str, Any]]:
     A grouped search answers "which of these families have X" and puts its rows
     under `groups[].sample_hits` instead of `hits`, so reading `hits` alone
     sees an empty result where the payload in fact carries every group.
+
+    Each row is returned with the payload's `scope` merged back underneath it.
+    `product_search` hoists `family`, `path` and `url` out of the hits when all
+    of them agree, which scoped to one family is always — and a derived report
+    indexes hits by exactly those three. The row's own value wins where it has
+    one, so this reads correctly whether or not the hoist fired.
     """
     rows = list(payload.get("hits") or [])
     for group in payload.get("groups") or []:
@@ -543,7 +618,7 @@ def _search_hits(payload: dict[str, Any]) -> list[dict[str, Any]]:
             rows.extend(
                 row for row in group.get("sample_hits") or [] if isinstance(row, dict)
             )
-    return rows
+    return [merge_scope(payload, row) for row in rows]
 
 
 def _candidates(items: list[tuple[str, Any]]) -> list[dict[str, Any]]:

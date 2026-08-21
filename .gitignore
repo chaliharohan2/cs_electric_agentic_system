@@ -231,3 +231,6 @@ artifacts/build_report.json
 artifacts/catalog-*.sqlite
 state/
 !artifacts/.gitkeep
+
+# Report-phase capture files (CS_REPORT_IO=<dir>), wherever the dir points
+*.report_io.txt

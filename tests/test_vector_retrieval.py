@@ -52,7 +52,11 @@ class VectorRetrievalIntegrationTests(unittest.TestCase):
             k=5,
         )
         self.assertTrue(hits)
-        self.assertTrue(all(hit["mode"] == "vector" for hit in hits))
+        # `mode` is gone; a `distance` is what the semantic index leaves behind,
+        # and it is what tells the reader which scale `score` is on.
+        self.assertTrue(all("distance" in hit for hit in hits))
+        self.assertTrue(all("mode" not in hit for hit in hits))
+        self.assertTrue(all("chunk_id" not in hit for hit in hits))
         self.assertTrue(
             all(
                 {"chunk_type", "headings", "sku_code", "family", "brochure_md", "score"}
@@ -82,4 +86,5 @@ class VectorRetrievalIntegrationTests(unittest.TestCase):
             chunk_types=["installation"],
             k=3,
         )
-        self.assertTrue(all(hit["mode"] in {"vector", "lexical"} for hit in lexical))
+        self.assertTrue(all("mode" not in hit for hit in lexical))
+        self.assertTrue(all("score" in hit for hit in lexical))

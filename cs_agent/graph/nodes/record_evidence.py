@@ -6,6 +6,7 @@ import json
 from collections.abc import Iterator
 from typing import Any
 
+from cs_agent.backends.payload_shape import merge_scope
 from cs_agent.graph.state import AgentState, Evidence
 from cs_agent.tool_errors import count_failures, trailing_tool_messages
 
@@ -51,6 +52,14 @@ def _fact_record(tool: str, fact: dict[str, Any], sku_code: str | None) -> Evide
             "value_kind": fact.get("value_kind"),
             "unit": fact.get("unit"),
             "source_of_truth": fact.get("source_of_truth"),
+            # `fact_sentence` is no longer sent by `get_sku` or `product_search`,
+            # so this is now None for a catalogue fact and the composer's
+            # evidence row prints `text=null`. Nothing is lost: the sentence was
+            # a template restating the label and the value, and the row already
+            # prints the spec, the value, the unit and the source beside it.
+            # The read stays because a payload that does carry one — an older
+            # trace replayed, a backend that still writes it — should still use
+            # it rather than silently drop it.
             "text": fact.get("fact_sentence"),
         }
     )
@@ -262,6 +271,22 @@ def _deduplicated(records: Iterator[Evidence | None]) -> list[Evidence]:
     return unique
 
 
+def _search_rows(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """The SKU rows of a search result, flat or grouped.
+
+    The payload's `scope` is merged back underneath each row, because
+    `product_search` hoists `sku_code`-independent fields out of the hits when
+    they all agree and a fact record wants them back.
+    """
+    rows = [row for row in payload.get("hits") or [] if isinstance(row, dict)]
+    for group in payload.get("groups") or []:
+        if isinstance(group, dict):
+            rows.extend(
+                row for row in group.get("sample_hits") or [] if isinstance(row, dict)
+            )
+    return [merge_scope(payload, row) for row in rows]
+
+
 def _extract(payload: Any, tool: str, sku_code: str | None = None) -> list[Evidence]:
     if isinstance(payload, list):
         evidence: list[Evidence] = []
@@ -292,6 +317,21 @@ def _extract(payload: Any, tool: str, sku_code: str | None = None) -> list[Evide
     for row in payload.get("rows") or []:
         for fact in row.get("facts", []) if isinstance(row, dict) else []:
             evidence.append(_fact_record(tool, fact, fact.get("sku_code")))
+    # A `product_search` hangs its facts on the hits, not at the top level, so
+    # reading `specs` alone saw none of them: a search with `return_specs`
+    # returning three hits of three fully-formed facts each — `source_pdf` and
+    # `source_page` included — produced zero evidence rows. That blinded every
+    # consumer of this index at once. On one captured run, 16 of the 33 facts a
+    # report cited could not be resolved against it, all of them from SKUs
+    # reached by search rather than by `get_sku`.
+    #
+    # `groups[].sample_hits` is where a grouped search puts the same rows.
+    for hit in _search_rows(payload):
+        for fact in hit.get("specs") or []:
+            if isinstance(fact, dict):
+                evidence.append(
+                    _fact_record(tool, fact, hit.get("sku_code") or current_sku)
+                )
     if tool == "search_documents" and payload.get("text"):
         record = _empty(tool)
         record.update(

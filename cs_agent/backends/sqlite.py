@@ -24,6 +24,12 @@ from cs_agent.backends.grouped_search import (
 )
 from cs_agent.backends.matching import family_terms, matches, matches_any, squash
 from cs_agent.backends.path_levels import LEVEL_COLUMNS, NA
+from cs_agent.backends.payload_shape import (
+    PEER_SCOPE_FIELDS,
+    SEARCH_SCOPE_FIELDS,
+    flatten_decoded,
+    hoist_scope,
+)
 from cs_agent.backends.spec_envelope import (
     NESTED_REDUNDANT,
     compact_fact,
@@ -364,7 +370,7 @@ class SqliteBackend:
                 params.append(f"%{family_hint}%")
             rows = connection.execute(
                 f"""
-                SELECT sku_code, canonical_code, family, path_text, description,
+                SELECT sku_code, family, path_text, description,
                        alias_reason
                 FROM sku_fact
                 WHERE {_SKU_GRAIN}
@@ -397,7 +403,6 @@ class SqliteBackend:
                     hits.append(
                         {
                             "sku_code": row["sku_code"],
-                            "canonical_code": row["canonical_code"],
                             "family": row["family"],
                             "path_text": row["path_text"],
                             "match_role": "description",
@@ -418,7 +423,7 @@ class SqliteBackend:
         connection = self._connect()
         row = connection.execute(
             f"""
-            SELECT sku_code, canonical_code, family, path_text, description, alias_reason
+            SELECT sku_code, family, path_text, description, alias_reason
             FROM sku_fact WHERE sku_code = ? AND {_SKU_GRAIN}
             """,
             (sku_code,),
@@ -426,7 +431,6 @@ class SqliteBackend:
         if not row:
             return {
                 "sku_code": sku_code,
-                "canonical_code": sku_code,
                 "family": None,
                 "path_text": None,
                 "match_role": role,
@@ -436,7 +440,6 @@ class SqliteBackend:
             }
         return {
             "sku_code": row["sku_code"],
-            "canonical_code": row["canonical_code"],
             "family": row["family"],
             "path_text": row["path_text"],
             "match_role": role,
@@ -718,19 +721,19 @@ class SqliteBackend:
         placed.sort(key=lambda b: (-b["sku_count"], b["family"]))
         unplaced.sort(key=lambda b: (-b["sku_count"], b["family"]))
 
+        # `path_text` is not echoed back. It is the caller's own argument,
+        # visible in the tool call immediately above the result, and reading it
+        # back told the model nothing it had not just written. `market_segment`
+        # stays because it is validated against a closed vocabulary, so seeing
+        # which value actually took effect is an answer rather than an echo.
+        matched_on = {"market_segment": market_segment} if market_segment else {}
         result: dict[str, Any] = {
-            "matched_on": {
-                key: value
-                for key, value in (
-                    ("path_text", path_text),
-                    ("market_segment", market_segment),
-                )
-                if value
-            },
             "groups": placed[:limit],
             "total_groups": len(placed),
             "total_skus": sum(branch["sku_count"] for branch in placed),
         }
+        if matched_on:
+            result["matched_on"] = matched_on
         if len(placed) > limit:
             result["truncated"] = (
                 f"Showing {limit} of {len(placed)} matching branches, largest "
@@ -956,11 +959,21 @@ class SqliteBackend:
         several distinct ordering codes can share, so it identifies nothing the
         caller can act on and invites exactly the grouping that collapsed
         `CE20113` into `CE20113NR`. The ordering code is the identity.
+
+        `canonical_code` is absent for a duller reason: it repeated `sku_code`
+        on 11,217 of the catalogue's 11,250 ordering codes, and a search answers
+        with the code you order by. `resolve_product` is where a code that is
+        published under two spellings gets sorted out, and it still says so
+        through `match_role` and `alias_note`.
+
+        `family`, `path` and `url` are set here and hoisted out again by
+        `hoist_scope` at the end of the search when they turn out to hold the
+        same value on every hit — which, scoped to one family, they always do.
+        Setting them per row first is what lets the grouping code read them.
         """
         levels = [row[col] for col in LEVEL_COLUMNS if row[col] != NA]
-        return {
+        hit = {
             "sku_code": row["sku_code"],
-            "canonical_code": row["canonical_code"],
             "family": row["family"],
             "path": levels,
             "description": row["description"],
@@ -968,8 +981,12 @@ class SqliteBackend:
             "price_status": row["price_status"],
             "price_inr": row["price_inr"],
             "price_quotable": bool(row["price_quotable"]),
-            "decoded": _loads(row["decoded"], {}),
         }
+        # An ordering code nothing decoded gets no `decoded` key at all, rather
+        # than an empty object announcing that it has nothing to say.
+        if decoded := flatten_decoded(_loads(row["decoded"], {})):
+            hit["decoded"] = decoded
+        return hit
 
     def _row_passes_chunk_and_facets(
         self, row: sqlite3.Row, kw: dict[str, Any]
@@ -995,6 +1012,20 @@ class SqliteBackend:
         hits: list[dict[str, Any]],
         return_specs: list[str],
     ) -> None:
+        """Hang the requested specifications on each hit, keyed by spec_id.
+
+        `spec_label` is selected. It was dropped here once, on the grounds that
+        274 attached rows on a measured call carried only the seven labels the
+        caller had already named by id. The measurement was right and the
+        conclusion was wrong: a spec_id is not always a readable form of its
+        label. Across the built catalogue 1,005 of 1,650 distinct
+        (spec_id, spec_label) pairs — 61% — cannot be recovered from the id,
+        and the failures are the ones that change meaning: `10_12` is published
+        as "10, 12" and `10_16` as "10-16", so the id alone cannot say whether
+        two values or a span is meant, and `1no_1nc_for_125_250_a` is
+        "1NO + 1NC for 125~250 A". Restating a definition per row is the price
+        of not guessing at it.
+        """
         if not hits or not return_specs:
             return
         codes = [hit["sku_code"] for hit in hits]
@@ -1252,7 +1283,10 @@ class SqliteBackend:
             self._attach_return_specs(connection, sample_hits, kept)
             if dropped:
                 result["specs_not_shared"] = _not_shared_note(dropped, group_by)
-            return result
+            # After grouping, not before: `group_key` and `group_path` read the
+            # per-hit family and path, and grouping by family is precisely the
+            # case where they differ and nothing is hoisted.
+            return hoist_scope(result, sample_hits, SEARCH_SCOPE_FIELDS)
 
         hits = [hit for hit in in_scope if hit["sku_code"] in matched_codes]
         total = len(hits)
@@ -1272,7 +1306,7 @@ class SqliteBackend:
             result["specs_not_shared"] = _not_shared_note(
                 dropped, kw.get("group_by") or "family"
             )
-        return result
+        return hoist_scope(result, limited, SEARCH_SCOPE_FIELDS)
 
     def get_sku(self, sku_code: str, include: list[str], **kw: Any) -> dict:
         resolved = self._resolved_sku(sku_code)
@@ -1310,13 +1344,26 @@ class SqliteBackend:
         if "decoded" in include:
             result["decoded"] = _loads(row["decoded"], {})
         if "facts" in include:
+            # `fact_sentence` and `is_canonical_spec` are not selected. The
+            # sentence is a template — "E-CSCS400DM4CO (New Changeover
+            # Switches, 400 A, 4-pole) has a ambient / cubicle service
+            # temperature of 40 °C." — and across 200,000 catalogue rows 87.9%
+            # of them contain both the label and the value display verbatim,
+            # while the rest are template variants carrying nothing the
+            # neighbouring columns do not. It was 31.0% of this payload, and
+            # not one of the 141 sentences in a captured run reached the report
+            # or the answer. `is_canonical_spec` is read nowhere.
+            #
+            # `spec_label` is selected: 61% of the catalogue's distinct
+            # (spec_id, spec_label) pairs cannot be recovered from the id, and
+            # dropping it left the model reading `10_12` for "10, 12".
             facts = connection.execute(
                 """
-                SELECT spec_id, spec_label, unit, is_canonical_spec, value_num,
+                SELECT spec_id, spec_label, unit, value_num,
                        value_min, value_max, value_display, value_kind,
                        source_of_truth, fact_source_pdf AS source_pdf,
                        fact_source_page AS source_page,
-                       fact_source_heading AS source_heading, fact_sentence
+                       fact_source_heading AS source_heading
                 FROM sku_fact
                 WHERE sku_code = ? AND is_sentinel = 0 AND spec_id IS NOT NULL
                 ORDER BY spec_id
@@ -1480,12 +1527,20 @@ class SqliteBackend:
                 {
                     "sku_code": p["sku_code"],
                     "family": p["family"],
-                    "decoded": _loads(p["decoded"], {}),
                     "price_status": p["price_status"],
+                    **(
+                        {"decoded": decoded}
+                        if (decoded := flatten_decoded(_loads(p["decoded"], {})))
+                        else {}
+                    ),
                 }
                 for p in peers
             ],
         }
+        # A peer group is inside one family by construction, so `family` was the
+        # same string on all 25 rows; the decode was two thirds of the payload
+        # before flattening.
+        hoist_scope(result, result["peers"], PEER_SCOPE_FIELDS)
         if peer_count > len(result["peers"]):
             result["truncated"] = (
                 f"Showing {len(result['peers'])} of {peer_count} peers, ordered by "
@@ -1576,7 +1631,6 @@ class SqliteBackend:
                         "search_documents requires at least one family, path, "
                         "or sku_code filter"
                     ),
-                    "mode": "none",
                 }
             ]
         return self._search_documents_sqlite(kw)
@@ -1646,9 +1700,14 @@ class SqliteBackend:
                     continue
                 seen_hash.add(row["content_hash"])
                 distance = float(row["distance"])
+                # No `chunk_id` and no `mode`. The chunk id is a build-source
+                # row number with no citation value and every appearance of it
+                # in an answer would be a number the customer cannot look up;
+                # `mode` is retrieval internals the model must not reason about.
+                # A `distance` is still present on exactly the vector path, so
+                # which scale `score` is on remains readable from the payload.
                 deduped.append(
                     {
-                        "chunk_id": str(row["chunk_id"]),
                         "text": _clip(row["text"], text_limit),
                         "chunk_type": row["chunk_type"],
                         "headings": _loads(row["headings"], []),
@@ -1658,7 +1717,6 @@ class SqliteBackend:
                         "score": 1.0 - distance,
                         "shared_by_sku_count": hash_counts.get(row["content_hash"], 1),
                         "brochure_md": row["brochure_md"],
-                        "mode": "vector",
                     }
                 )
                 if len(deduped) >= limit:
@@ -1706,7 +1764,6 @@ class SqliteBackend:
             seen_hash.add(row["content_hash"])
             deduped.append(
                 {
-                    "chunk_id": str(row["chunk_id"]),
                     "text": _clip(row["text"], text_limit),
                     "chunk_type": row["chunk_type"],
                     "headings": _loads(row["headings"], []),
@@ -1715,7 +1772,6 @@ class SqliteBackend:
                     "score": float(row["rank"]) if row["rank"] is not None else 0.0,
                     "shared_by_sku_count": 1,
                     "brochure_md": row["brochure_md"],
-                    "mode": "lexical",
                 }
             )
             if len(deduped) >= limit:
